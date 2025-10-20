@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# ERP Accounting System - QuickBooks-like MVP
 
 ## Project info
 

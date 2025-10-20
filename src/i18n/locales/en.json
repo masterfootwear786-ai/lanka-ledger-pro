@@ -1,0 +1,100 @@
+{
+  "app": {
+    "title": "ERP Accounting System",
+    "dashboard": "Dashboard",
+    "sales": "Sales",
+    "purchasing": "Purchasing",
+    "inventory": "Inventory",
+    "cashbook": "Cashbook",
+    "bankReco": "Bank Reconciliation",
+    "accounting": "Accounting",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "auth": {
+    "login": "Login",
+    "signup": "Sign Up",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full Name",
+    "loginTitle": "Sign in to your account",
+    "signupTitle": "Create your account",
+    "haveAccount": "Already have an account?",
+    "noAccount": "Don't have an account?",
+    "loginError": "Invalid email or password",
+    "signupError": "Error creating account"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "exportCSV": "Export CSV",
+    "exportExcel": "Export Excel",
+    "print": "Print",
+    "email": "Email",
+    "loading": "Loading...",
+    "noData": "No data available",
+    "actions": "Actions",
+    "status": "Status",
+    "date": "Date",
+    "amount": "Amount",
+    "total": "Total",
+    "subtotal": "Subtotal",
+    "tax": "Tax",
+    "discount": "Discount",
+    "grandTotal": "Grand Total"
+  },
+  "status": {
+    "draft": "Draft",
+    "approved": "Approved",
+    "paid": "Paid",
+    "void": "Void",
+    "cancelled": "Cancelled",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "sales": {
+    "invoices": "Invoices",
+    "creditNotes": "Credit Notes",
+    "receipts": "Receipts",
+    "customers": "Customers"
+  },
+  "purchasing": {
+    "bills": "Bills",
+    "debitNotes": "Debit Notes",
+    "payments": "Payments",
+    "suppliers": "Suppliers"
+  },
+  "inventory": {
+    "items": "Items",
+    "locations": "Stock Locations",
+    "movements": "Stock Movements",
+    "stockOnHand": "Stock on Hand"
+  },
+  "accounting": {
+    "chartOfAccounts": "Chart of Accounts",
+    "journals": "Journals",
+    "generalLedger": "General Ledger"
+  },
+  "reports": {
+    "trialBalance": "Trial Balance",
+    "profitLoss": "Profit & Loss",
+    "balanceSheet": "Balance Sheet",
+    "arAging": "AR Aging",
+    "apAging": "AP Aging",
+    "taxSummary": "Tax Summary"
+  },
+  "settings": {
+    "company": "Company",
+    "users": "Users",
+    "taxRates": "Tax Rates",
+    "currencies": "Currencies",
+    "customFields": "Custom Fields"
+  }
+}

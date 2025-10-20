@@ -1,0 +1,100 @@
+{
+  "app": {
+    "title": "ERP ගිණුම්කරණ පද්ධතිය",
+    "dashboard": "උපකරණ පුවරුව",
+    "sales": "විකුණුම්",
+    "purchasing": "මිලදී ගැනීම්",
+    "inventory": "ඉන්වෙන්ටරි",
+    "cashbook": "මුදල් පොත",
+    "bankReco": "බැංකු ගැලපීම",
+    "accounting": "ගිණුම්කරණය",
+    "reports": "වාර්තා",
+    "settings": "සැකසුම්"
+  },
+  "auth": {
+    "login": "පුරනය වන්න",
+    "signup": "ලියාපදිංචි වන්න",
+    "logout": "වරන්න",
+    "email": "විද්‍යුත් තැපෑල",
+    "password": "මුරපදය",
+    "fullName": "සම්පූර්ණ නම",
+    "loginTitle": "ඔබගේ ගිණුමට පුරනය වන්න",
+    "signupTitle": "ඔබගේ ගිණුම සාදන්න",
+    "haveAccount": "දැනටමත් ගිණුමක් තිබේද?",
+    "noAccount": "ගිණුමක් නැද්ද?",
+    "loginError": "වලංගු නොවන විද්‍යුත් තැපෑල හෝ මුරපදය",
+    "signupError": "ගිණුම සෑදීමේ දෝෂයකි"
+  },
+  "common": {
+    "save": "සුරකින්න",
+    "cancel": "අවලංගු කරන්න",
+    "delete": "මකන්න",
+    "edit": "සංස්කරණය",
+    "add": "එකතු කරන්න",
+    "search": "සොයන්න",
+    "filter": "පෙරහන",
+    "export": "අපනයනය",
+    "exportCSV": "CSV අපනයනය",
+    "exportExcel": "Excel අපනයනය",
+    "print": "මුද්‍රණය",
+    "email": "විද්‍යුත් තැපෑල",
+    "loading": "පූරණය වෙමින්...",
+    "noData": "දත්ත නැත",
+    "actions": "ක්‍රියාමාර්ග",
+    "status": "තත්ත්වය",
+    "date": "දිනය",
+    "amount": "මුදල",
+    "total": "එකතුව",
+    "subtotal": "උප එකතුව",
+    "tax": "බදු",
+    "discount": "වට්ටම",
+    "grandTotal": "මුළු එකතුව"
+  },
+  "status": {
+    "draft": "කෙටුම්පත",
+    "approved": "අනුමත කළ",
+    "paid": "ගෙවූ",
+    "void": "අවලංගු",
+    "cancelled": "අවලංගු කළ",
+    "active": "සක්‍රීය",
+    "inactive": "අක්‍රීය"
+  },
+  "sales": {
+    "invoices": "ඉන්වොයිසි",
+    "creditNotes": "ණය සටහන්",
+    "receipts": "ලදුපත්",
+    "customers": "ගනුදෙනුකරුවන්"
+  },
+  "purchasing": {
+    "bills": "බිල්පත්",
+    "debitNotes": "ශුද්ධ සටහන්",
+    "payments": "ගෙවීම්",
+    "suppliers": "සැපයුම්කරුවන්"
+  },
+  "inventory": {
+    "items": "භාණ්ඩ",
+    "locations": "ගබඩා ස්ථාන",
+    "movements": "තොග චලනයන්",
+    "stockOnHand": "තොග ශේෂය"
+  },
+  "accounting": {
+    "chartOfAccounts": "ගිණුම් සටහන",
+    "journals": "සඟරා",
+    "generalLedger": "ප්‍රධාන ගිණුම්"
+  },
+  "reports": {
+    "trialBalance": "පරීක්ෂණ ශේෂය",
+    "profitLoss": "ලාභ හා පාඩු",
+    "balanceSheet": "තුලනාංකය",
+    "arAging": "AR වයස් වීම",
+    "apAging": "AP වයස් වීම",
+    "taxSummary": "බදු සාරාංශය"
+  },
+  "settings": {
+    "company": "සමාගම",
+    "users": "පරිශීලකයින්",
+    "taxRates": "බදු අනුපාත",
+    "currencies": "මුදල් වර්ග",
+    "customFields": "අභිරුචි ක්ෂේත්‍ර"
+  }
+}

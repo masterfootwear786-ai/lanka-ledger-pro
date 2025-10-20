@@ -2,25 +2,81 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ThemeProvider } from "next-themes";
+import "./i18n/config";
+import Auth from "./pages/Auth";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import { Layout } from "./components/Layout";
 
 const queryClient = new QueryClient();
 
+// Protected route wrapper
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  }
+  
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+  
+  return <Layout>{children}</Layout>;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              {/* Sales routes - to be implemented */}
+              <Route path="/sales/invoices" element={<ProtectedRoute><div>Invoices - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/sales/credit-notes" element={<ProtectedRoute><div>Credit Notes - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/sales/receipts" element={<ProtectedRoute><div>Receipts - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/sales/customers" element={<ProtectedRoute><div>Customers - Coming Soon</div></ProtectedRoute>} />
+              {/* Purchasing routes - to be implemented */}
+              <Route path="/purchasing/bills" element={<ProtectedRoute><div>Bills - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/purchasing/debit-notes" element={<ProtectedRoute><div>Debit Notes - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/purchasing/payments" element={<ProtectedRoute><div>Payments - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/purchasing/suppliers" element={<ProtectedRoute><div>Suppliers - Coming Soon</div></ProtectedRoute>} />
+              {/* Inventory routes - to be implemented */}
+              <Route path="/inventory/items" element={<ProtectedRoute><div>Items - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/inventory/locations" element={<ProtectedRoute><div>Locations - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/inventory/movements" element={<ProtectedRoute><div>Movements - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/inventory/stock" element={<ProtectedRoute><div>Stock - Coming Soon</div></ProtectedRoute>} />
+              {/* Cashbook & Bank routes - to be implemented */}
+              <Route path="/cashbook" element={<ProtectedRoute><div>Cashbook - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/bank-reconciliation" element={<ProtectedRoute><div>Bank Reconciliation - Coming Soon</div></ProtectedRoute>} />
+              {/* Accounting routes - to be implemented */}
+              <Route path="/accounting/coa" element={<ProtectedRoute><div>Chart of Accounts - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/accounting/journals" element={<ProtectedRoute><div>Journals - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/accounting/general-ledger" element={<ProtectedRoute><div>General Ledger - Coming Soon</div></ProtectedRoute>} />
+              {/* Reports routes - to be implemented */}
+              <Route path="/reports/trial-balance" element={<ProtectedRoute><div>Trial Balance - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/reports/profit-loss" element={<ProtectedRoute><div>Profit & Loss - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/reports/balance-sheet" element={<ProtectedRoute><div>Balance Sheet - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/reports/ar-aging" element={<ProtectedRoute><div>AR Aging - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/reports/ap-aging" element={<ProtectedRoute><div>AP Aging - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/reports/tax-summary" element={<ProtectedRoute><div>Tax Summary - Coming Soon</div></ProtectedRoute>} />
+              {/* Settings - to be implemented */}
+              <Route path="/settings" element={<ProtectedRoute><div>Settings - Coming Soon</div></ProtectedRoute>} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
