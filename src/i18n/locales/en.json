@@ -66,7 +66,15 @@
     "subtotal": "Subtotal",
     "tax": "Tax",
     "discount": "Discount",
-    "grandTotal": "Grand Total"
+    "grandTotal": "Grand Total",
+    "description": "Description",
+    "reference": "Reference",
+    "totalRevenue": "Total Revenue",
+    "activeCustomers": "Active Customers",
+    "recentActivity": "Recent Activity",
+    "quickActions": "Quick Actions",
+    "alerts": "Alerts",
+    "noAlerts": "No new alerts"
   },
   "status": {
     "draft": "Draft",
@@ -81,7 +89,10 @@
     "invoices": "Invoices",
     "creditNotes": "Credit Notes",
     "receipts": "Receipts",
-    "customers": "Customers"
+    "customers": "Customers",
+    "createInvoice": "Create Invoice",
+    "addCustomer": "Add Customer",
+    "pendingInvoices": "Pending Invoices"
   },
   "purchasing": {
     "bills": "Bills",
