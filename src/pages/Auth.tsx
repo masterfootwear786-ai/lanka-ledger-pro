@@ -40,7 +40,8 @@ const Auth = () => {
       if (mode === 'login') {
         const { error } = await signIn(email, password);
         if (error) {
-          toast.error(t('auth.loginError'));
+          console.error('Login error:', error);
+          toast.error(error.message || t('auth.loginError'));
         } else {
           toast.success(t('auth.welcomeBack'));
           navigate('/');
@@ -48,7 +49,8 @@ const Auth = () => {
       } else if (mode === 'signup') {
         const { error } = await signUp(email, password, fullName);
         if (error) {
-          toast.error(t('auth.signupError'));
+          console.error('Signup error:', error);
+          toast.error(error.message || t('auth.signupError'));
         } else {
           toast.success(t('auth.accountCreated'));
           navigate('/');
