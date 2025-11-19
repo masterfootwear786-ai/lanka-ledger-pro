@@ -66,7 +66,15 @@
     "subtotal": "උප එකතුව",
     "tax": "බදු",
     "discount": "වට්ටම",
-    "grandTotal": "මුළු එකතුව"
+    "grandTotal": "මුළු එකතුව",
+    "description": "විස්තරය",
+    "reference": "යොමුව",
+    "totalRevenue": "මුළු ආදායම",
+    "activeCustomers": "සක්‍රීය පාරිභෝගිකයන්",
+    "recentActivity": "මෑත ක්‍රියාකාරකම්",
+    "quickActions": "ඉක්මන් ක්‍රියා",
+    "alerts": "ඇඟවීම්",
+    "noAlerts": "නව ඇඟවීම් නොමැත"
   },
   "status": {
     "draft": "කෙටුම්පත",
@@ -81,7 +89,10 @@
     "invoices": "ඉන්වොයිසි",
     "creditNotes": "ණය සටහන්",
     "receipts": "ලදුපත්",
-    "customers": "ගනුදෙනුකරුවන්"
+    "customers": "ගනුදෙනුකරුවන්",
+    "createInvoice": "ඉන්වොයිසියක් සාදන්න",
+    "addCustomer": "ගනුදෙනුකරුවෙකු එකතු කරන්න",
+    "pendingInvoices": "පොරොත්තු ඉන්වොයිසි"
   },
   "purchasing": {
     "bills": "බිල්පත්",
