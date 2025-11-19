@@ -74,7 +74,9 @@
     "recentActivity": "මෑත ක්‍රියාකාරකම්",
     "quickActions": "ඉක්මන් ක්‍රියා",
     "alerts": "ඇඟවීම්",
-    "noAlerts": "නව ඇඟවීම් නොමැත"
+    "noAlerts": "නව ඇඟවීම් නොමැත",
+    "district": "දිස්ත්‍රික්කය",
+    "area": "ප්‍රදේශය"
   },
   "status": {
     "draft": "කෙටුම්පත",

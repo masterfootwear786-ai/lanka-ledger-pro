@@ -435,12 +435,14 @@ export type Database = {
         Row: {
           active: boolean | null
           address: string | null
+          area: string | null
           code: string
           company_id: string
           contact_type: Database["public"]["Enums"]["contact_type"]
           created_at: string | null
           created_by: string | null
           credit_limit: number | null
+          district: string | null
           email: string | null
           id: string
           name: string
@@ -453,12 +455,14 @@ export type Database = {
         Insert: {
           active?: boolean | null
           address?: string | null
+          area?: string | null
           code: string
           company_id: string
           contact_type?: Database["public"]["Enums"]["contact_type"]
           created_at?: string | null
           created_by?: string | null
           credit_limit?: number | null
+          district?: string | null
           email?: string | null
           id?: string
           name: string
@@ -471,12 +475,14 @@ export type Database = {
         Update: {
           active?: boolean | null
           address?: string | null
+          area?: string | null
           code?: string
           company_id?: string
           contact_type?: Database["public"]["Enums"]["contact_type"]
           created_at?: string | null
           created_by?: string | null
           credit_limit?: number | null
+          district?: string | null
           email?: string | null
           id?: string
           name?: string
