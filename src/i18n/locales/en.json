@@ -74,7 +74,9 @@
     "recentActivity": "Recent Activity",
     "quickActions": "Quick Actions",
     "alerts": "Alerts",
-    "noAlerts": "No new alerts"
+    "noAlerts": "No new alerts",
+    "district": "District",
+    "area": "Area"
   },
   "status": {
     "draft": "Draft",
