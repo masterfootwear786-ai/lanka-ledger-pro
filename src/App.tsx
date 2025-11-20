@@ -9,6 +9,12 @@ import "./i18n/config";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import Sales from "./pages/Sales";
+import Purchasing from "./pages/Purchasing";
+import Inventory from "./pages/Inventory";
+import Cashbook from "./pages/Cashbook";
+import Accounting from "./pages/Accounting";
+import Reports from "./pages/Reports";
 import { Layout } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -39,6 +45,13 @@ const App = () => (
             <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              {/* Main module routes */}
+              <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+              <Route path="/purchasing" element={<ProtectedRoute><Purchasing /></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+              <Route path="/cashbook" element={<ProtectedRoute><Cashbook /></ProtectedRoute>} />
+              <Route path="/accounting" element={<ProtectedRoute><Accounting /></ProtectedRoute>} />
+              <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               {/* Sales routes - to be implemented */}
               <Route path="/sales/invoices" element={<ProtectedRoute><div>Invoices - Coming Soon</div></ProtectedRoute>} />
               <Route path="/sales/credit-notes" element={<ProtectedRoute><div>Credit Notes - Coming Soon</div></ProtectedRoute>} />
