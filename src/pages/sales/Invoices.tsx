@@ -95,6 +95,11 @@ export default function Invoices() {
     }
   };
 
+  const handleEdit = (invoice: any) => {
+    setDialogOpen(true);
+    // You can pass invoice data to the dialog here if needed
+  };
+
   const handleDelete = async () => {
     if (!invoiceToDelete) return;
 
@@ -311,6 +316,15 @@ export default function Invoices() {
                       <Button 
                         variant="ghost" 
                         size="sm"
+                        onClick={() => handleEdit(invoice)}
+                        title="Edit"
+                        disabled={invoice.posted}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
                         onClick={() => handlePrint(invoice)}
                         title="Print"
                       >
@@ -338,17 +352,17 @@ export default function Invoices() {
 
       {/* View Invoice Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Invoice Details - {selectedInvoice?.invoice_no}</DialogTitle>
           </DialogHeader>
 
           {selectedInvoice && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-6 pb-4 border-b">
                 <div>
-                  <h3 className="font-semibold mb-2">Invoice Information</h3>
-                  <div className="space-y-1 text-sm">
+                  <h3 className="font-semibold mb-3">Invoice Information</h3>
+                  <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Invoice #:</span> {selectedInvoice.invoice_no}</p>
                     <p><span className="font-medium">Date:</span> {new Date(selectedInvoice.invoice_date).toLocaleDateString()}</p>
                     {selectedInvoice.due_date && (
@@ -363,66 +377,93 @@ export default function Invoices() {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">Customer Information</h3>
-                  <div className="space-y-1 text-sm">
+                  <h3 className="font-semibold mb-3">Customer Information</h3>
+                  <div className="space-y-2 text-sm">
                     <p><span className="font-medium">Name:</span> {selectedInvoice.customer?.name || 'N/A'}</p>
+                    {selectedInvoice.customer?.area && (
+                      <p><span className="font-medium">City:</span> {selectedInvoice.customer.area}</p>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">Line Items</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Tax</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoiceLines.map((line) => (
-                      <TableRow key={line.id}>
-                        <TableCell>{line.description}</TableCell>
-                        <TableCell className="text-right">{line.quantity}</TableCell>
-                        <TableCell className="text-right">{line.unit_price.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{line.tax_amount.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">{line.line_total.toFixed(2)}</TableCell>
+                <h3 className="font-semibold mb-3">Items</h3>
+                <div className="border rounded-lg overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold w-16">DSG. No</TableHead>
+                        <TableHead className="font-semibold min-w-[200px]">Description</TableHead>
+                        <TableHead className="font-semibold text-center w-16">CLR</TableHead>
+                        <TableHead className="font-semibold text-center w-12 bg-muted/30">39</TableHead>
+                        <TableHead className="font-semibold text-center w-12">40</TableHead>
+                        <TableHead className="font-semibold text-center w-12 bg-muted/30">41</TableHead>
+                        <TableHead className="font-semibold text-center w-12">42</TableHead>
+                        <TableHead className="font-semibold text-center w-12 bg-muted/30">43</TableHead>
+                        <TableHead className="font-semibold text-center w-12">44</TableHead>
+                        <TableHead className="font-semibold text-center w-12 bg-muted/30">45</TableHead>
+                        <TableHead className="font-semibold text-center w-20">Pairs</TableHead>
+                        <TableHead className="font-semibold text-right w-24">Price</TableHead>
+                        <TableHead className="font-semibold text-right w-28">Amount</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {invoiceLines.map((line, index) => (
+                        <TableRow key={line.id}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>{line.description}</TableCell>
+                          <TableCell className="text-center">-</TableCell>
+                          <TableCell className="text-center bg-muted/10">{line.quantity > 0 ? line.quantity : '-'}</TableCell>
+                          <TableCell className="text-center">-</TableCell>
+                          <TableCell className="text-center bg-muted/10">-</TableCell>
+                          <TableCell className="text-center">-</TableCell>
+                          <TableCell className="text-center bg-muted/10">-</TableCell>
+                          <TableCell className="text-center">-</TableCell>
+                          <TableCell className="text-center bg-muted/10">-</TableCell>
+                          <TableCell className="text-center font-medium">{line.quantity}</TableCell>
+                          <TableCell className="text-right">{line.unit_price.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-medium">{line.line_total.toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
               <div className="border-t pt-4">
-                <div className="flex flex-col items-end space-y-2">
-                  <div className="text-sm">
-                    <span className="font-medium">Subtotal:</span> {selectedInvoice.subtotal?.toFixed(2) || '0.00'}
-                  </div>
-                  <div className="text-sm">
-                    <span className="font-medium">Tax Total:</span> {selectedInvoice.tax_total?.toFixed(2) || '0.00'}
-                  </div>
-                  {selectedInvoice.discount > 0 && (
-                    <div className="text-sm">
-                      <span className="font-medium">Discount:</span> {selectedInvoice.discount?.toFixed(2) || '0.00'}
+                <div className="flex justify-end">
+                  <div className="space-y-2 w-80">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal:</span>
+                      <span className="font-medium">{selectedInvoice.subtotal?.toFixed(2) || '0.00'}</span>
                     </div>
-                  )}
-                  <div className="text-lg font-bold">
-                    <span>Grand Total:</span> {selectedInvoice.grand_total?.toFixed(2) || '0.00'}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Tax Total:</span>
+                      <span className="font-medium">{selectedInvoice.tax_total?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    {selectedInvoice.discount > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Discount:</span>
+                        <span className="font-medium">-{selectedInvoice.discount?.toFixed(2) || '0.00'}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-lg font-bold border-t pt-2">
+                      <span>Grand Total:</span>
+                      <span>{selectedInvoice.grand_total?.toFixed(2) || '0.00'}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {selectedInvoice.notes && (
-                <div>
+                <div className="border-t pt-4">
                   <h3 className="font-semibold mb-2">Notes</h3>
                   <p className="text-sm text-muted-foreground">{selectedInvoice.notes}</p>
                 </div>
               )}
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 border-t pt-4">
                 <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
                   Close
                 </Button>
