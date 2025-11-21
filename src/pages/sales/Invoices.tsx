@@ -111,12 +111,8 @@ export default function Invoices() {
 
   const verifyPassword = async (password: string): Promise<boolean> => {
     try {
-      console.log('Verifying password...');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('No user found');
-        return false;
-      }
+      if (!user) return false;
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -124,10 +120,7 @@ export default function Invoices() {
         .eq('id', user.id)
         .single();
 
-      if (!profile?.company_id) {
-        console.log('No company_id found');
-        return false;
-      }
+      if (!profile?.company_id) return false;
 
       const { data: company } = await supabase
         .from('companies')
@@ -135,7 +128,6 @@ export default function Invoices() {
         .eq('id', profile.company_id)
         .single();
 
-      console.log('Password match:', company?.action_password === password);
       return company?.action_password === password;
     } catch (error) {
       console.error('Error verifying password:', error);
@@ -144,15 +136,12 @@ export default function Invoices() {
   };
 
   const executePendingAction = () => {
-    console.log('Executing pending action:', pendingAction);
     if (!pendingAction) return;
 
     if (pendingAction.type === 'edit') {
-      console.log('Opening edit dialog for invoice:', pendingAction.invoice);
       setSelectedInvoice(pendingAction.invoice);
       setDialogOpen(true);
     } else if (pendingAction.type === 'delete') {
-      console.log('Opening delete dialog for invoice:', pendingAction.invoice);
       setInvoiceToDelete(pendingAction.invoice);
       setDeleteDialogOpen(true);
     }
@@ -297,8 +286,12 @@ export default function Invoices() {
 
       <InvoiceDialog 
         open={dialogOpen} 
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedInvoice(null);
+        }}
         onSuccess={fetchInvoices}
+        invoice={selectedInvoice}
       />
 
       <Card>
@@ -547,9 +540,9 @@ export default function Invoices() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+            <AlertDialogTitle>Move to Trash</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete invoice {invoiceToDelete?.invoice_no}? This action cannot be undone.
+              Are you sure you want to move invoice {invoiceToDelete?.invoice_no} to trash? This action can be undone by restoring from trash.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -557,7 +550,7 @@ export default function Invoices() {
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              Move to Trash
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
