@@ -13,11 +13,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const invoiceSchema = z.object({
-  customer_id: z.string().min(1, "Customer is required"),
+  customer_id: z.string().optional(),
+  customer_name: z.string().optional(),
+  customer_area: z.string().optional(),
+  customer_mobile: z.string().optional(),
   invoice_date: z.string(),
   due_date: z.string().optional(),
   notes: z.string().optional(),
   payment_method: z.enum(["credit", "cash", "cheque"]),
+}).refine((data) => data.customer_id || data.customer_name, {
+  message: "Either select a customer or enter customer name",
+  path: ["customer_name"],
 });
 
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
@@ -58,6 +64,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
   const [loading, setLoading] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [useManualEntry, setUseManualEntry] = useState(false);
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -187,6 +194,42 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
 
       if (!profile?.company_id) throw new Error("Company not found");
 
+      // If manual entry, create or find customer
+      let customerId = data.customer_id;
+      if (useManualEntry && data.customer_name) {
+        // Check if customer exists with same name
+        const { data: existingCustomer } = await supabase
+          .from('contacts')
+          .select('id')
+          .eq('company_id', profile.company_id)
+          .eq('name', data.customer_name)
+          .eq('contact_type', 'customer')
+          .single();
+
+        if (existingCustomer) {
+          customerId = existingCustomer.id;
+        } else {
+          // Create new customer
+          const { data: newCustomer, error: customerError } = await supabase
+            .from('contacts')
+            .insert({
+              company_id: profile.company_id,
+              name: data.customer_name,
+              area: data.customer_area,
+              phone: data.customer_mobile,
+              contact_type: 'customer',
+              code: `CUST-${Date.now()}`,
+            })
+            .select()
+            .single();
+
+          if (customerError) throw customerError;
+          customerId = newCustomer.id;
+        }
+      }
+
+      if (!customerId) throw new Error("Customer is required");
+
       // Generate invoice number
       const invoice_no = `INV-${Date.now()}`;
 
@@ -195,7 +238,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
         .from('invoices')
         .insert({
           company_id: profile.company_id,
-          customer_id: data.customer_id,
+          customer_id: customerId,
           invoice_no,
           invoice_date: data.invoice_date,
           due_date: data.due_date,
@@ -264,47 +307,95 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customer_id">Customer *</Label>
-              <Select
-                value={form.watch("customer_id")}
-                onValueChange={(value) => form.setValue("customer_id", value)}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label>Customer Details</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setUseManualEntry(!useManualEntry);
+                  if (!useManualEntry) {
+                    form.setValue("customer_id", "");
+                    setSelectedCustomer(null);
+                  }
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.customer_id && (
-                <p className="text-sm text-destructive">{form.formState.errors.customer_id.message}</p>
-              )}
+                {useManualEntry ? "Select Existing Customer" : "Manual Entry"}
+              </Button>
             </div>
 
-            {selectedCustomer && (
-              <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
-                <div className="text-sm">
-                  <span className="font-semibold">Name:</span> {selectedCustomer.name}
+            {!useManualEntry ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="customer_id">Customer *</Label>
+                  <Select
+                    value={form.watch("customer_id")}
+                    onValueChange={(value) => form.setValue("customer_id", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {form.formState.errors.customer_id && (
+                    <p className="text-sm text-destructive">{form.formState.errors.customer_id.message}</p>
+                  )}
                 </div>
-                {selectedCustomer.area && (
-                  <div className="text-sm">
-                    <span className="font-semibold">Area:</span> {selectedCustomer.area}
-                  </div>
-                )}
-                {selectedCustomer.phone && (
-                  <div className="text-sm">
-                    <span className="font-semibold">Mobile:</span> {selectedCustomer.phone}
+
+                {selectedCustomer && (
+                  <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+                    <div className="text-sm">
+                      <span className="font-semibold">Name:</span> {selectedCustomer.name}
+                    </div>
+                    {selectedCustomer.area && (
+                      <div className="text-sm">
+                        <span className="font-semibold">Area:</span> {selectedCustomer.area}
+                      </div>
+                    )}
+                    {selectedCustomer.phone && (
+                      <div className="text-sm">
+                        <span className="font-semibold">Mobile:</span> {selectedCustomer.phone}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/30">
+                <div className="space-y-2">
+                  <Label htmlFor="customer_name">Customer Name *</Label>
+                  <Input
+                    {...form.register("customer_name")}
+                    placeholder="Enter customer name"
+                  />
+                  {form.formState.errors.customer_name && (
+                    <p className="text-sm text-destructive">{form.formState.errors.customer_name.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer_area">Area</Label>
+                  <Input
+                    {...form.register("customer_area")}
+                    placeholder="Enter area"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customer_mobile">Mobile Number</Label>
+                  <Input
+                    {...form.register("customer_mobile")}
+                    placeholder="Enter mobile number"
+                  />
+                </div>
+              </div>
             )}
-
           </div>
 
           <div className="grid grid-cols-3 gap-4">
