@@ -111,24 +111,29 @@ export default function Invoices() {
 
   const verifyPassword = async (password: string): Promise<boolean> => {
     try {
+      const trimmedPassword = password.trim();
+      if (!trimmedPassword) return false;
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return false;
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('company_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (!profile?.company_id) return false;
+      if (profileError || !profile?.company_id) return false;
 
-      const { data: company } = await supabase
+      const { data: company, error: companyError } = await supabase
         .from('companies')
         .select('action_password')
         .eq('id', profile.company_id)
-        .single();
+        .maybeSingle();
 
-      return company?.action_password === password;
+      if (companyError || !company?.action_password) return false;
+
+      return company.action_password.trim() === trimmedPassword;
     } catch (error) {
       console.error('Error verifying password:', error);
       return false;
