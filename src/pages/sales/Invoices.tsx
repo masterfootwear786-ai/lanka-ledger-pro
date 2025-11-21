@@ -96,6 +96,7 @@ export default function Invoices() {
   };
 
   const handleEdit = (invoice: any) => {
+    setSelectedInvoice(invoice);
     setDialogOpen(true);
   };
 
@@ -239,7 +240,11 @@ export default function Invoices() {
 
       <InvoiceDialog 
         open={dialogOpen} 
-        onOpenChange={setDialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedInvoice(null);
+        }}
+        invoice={selectedInvoice}
         onSuccess={fetchInvoices}
       />
 
