@@ -43,10 +43,6 @@ import TaxRates from "./pages/settings/TaxRates";
 import Users from "./pages/settings/Users";
 import Currencies from "./pages/settings/Currencies";
 import CustomFields from "./pages/settings/CustomFields";
-import BankAccounts from "./pages/cashbook/BankAccounts";
-import BankStatements from "./pages/cashbook/BankStatements";
-import BankReconciliation from "./pages/cashbook/BankReconciliation";
-import CashFlow from "./pages/cashbook/CashFlow";
 import { Layout } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -99,13 +95,9 @@ const App = () => (
               <Route path="/inventory/locations" element={<ProtectedRoute><Locations /></ProtectedRoute>} />
               <Route path="/inventory/movements" element={<ProtectedRoute><Movements /></ProtectedRoute>} />
               <Route path="/inventory/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
-              {/* Cashbook & Bank routes */}
-              <Route path="/cashbook" element={<ProtectedRoute><Cashbook /></ProtectedRoute>} />
-              <Route path="/cashbook/accounts" element={<ProtectedRoute><BankAccounts /></ProtectedRoute>} />
-              <Route path="/cashbook/statements" element={<ProtectedRoute><BankStatements /></ProtectedRoute>} />
-              <Route path="/cashbook/reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
-              <Route path="/cashbook/cash-flow" element={<ProtectedRoute><CashFlow /></ProtectedRoute>} />
-              <Route path="/bank-reconciliation" element={<ProtectedRoute><BankReconciliation /></ProtectedRoute>} />
+              {/* Cashbook & Bank routes - to be implemented */}
+              <Route path="/cashbook" element={<ProtectedRoute><div>Cashbook - Coming Soon</div></ProtectedRoute>} />
+              <Route path="/bank-reconciliation" element={<ProtectedRoute><div>Bank Reconciliation - Coming Soon</div></ProtectedRoute>} />
               {/* Accounting routes */}
               <Route path="/accounting/coa" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
               <Route path="/accounting/journals" element={<ProtectedRoute><Journals /></ProtectedRoute>} />
