@@ -38,6 +38,7 @@ import Journals from "./pages/accounting/Journals";
 import GeneralLedger from "./pages/accounting/GeneralLedger";
 import Settings from "./pages/Settings";
 import Company from "./pages/settings/Company";
+import Security from "./pages/settings/Security";
 import TaxRates from "./pages/settings/TaxRates";
 import Users from "./pages/settings/Users";
 import Currencies from "./pages/settings/Currencies";
@@ -111,6 +112,7 @@ const App = () => (
               {/* Settings */}
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/settings/company" element={<ProtectedRoute><Company /></ProtectedRoute>} />
+              <Route path="/settings/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
               <Route path="/settings/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
               <Route path="/settings/tax-rates" element={<ProtectedRoute><TaxRates /></ProtectedRoute>} />
               <Route path="/settings/currencies" element={<ProtectedRoute><Currencies /></ProtectedRoute>} />
