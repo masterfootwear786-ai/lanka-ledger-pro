@@ -18,9 +18,6 @@ const invoiceSchema = z.object({
   due_date: z.string().optional(),
   notes: z.string().optional(),
   payment_method: z.enum(["credit", "cash", "cheque"]),
-  cheque_no: z.string().optional(),
-  cheque_date: z.string().optional(),
-  cheque_amount: z.string().optional(),
 });
 
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
@@ -39,6 +36,13 @@ interface LineItem {
   discount_selected: boolean;
 }
 
+interface Cheque {
+  id: string;
+  cheque_no: string;
+  cheque_date: string;
+  cheque_amount: number;
+}
+
 interface InvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,6 +54,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
   const [customers, setCustomers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [cheques, setCheques] = useState<Cheque[]>([]);
   const [loading, setLoading] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
 
@@ -101,6 +106,26 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
       discount_selected: false,
     };
     setLineItems([...lineItems, newLine]);
+  };
+
+  const addCheque = () => {
+    const newCheque: Cheque = {
+      id: Math.random().toString(),
+      cheque_no: "",
+      cheque_date: "",
+      cheque_amount: 0,
+    };
+    setCheques([...cheques, newCheque]);
+  };
+
+  const removeCheque = (id: string) => {
+    setCheques(cheques.filter(cheque => cheque.id !== id));
+  };
+
+  const updateCheque = (id: string, field: keyof Cheque, value: any) => {
+    setCheques(cheques.map(cheque => 
+      cheque.id === id ? { ...cheque, [field]: value } : cheque
+    ));
   };
 
   const removeLineItem = (id: string) => {
@@ -169,6 +194,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
           discount: discount_amount,
           grand_total,
           status: 'draft',
+          // Store cheques and payment method in notes for now
+          terms: data.payment_method === 'cheque' 
+            ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+            : data.payment_method,
         })
         .select()
         .single();
@@ -202,6 +231,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
       onOpenChange(false);
       form.reset();
       setLineItems([]);
+      setCheques([]);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -281,18 +311,61 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
           </div>
 
           {form.watch("payment_method") === "cheque" && (
-            <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/50">
-              <div className="space-y-2">
-                <Label htmlFor="cheque_no">Cheque No</Label>
-                <Input {...form.register("cheque_no")} placeholder="Cheque number" />
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+              <div className="flex justify-between items-center">
+                <Label>Cheques</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addCheque}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Cheque
+                </Button>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="cheque_date">Cheque Date</Label>
-                <Input type="date" {...form.register("cheque_date")} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cheque_amount">Cheque Amount</Label>
-                <Input type="number" {...form.register("cheque_amount")} placeholder="0.00" />
+              
+              <div className="space-y-3">
+                {cheques.map((cheque) => (
+                  <div key={cheque.id} className="grid grid-cols-4 gap-3 p-3 border rounded-lg bg-background">
+                    <div className="space-y-2">
+                      <Label>Cheque No</Label>
+                      <Input
+                        value={cheque.cheque_no}
+                        onChange={(e) => updateCheque(cheque.id, "cheque_no", e.target.value)}
+                        placeholder="Cheque number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cheque Date</Label>
+                      <Input
+                        type="date"
+                        value={cheque.cheque_date}
+                        onChange={(e) => updateCheque(cheque.id, "cheque_date", e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Amount</Label>
+                      <Input
+                        type="number"
+                        value={cheque.cheque_amount}
+                        onChange={(e) => updateCheque(cheque.id, "cheque_amount", parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCheque(cheque.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                {cheques.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No cheques added. Click "Add Cheque" to add one.
+                  </p>
+                )}
               </div>
             </div>
           )}
