@@ -186,13 +186,15 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('company_id')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (!profile?.company_id) throw new Error("Company not found");
+      if (profileError) throw new Error(`Profile error: ${profileError.message}`);
+      if (!profile) throw new Error("User profile not found. Please contact support.");
+      if (!profile.company_id) throw new Error("No company assigned to user. Please contact support.");
 
       // If manual entry, create or find customer
       let customerId = data.customer_id;
