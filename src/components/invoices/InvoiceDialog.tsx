@@ -59,9 +59,10 @@ interface InvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  invoice?: any;
 }
 
-export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogProps) {
+export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: InvoiceDialogProps) {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
@@ -84,9 +85,26 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
     if (open) {
       fetchCustomers();
       fetchItems();
-      addLineItem();
+      
+      if (invoice) {
+        // Load existing invoice data
+        loadInvoiceData();
+      } else {
+        // New invoice
+        addLineItem();
+      }
+    } else {
+      // Reset form when closed
+      form.reset({
+        invoice_date: new Date().toISOString().split('T')[0],
+        payment_method: "cash",
+      });
+      setLineItems([]);
+      setCheques([]);
+      setDiscountPercent(0);
+      setUseManualEntry(false);
     }
-  }, [open]);
+  }, [open, invoice]);
 
   useEffect(() => {
     const customerId = form.watch("customer_id");
@@ -113,6 +131,97 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
       .select('*')
       .eq('active', true);
     if (data) setItems(data);
+  };
+
+  const loadInvoiceData = async () => {
+    if (!invoice) return;
+
+    // Set form data
+    form.reset({
+      customer_id: invoice.customer_id,
+      invoice_date: invoice.invoice_date,
+      due_date: invoice.due_date || '',
+      notes: invoice.notes || '',
+      payment_method: invoice.terms?.includes('cheque') ? 'cheque' : (invoice.terms || 'cash'),
+    });
+
+    // Fetch invoice lines
+    const { data: lines } = await supabase
+      .from('invoice_lines')
+      .select('*')
+      .eq('invoice_id', invoice.id)
+      .order('line_no', { ascending: true });
+
+    if (lines && lines.length > 0) {
+      // Group lines by art_no to reconstruct the original line items with sizes
+      const groupedLines: { [key: string]: any } = {};
+      
+      lines.forEach(line => {
+        // Extract art_no, description, color from the description
+        const match = line.description.match(/^(.+?) - (.+?) - (.+?) - Size (\d+)$/);
+        const key = match ? `${match[1]}_${match[2]}_${match[3]}` : line.description;
+        
+        if (!groupedLines[key]) {
+          groupedLines[key] = {
+            id: Math.random().toString(),
+            art_no: match ? match[1] : '',
+            description: match ? match[2] : line.description,
+            color: match ? match[3] : '',
+            size_39: 0,
+            size_40: 0,
+            size_41: 0,
+            size_42: 0,
+            size_43: 0,
+            size_44: 0,
+            size_45: 0,
+            total_pairs: 0,
+            unit_price: line.unit_price,
+            tax_rate: line.tax_rate || 0,
+            line_total: 0,
+            tax_amount: 0,
+            discount_selected: false,
+          };
+        }
+        
+        // Add quantity to appropriate size
+        if (match) {
+          const size = match[4];
+          groupedLines[key][`size_${size}`] = line.quantity;
+        }
+      });
+
+      // Convert to array and recalculate totals
+      const reconstructedLines = Object.values(groupedLines).map((item: any) => {
+        item.total_pairs = item.size_39 + item.size_40 + item.size_41 + 
+                          item.size_42 + item.size_43 + item.size_44 + item.size_45;
+        const subtotal = item.total_pairs * item.unit_price;
+        item.tax_amount = subtotal * (item.tax_rate / 100);
+        item.line_total = subtotal + item.tax_amount;
+        return item;
+      });
+
+      setLineItems(reconstructedLines);
+    }
+
+    // Parse cheques if payment method is cheque
+    if (invoice.terms && invoice.terms.includes('cheque')) {
+      try {
+        const parsed = JSON.parse(invoice.terms);
+        if (parsed.cheques) {
+          setCheques(parsed.cheques);
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+
+    // Calculate discount percent from existing discount
+    if (invoice.discount && invoice.discount > 0) {
+      const discountableAmount = lines?.reduce((sum: number, line: any) => sum + (line.quantity * line.unit_price), 0) || 0;
+      if (discountableAmount > 0) {
+        setDiscountPercent((invoice.discount / discountableAmount) * 100);
+      }
+    }
   };
 
   const addLineItem = () => {
@@ -249,33 +358,69 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
 
       if (!customerId) throw new Error("Customer is required");
 
-      // Generate invoice number
-      const invoice_no = `INV-${Date.now()}`;
+      let invoiceId: string;
+      let invoice_no: string;
 
-      // Insert invoice
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
-          company_id: profile.company_id,
-          customer_id: customerId,
-          invoice_no,
-          invoice_date: data.invoice_date,
-          due_date: data.due_date,
-          notes: data.notes,
-          subtotal,
-          tax_total,
-          discount: discount_amount,
-          grand_total,
-          status: 'draft',
-          // Store cheques and payment method in notes for now
-          terms: data.payment_method === 'cheque' 
-            ? JSON.stringify({ payment_method: 'cheque', cheques }) 
-            : data.payment_method,
-        })
-        .select()
-        .single();
+      if (invoice) {
+        // Update existing invoice
+        invoice_no = invoice.invoice_no;
+        invoiceId = invoice.id;
 
-      if (invoiceError) throw invoiceError;
+        const { error: invoiceError } = await supabase
+          .from('invoices')
+          .update({
+            customer_id: customerId,
+            invoice_date: data.invoice_date,
+            due_date: data.due_date,
+            notes: data.notes,
+            subtotal,
+            tax_total,
+            discount: discount_amount,
+            grand_total,
+            terms: data.payment_method === 'cheque' 
+              ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+              : data.payment_method,
+          })
+          .eq('id', invoice.id);
+
+        if (invoiceError) throw invoiceError;
+
+        // Delete existing lines
+        const { error: deleteLinesError } = await supabase
+          .from('invoice_lines')
+          .delete()
+          .eq('invoice_id', invoice.id);
+
+        if (deleteLinesError) throw deleteLinesError;
+      } else {
+        // Generate invoice number
+        invoice_no = `INV-${Date.now()}`;
+
+        // Insert new invoice
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert({
+            company_id: profile.company_id,
+            customer_id: customerId,
+            invoice_no,
+            invoice_date: data.invoice_date,
+            due_date: data.due_date,
+            notes: data.notes,
+            subtotal,
+            tax_total,
+            discount: discount_amount,
+            grand_total,
+            status: 'draft',
+            terms: data.payment_method === 'cheque' 
+              ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+              : data.payment_method,
+          })
+          .select()
+          .single();
+
+        if (invoiceError) throw invoiceError;
+        invoiceId = newInvoice.id;
+      }
 
       // Insert invoice lines - create separate lines for each size
       const lines: any[] = [];
@@ -293,7 +438,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
         sizes.forEach(s => {
           if (s.qty > 0) {
             lines.push({
-              invoice_id: invoice.id,
+              invoice_id: invoiceId,
               line_no: lines.length + 1,
               description: `${item.art_no} - ${item.description} - ${item.color} - Size ${s.size}`,
               quantity: s.qty,
@@ -314,7 +459,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
 
       toast({
         title: "Success",
-        description: "Invoice created successfully",
+        description: invoice ? "Invoice updated successfully" : "Invoice created successfully",
       });
 
       onSuccess();
@@ -339,7 +484,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Invoice</DialogTitle>
+          <DialogTitle>{invoice ? 'Edit Invoice' : 'Create Invoice'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
