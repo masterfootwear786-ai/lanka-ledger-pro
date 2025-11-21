@@ -50,7 +50,7 @@ export default function Invoices() {
         .from('invoices')
         .select(`
           *,
-          customer:contacts(name)
+          customer:contacts(name, area)
         `)
         .order('created_at', { ascending: false });
 
@@ -270,6 +270,7 @@ export default function Invoices() {
                 <TableHead>Invoice #</TableHead>
                 <TableHead>{t('common.date')}</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>City</TableHead>
                 <TableHead className="text-right">{t('common.amount')}</TableHead>
                 <TableHead>{t('common.status')}</TableHead>
                 <TableHead className="text-right">{t('common.actions')}</TableHead>
@@ -278,11 +279,11 @@ export default function Invoices() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : invoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">No invoices found</TableCell>
+                  <TableCell colSpan={7} className="text-center">No invoices found</TableCell>
                 </TableRow>
               ) : (
                 invoices.map((invoice) => (
@@ -290,6 +291,7 @@ export default function Invoices() {
                     <TableCell className="font-mono font-medium">{invoice.invoice_no}</TableCell>
                     <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
                     <TableCell>{invoice.customer?.name || 'N/A'}</TableCell>
+                    <TableCell>{invoice.customer?.area || '-'}</TableCell>
                     <TableCell className="text-right">{invoice.grand_total?.toLocaleString() || '0'}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(invoice.status)}>
