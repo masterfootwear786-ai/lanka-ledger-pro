@@ -15,6 +15,12 @@ import Inventory from "./pages/Inventory";
 import Cashbook from "./pages/Cashbook";
 import Accounting from "./pages/Accounting";
 import Reports from "./pages/Reports";
+import TrialBalance from "./pages/reports/TrialBalance";
+import ProfitLoss from "./pages/reports/ProfitLoss";
+import BalanceSheet from "./pages/reports/BalanceSheet";
+import ARAging from "./pages/reports/ARAging";
+import APAging from "./pages/reports/APAging";
+import TaxSummary from "./pages/reports/TaxSummary";
 import { Layout } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -74,13 +80,13 @@ const App = () => (
               <Route path="/accounting/coa" element={<ProtectedRoute><div>Chart of Accounts - Coming Soon</div></ProtectedRoute>} />
               <Route path="/accounting/journals" element={<ProtectedRoute><div>Journals - Coming Soon</div></ProtectedRoute>} />
               <Route path="/accounting/general-ledger" element={<ProtectedRoute><div>General Ledger - Coming Soon</div></ProtectedRoute>} />
-              {/* Reports routes - to be implemented */}
-              <Route path="/reports/trial-balance" element={<ProtectedRoute><div>Trial Balance - Coming Soon</div></ProtectedRoute>} />
-              <Route path="/reports/profit-loss" element={<ProtectedRoute><div>Profit & Loss - Coming Soon</div></ProtectedRoute>} />
-              <Route path="/reports/balance-sheet" element={<ProtectedRoute><div>Balance Sheet - Coming Soon</div></ProtectedRoute>} />
-              <Route path="/reports/ar-aging" element={<ProtectedRoute><div>AR Aging - Coming Soon</div></ProtectedRoute>} />
-              <Route path="/reports/ap-aging" element={<ProtectedRoute><div>AP Aging - Coming Soon</div></ProtectedRoute>} />
-              <Route path="/reports/tax-summary" element={<ProtectedRoute><div>Tax Summary - Coming Soon</div></ProtectedRoute>} />
+              {/* Reports routes */}
+              <Route path="/reports/trial-balance" element={<ProtectedRoute><TrialBalance /></ProtectedRoute>} />
+              <Route path="/reports/profit-loss" element={<ProtectedRoute><ProfitLoss /></ProtectedRoute>} />
+              <Route path="/reports/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
+              <Route path="/reports/ar-aging" element={<ProtectedRoute><ARAging /></ProtectedRoute>} />
+              <Route path="/reports/ap-aging" element={<ProtectedRoute><APAging /></ProtectedRoute>} />
+              <Route path="/reports/tax-summary" element={<ProtectedRoute><TaxSummary /></ProtectedRoute>} />
               {/* Settings - to be implemented */}
               <Route path="/settings" element={<ProtectedRoute><div>Settings - Coming Soon</div></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
