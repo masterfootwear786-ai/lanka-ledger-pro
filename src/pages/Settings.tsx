@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +15,13 @@ export default function Settings() {
       icon: Building2,
       path: "/settings/company",
       color: "text-blue-600 dark:text-blue-400"
+    },
+    {
+      title: "Security",
+      description: "Configure action passwords and security settings",
+      icon: Shield,
+      path: "/settings/security",
+      color: "text-red-600 dark:text-red-400"
     },
     {
       title: t('settings.users'),

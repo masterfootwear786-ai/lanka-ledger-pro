@@ -379,6 +379,7 @@ export type Database = {
       }
       companies: {
         Row: {
+          action_password: string | null
           active: boolean | null
           address: string | null
           base_currency: string | null
@@ -396,6 +397,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          action_password?: string | null
           active?: boolean | null
           address?: string | null
           base_currency?: string | null
@@ -413,6 +415,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          action_password?: string | null
           active?: boolean | null
           address?: string | null
           base_currency?: string | null

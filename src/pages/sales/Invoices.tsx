@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, FileText, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -38,6 +39,8 @@ export default function Invoices() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
   const [invoiceLines, setInvoiceLines] = useState<any[]>([]);
+  const [passwordPromptOpen, setPasswordPromptOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ type: 'edit' | 'delete', invoice: any } | null>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -96,8 +99,52 @@ export default function Invoices() {
   };
 
   const handleEdit = (invoice: any) => {
-    setDialogOpen(true);
-    // You can pass invoice data to the dialog here if needed
+    setPendingAction({ type: 'edit', invoice });
+    setPasswordPromptOpen(true);
+  };
+
+  const handleDeleteRequest = (invoice: any) => {
+    setPendingAction({ type: 'delete', invoice });
+    setPasswordPromptOpen(true);
+  };
+
+  const verifyPassword = async (password: string): Promise<boolean> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.company_id) return false;
+
+      const { data: company } = await supabase
+        .from('companies')
+        .select('action_password')
+        .eq('id', profile.company_id)
+        .single();
+
+      return company?.action_password === password;
+    } catch (error) {
+      console.error('Error verifying password:', error);
+      return false;
+    }
+  };
+
+  const executePendingAction = () => {
+    if (!pendingAction) return;
+
+    if (pendingAction.type === 'edit') {
+      setDialogOpen(true);
+    } else if (pendingAction.type === 'delete') {
+      setInvoiceToDelete(pendingAction.invoice);
+      setDeleteDialogOpen(true);
+    }
+
+    setPendingAction(null);
   };
 
   const handleDelete = async () => {
@@ -220,11 +267,6 @@ export default function Invoices() {
     }
   };
 
-  const confirmDelete = (invoice: any) => {
-    setInvoiceToDelete(invoice);
-    setDeleteDialogOpen(true);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -334,7 +376,7 @@ export default function Invoices() {
                         variant="ghost" 
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => confirmDelete(invoice)}
+                        onClick={() => handleDeleteRequest(invoice)}
                         title="Delete"
                         disabled={invoice.posted}
                       >
@@ -476,6 +518,16 @@ export default function Invoices() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Password Prompt Dialog */}
+      <PasswordPromptDialog
+        open={passwordPromptOpen}
+        onOpenChange={setPasswordPromptOpen}
+        onConfirm={executePendingAction}
+        onPasswordVerify={verifyPassword}
+        title="Action Password Required"
+        description="Please enter your action password to continue with this action."
+      />
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
