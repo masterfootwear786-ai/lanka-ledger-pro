@@ -33,8 +33,14 @@ interface LineItem {
   art_no: string;
   description: string;
   color: string;
-  size: string;
-  quantity: number;
+  size_39: number;
+  size_40: number;
+  size_41: number;
+  size_42: number;
+  size_43: number;
+  size_44: number;
+  size_45: number;
+  total_pairs: number;
   unit_price: number;
   tax_rate: number;
   line_total: number;
@@ -115,8 +121,14 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
       art_no: "",
       description: "",
       color: "",
-      size: "",
-      quantity: 1,
+      size_39: 0,
+      size_40: 0,
+      size_41: 0,
+      size_42: 0,
+      size_43: 0,
+      size_44: 0,
+      size_45: 0,
+      total_pairs: 0,
       unit_price: 0,
       tax_rate: 0,
       line_total: 0,
@@ -154,7 +166,12 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
     setLineItems(lineItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        const subtotal = updated.quantity * updated.unit_price;
+        // Calculate total pairs
+        updated.total_pairs = 
+          updated.size_39 + updated.size_40 + updated.size_41 + 
+          updated.size_42 + updated.size_43 + updated.size_44 + updated.size_45;
+        // Calculate totals
+        const subtotal = updated.total_pairs * updated.unit_price;
         updated.tax_amount = subtotal * (updated.tax_rate / 100);
         updated.line_total = subtotal + updated.tax_amount;
         return updated;
@@ -164,13 +181,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
   };
 
   const calculateTotals = () => {
-    const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const subtotal = lineItems.reduce((sum, item) => sum + (item.total_pairs * item.unit_price), 0);
     const tax_total = lineItems.reduce((sum, item) => sum + item.tax_amount, 0);
     
     // Calculate discount on selected items
     const discountableAmount = lineItems
       .filter(item => item.discount_selected)
-      .reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+      .reduce((sum, item) => sum + (item.total_pairs * item.unit_price), 0);
     const discount_amount = (discountableAmount * discountPercent) / 100;
     
     const grand_total = subtotal + tax_total - discount_amount;
@@ -260,17 +277,34 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
 
       if (invoiceError) throw invoiceError;
 
-      // Insert invoice lines
-      const lines = lineItems.map((item, index) => ({
-        invoice_id: invoice.id,
-        line_no: index + 1,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        tax_rate: item.tax_rate,
-        tax_amount: item.tax_amount,
-        line_total: item.line_total,
-      }));
+      // Insert invoice lines - create separate lines for each size
+      const lines: any[] = [];
+      lineItems.forEach((item, index) => {
+        const sizes = [
+          { size: '39', qty: item.size_39 },
+          { size: '40', qty: item.size_40 },
+          { size: '41', qty: item.size_41 },
+          { size: '42', qty: item.size_42 },
+          { size: '43', qty: item.size_43 },
+          { size: '44', qty: item.size_44 },
+          { size: '45', qty: item.size_45 },
+        ];
+        
+        sizes.forEach(s => {
+          if (s.qty > 0) {
+            lines.push({
+              invoice_id: invoice.id,
+              line_no: lines.length + 1,
+              description: `${item.art_no} - ${item.description} - ${item.color} - Size ${s.size}`,
+              quantity: s.qty,
+              unit_price: item.unit_price,
+              tax_rate: item.tax_rate,
+              tax_amount: (s.qty * item.unit_price) * (item.tax_rate / 100),
+              line_total: s.qty * item.unit_price + ((s.qty * item.unit_price) * (item.tax_rate / 100)),
+            });
+          }
+        });
+      });
 
       const { error: linesError } = await supabase
         .from('invoice_lines')
@@ -504,98 +538,139 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
               </Button>
             </div>
 
-            <div className="space-y-2">
-              {lineItems.map((line) => (
-                <div key={line.id} className="grid grid-cols-12 gap-2 items-start p-3 border rounded-lg">
-                  <div className="col-span-1 flex items-center justify-center pt-2">
-                    <input
-                      type="checkbox"
-                      checked={line.discount_selected}
-                      onChange={(e) => updateLineItem(line.id, "discount_selected", e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                  </div>
-                  <div className="col-span-11 grid grid-cols-11 gap-2">
-                    <div className="col-span-2">
-                      <Input
-                        placeholder="Art No"
-                        value={line.art_no}
-                        onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Input
-                        placeholder="Description"
-                        value={line.description}
-                        onChange={(e) => updateLineItem(line.id, "description", e.target.value)}
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <Input
-                        placeholder="Color"
-                        value={line.color}
-                        onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <Select
-                        value={line.size}
-                        onValueChange={(value) => updateLineItem(line.id, "size", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Size" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[39, 40, 41, 42, 43, 44, 45].map((size) => (
-                            <SelectItem key={size} value={size.toString()}>
-                              {size}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        placeholder="Qty"
-                        value={line.quantity}
-                        onChange={(e) => updateLineItem(line.id, "quantity", parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        placeholder="Price"
-                        value={line.unit_price}
-                        onChange={(e) => updateLineItem(line.id, "unit_price", parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        placeholder="Tax %"
-                        value={line.tax_rate}
-                        onChange={(e) => updateLineItem(line.id, "tax_rate", parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <div className="text-sm font-medium text-right pt-2">
-                        {line.line_total.toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="col-span-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeLineItem(line.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+            <div className="space-y-2 overflow-x-auto">
+              <div className="min-w-[1200px]">
+                {/* Header Row */}
+                <div className="grid grid-cols-[40px_100px_120px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 mb-2 text-xs font-semibold">
+                  <div className="text-center">✓</div>
+                  <div>DSG. No</div>
+                  <div>Description</div>
+                  <div>CLR</div>
+                  <div className="text-center">39</div>
+                  <div className="text-center">40</div>
+                  <div className="text-center">41</div>
+                  <div className="text-center">42</div>
+                  <div className="text-center">43</div>
+                  <div className="text-center">44</div>
+                  <div className="text-center">45</div>
+                  <div className="text-center">Pairs</div>
+                  <div className="text-right">Price</div>
+                  <div className="text-right">Amount</div>
+                  <div></div>
                 </div>
-              ))}
+
+                {/* Line Items */}
+                {lineItems.map((line) => (
+                  <div key={line.id} className="grid grid-cols-[40px_100px_120px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 items-center p-2 border rounded-lg mb-2 bg-background">
+                    <div className="flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={line.discount_selected}
+                        onChange={(e) => updateLineItem(line.id, "discount_selected", e.target.checked)}
+                        className="h-4 w-4"
+                      />
+                    </div>
+                    <Input
+                      placeholder="Art No"
+                      value={line.art_no}
+                      onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      placeholder="Description"
+                      value={line.description}
+                      onChange={(e) => updateLineItem(line.id, "description", e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      placeholder="Color"
+                      value={line.color}
+                      onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={line.size_39 || ""}
+                      onChange={(e) => updateLineItem(line.id, "size_39", parseInt(e.target.value) || 0)}
+                      className="h-8 text-xs text-center"
+                      placeholder="0"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={line.size_40 || ""}
+                      onChange={(e) => updateLineItem(line.id, "size_40", parseInt(e.target.value) || 0)}
+                      className="h-8 text-xs text-center"
+                      placeholder="0"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={line.size_41 || ""}
+                      onChange={(e) => updateLineItem(line.id, "size_41", parseInt(e.target.value) || 0)}
+                      className="h-8 text-xs text-center"
+                      placeholder="0"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={line.size_42 || ""}
+                      onChange={(e) => updateLineItem(line.id, "size_42", parseInt(e.target.value) || 0)}
+                      className="h-8 text-xs text-center"
+                      placeholder="0"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={line.size_43 || ""}
+                      onChange={(e) => updateLineItem(line.id, "size_43", parseInt(e.target.value) || 0)}
+                      className="h-8 text-xs text-center"
+                      placeholder="0"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={line.size_44 || ""}
+                      onChange={(e) => updateLineItem(line.id, "size_44", parseInt(e.target.value) || 0)}
+                      className="h-8 text-xs text-center"
+                      placeholder="0"
+                    />
+                    <Input
+                      type="number"
+                      min="0"
+                      value={line.size_45 || ""}
+                      onChange={(e) => updateLineItem(line.id, "size_45", parseInt(e.target.value) || 0)}
+                      className="h-8 text-xs text-center"
+                      placeholder="0"
+                    />
+                    <div className="text-center font-semibold text-sm">
+                      {line.total_pairs}
+                    </div>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={line.unit_price || ""}
+                      onChange={(e) => updateLineItem(line.id, "unit_price", parseFloat(e.target.value) || 0)}
+                      className="h-8 text-xs text-right"
+                      placeholder="0.00"
+                    />
+                    <div className="text-right font-semibold text-sm">
+                      {line.line_total.toFixed(2)}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeLineItem(line.id)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
