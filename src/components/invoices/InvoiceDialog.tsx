@@ -57,6 +57,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
   const [cheques, setCheques] = useState<Cheque[]>([]);
   const [loading, setLoading] = useState(false);
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -73,6 +74,16 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
       addLineItem();
     }
   }, [open]);
+
+  useEffect(() => {
+    const customerId = form.watch("customer_id");
+    if (customerId) {
+      const customer = customers.find(c => c.id === customerId);
+      setSelectedCustomer(customer);
+    } else {
+      setSelectedCustomer(null);
+    }
+  }, [form.watch("customer_id"), customers]);
 
   const fetchCustomers = async () => {
     const { data } = await supabase
@@ -276,6 +287,27 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
               )}
             </div>
 
+            {selectedCustomer && (
+              <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+                <div className="text-sm">
+                  <span className="font-semibold">Name:</span> {selectedCustomer.name}
+                </div>
+                {selectedCustomer.area && (
+                  <div className="text-sm">
+                    <span className="font-semibold">Area:</span> {selectedCustomer.area}
+                  </div>
+                )}
+                {selectedCustomer.phone && (
+                  <div className="text-sm">
+                    <span className="font-semibold">Mobile:</span> {selectedCustomer.phone}
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="invoice_date">Invoice Date</Label>
               <Input
