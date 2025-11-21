@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,17 +6,39 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, FileText, Eye, Edit, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
 
 export default function Invoices() {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
+  const [invoices, setInvoices] = useState<any[]>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const invoices = [
-    { id: "INV-001", date: "2024-01-15", customer: "ABC Company", amount: 125000, status: "paid" },
-    { id: "INV-002", date: "2024-01-18", customer: "XYZ Corporation", amount: 85000, status: "approved" },
-    { id: "INV-003", date: "2024-01-20", customer: "Smith & Sons", amount: 95000, status: "draft" },
-    { id: "INV-004", date: "2024-01-22", customer: "Global Trading", amount: 150000, status: "approved" },
-  ];
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          customer:contacts(name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setInvoices(data || []);
+    } catch (error) {
+      console.error('Error fetching invoices:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -34,11 +56,17 @@ export default function Invoices() {
           <h1 className="text-3xl font-bold">{t('sales.invoices')}</h1>
           <p className="text-muted-foreground mt-2">Manage customer invoices</p>
         </div>
-        <Button>
+        <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           {t('sales.createInvoice')}
         </Button>
       </div>
+
+      <InvoiceDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen}
+        onSuccess={fetchInvoices}
+      />
 
       <Card>
         <CardHeader>
@@ -77,17 +105,26 @@ export default function Invoices() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-mono font-medium">{invoice.id}</TableCell>
-                  <TableCell>{invoice.date}</TableCell>
-                  <TableCell>{invoice.customer}</TableCell>
-                  <TableCell className="text-right">{invoice.amount.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(invoice.status)}>
-                      {t(`status.${invoice.status}`)}
-                    </Badge>
-                  </TableCell>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">Loading...</TableCell>
+                </TableRow>
+              ) : invoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">No invoices found</TableCell>
+                </TableRow>
+              ) : (
+                invoices.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell className="font-mono font-medium">{invoice.invoice_no}</TableCell>
+                    <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{invoice.customer?.name || 'N/A'}</TableCell>
+                    <TableCell className="text-right">{invoice.grand_total?.toLocaleString() || '0'}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(invoice.status)}>
+                        {t(`status.${invoice.status}`)}
+                      </Badge>
+                    </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
                       <Button variant="ghost" size="sm">
@@ -104,8 +141,9 @@ export default function Invoices() {
                       </Button>
                     </div>
                   </TableCell>
-                </TableRow>
-              ))}
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
