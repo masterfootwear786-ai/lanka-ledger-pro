@@ -55,6 +55,7 @@ export default function Invoices() {
           *,
           customer:contacts(name, area)
         `)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -151,25 +152,27 @@ export default function Invoices() {
     if (!invoiceToDelete) return;
 
     try {
-      // Delete invoice lines first
+      const now = new Date().toISOString();
+
+      // Soft delete invoice lines
       const { error: linesError } = await supabase
         .from('invoice_lines')
-        .delete()
+        .update({ deleted_at: now })
         .eq('invoice_id', invoiceToDelete.id);
 
       if (linesError) throw linesError;
 
-      // Delete invoice
+      // Soft delete invoice
       const { error } = await supabase
         .from('invoices')
-        .delete()
+        .update({ deleted_at: now })
         .eq('id', invoiceToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Invoice deleted successfully",
+        description: "Invoice moved to trash successfully",
       });
 
       setDeleteDialogOpen(false);
@@ -377,8 +380,7 @@ export default function Invoices() {
                         size="sm"
                         className="text-destructive hover:text-destructive"
                         onClick={() => handleDeleteRequest(invoice)}
-                        title="Delete"
-                        disabled={invoice.posted}
+                        title="Move to Trash"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
