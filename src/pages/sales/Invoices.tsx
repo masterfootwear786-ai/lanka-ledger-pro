@@ -5,16 +5,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, FileText, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function Invoices() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [invoices, setInvoices] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
+  const [invoiceLines, setInvoiceLines] = useState<any[]>([]);
 
   useEffect(() => {
     fetchInvoices();
@@ -47,6 +70,154 @@ export default function Invoices() {
       case "draft": return "bg-gray-500";
       default: return "bg-gray-500";
     }
+  };
+
+  const handleView = async (invoice: any) => {
+    try {
+      // Fetch invoice lines
+      const { data: lines, error } = await supabase
+        .from('invoice_lines')
+        .select('*')
+        .eq('invoice_id', invoice.id)
+        .order('line_no', { ascending: true });
+
+      if (error) throw error;
+
+      setSelectedInvoice(invoice);
+      setInvoiceLines(lines || []);
+      setViewDialogOpen(true);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!invoiceToDelete) return;
+
+    try {
+      // Delete invoice lines first
+      const { error: linesError } = await supabase
+        .from('invoice_lines')
+        .delete()
+        .eq('invoice_id', invoiceToDelete.id);
+
+      if (linesError) throw linesError;
+
+      // Delete invoice
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Invoice deleted successfully",
+      });
+
+      setDeleteDialogOpen(false);
+      setInvoiceToDelete(null);
+      fetchInvoices();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePrint = async (invoice: any) => {
+    try {
+      // Fetch invoice lines
+      const { data: lines } = await supabase
+        .from('invoice_lines')
+        .select('*')
+        .eq('invoice_id', invoice.id)
+        .order('line_no', { ascending: true });
+
+      // Create print content
+      const printWindow = window.open('', '', 'width=800,height=600');
+      if (!printWindow) return;
+
+      const content = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Invoice ${invoice.invoice_no}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .info { margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f4f4f4; }
+            .total { text-align: right; margin-top: 20px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>INVOICE</h1>
+            <p>Invoice #: ${invoice.invoice_no}</p>
+          </div>
+          <div class="info">
+            <p><strong>Date:</strong> ${new Date(invoice.invoice_date).toLocaleDateString()}</p>
+            <p><strong>Customer:</strong> ${invoice.customer?.name || 'N/A'}</p>
+            ${invoice.due_date ? `<p><strong>Due Date:</strong> ${new Date(invoice.due_date).toLocaleDateString()}</p>` : ''}
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Tax</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(lines || []).map(line => `
+                <tr>
+                  <td>${line.description}</td>
+                  <td>${line.quantity}</td>
+                  <td>${line.unit_price.toFixed(2)}</td>
+                  <td>${line.tax_amount.toFixed(2)}</td>
+                  <td>${line.line_total.toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="total">
+            <p>Subtotal: ${invoice.subtotal?.toFixed(2) || '0.00'}</p>
+            <p>Tax: ${invoice.tax_total?.toFixed(2) || '0.00'}</p>
+            <p>Discount: ${invoice.discount?.toFixed(2) || '0.00'}</p>
+            <p>Grand Total: ${invoice.grand_total?.toFixed(2) || '0.00'}</p>
+          </div>
+          ${invoice.notes ? `<div style="margin-top: 20px;"><strong>Notes:</strong><p>${invoice.notes}</p></div>` : ''}
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const confirmDelete = (invoice: any) => {
+    setInvoiceToDelete(invoice);
+    setDeleteDialogOpen(true);
   };
 
   return (
@@ -127,16 +298,30 @@ export default function Invoices() {
                     </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleView(invoice)}
+                        title="View Details"
+                      >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handlePrint(invoice)}
+                        title="Print"
+                      >
+                        <Printer className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm">
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => confirmDelete(invoice)}
+                        title="Delete"
+                        disabled={invoice.posted}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -148,6 +333,126 @@ export default function Invoices() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* View Invoice Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Invoice Details - {selectedInvoice?.invoice_no}</DialogTitle>
+          </DialogHeader>
+
+          {selectedInvoice && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Invoice Information</h3>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium">Invoice #:</span> {selectedInvoice.invoice_no}</p>
+                    <p><span className="font-medium">Date:</span> {new Date(selectedInvoice.invoice_date).toLocaleDateString()}</p>
+                    {selectedInvoice.due_date && (
+                      <p><span className="font-medium">Due Date:</span> {new Date(selectedInvoice.due_date).toLocaleDateString()}</p>
+                    )}
+                    <p><span className="font-medium">Status:</span> 
+                      <Badge className={`${getStatusColor(selectedInvoice.status)} ml-2`}>
+                        {selectedInvoice.status}
+                      </Badge>
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-2">Customer Information</h3>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium">Name:</span> {selectedInvoice.customer?.name || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">Line Items</h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Unit Price</TableHead>
+                      <TableHead className="text-right">Tax</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoiceLines.map((line) => (
+                      <TableRow key={line.id}>
+                        <TableCell>{line.description}</TableCell>
+                        <TableCell className="text-right">{line.quantity}</TableCell>
+                        <TableCell className="text-right">{line.unit_price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{line.tax_amount.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{line.line_total.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="border-t pt-4">
+                <div className="flex flex-col items-end space-y-2">
+                  <div className="text-sm">
+                    <span className="font-medium">Subtotal:</span> {selectedInvoice.subtotal?.toFixed(2) || '0.00'}
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-medium">Tax Total:</span> {selectedInvoice.tax_total?.toFixed(2) || '0.00'}
+                  </div>
+                  {selectedInvoice.discount > 0 && (
+                    <div className="text-sm">
+                      <span className="font-medium">Discount:</span> {selectedInvoice.discount?.toFixed(2) || '0.00'}
+                    </div>
+                  )}
+                  <div className="text-lg font-bold">
+                    <span>Grand Total:</span> {selectedInvoice.grand_total?.toFixed(2) || '0.00'}
+                  </div>
+                </div>
+              </div>
+
+              {selectedInvoice.notes && (
+                <div>
+                  <h3 className="font-semibold mb-2">Notes</h3>
+                  <p className="text-sm text-muted-foreground">{selectedInvoice.notes}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                  Close
+                </Button>
+                <Button onClick={() => handlePrint(selectedInvoice)}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete invoice {invoiceToDelete?.invoice_no}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
