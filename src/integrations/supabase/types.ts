@@ -898,6 +898,7 @@ export type Database = {
         Row: {
           account_id: string | null
           created_at: string | null
+          deleted_at: string | null
           description: string
           id: string
           invoice_id: string
@@ -914,6 +915,7 @@ export type Database = {
         Insert: {
           account_id?: string | null
           created_at?: string | null
+          deleted_at?: string | null
           description: string
           id?: string
           invoice_id: string
@@ -930,6 +932,7 @@ export type Database = {
         Update: {
           account_id?: string | null
           created_at?: string | null
+          deleted_at?: string | null
           description?: string
           id?: string
           invoice_id?: string
@@ -974,6 +977,7 @@ export type Database = {
           created_by: string | null
           currency_code: string | null
           customer_id: string
+          deleted_at: string | null
           discount: number | null
           due_date: string | null
           exchange_rate: number | null
@@ -998,6 +1002,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id: string
+          deleted_at?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
@@ -1022,6 +1027,7 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id?: string
+          deleted_at?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
