@@ -111,8 +111,12 @@ export default function Invoices() {
 
   const verifyPassword = async (password: string): Promise<boolean> => {
     try {
+      console.log('Verifying password...');
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return false;
+      if (!user) {
+        console.log('No user found');
+        return false;
+      }
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -120,7 +124,10 @@ export default function Invoices() {
         .eq('id', user.id)
         .single();
 
-      if (!profile?.company_id) return false;
+      if (!profile?.company_id) {
+        console.log('No company_id found');
+        return false;
+      }
 
       const { data: company } = await supabase
         .from('companies')
@@ -128,6 +135,7 @@ export default function Invoices() {
         .eq('id', profile.company_id)
         .single();
 
+      console.log('Password match:', company?.action_password === password);
       return company?.action_password === password;
     } catch (error) {
       console.error('Error verifying password:', error);
@@ -136,11 +144,15 @@ export default function Invoices() {
   };
 
   const executePendingAction = () => {
+    console.log('Executing pending action:', pendingAction);
     if (!pendingAction) return;
 
     if (pendingAction.type === 'edit') {
+      console.log('Opening edit dialog for invoice:', pendingAction.invoice);
+      setSelectedInvoice(pendingAction.invoice);
       setDialogOpen(true);
     } else if (pendingAction.type === 'delete') {
+      console.log('Opening delete dialog for invoice:', pendingAction.invoice);
       setInvoiceToDelete(pendingAction.invoice);
       setDeleteDialogOpen(true);
     }
