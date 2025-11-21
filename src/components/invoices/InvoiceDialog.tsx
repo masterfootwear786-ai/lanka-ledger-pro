@@ -17,18 +17,26 @@ const invoiceSchema = z.object({
   invoice_date: z.string(),
   due_date: z.string().optional(),
   notes: z.string().optional(),
+  payment_method: z.enum(["credit", "cash", "cheque"]),
+  cheque_no: z.string().optional(),
+  cheque_date: z.string().optional(),
+  cheque_amount: z.string().optional(),
 });
 
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
 interface LineItem {
   id: string;
+  art_no: string;
   description: string;
+  color: string;
+  size: string;
   quantity: number;
   unit_price: number;
   tax_rate: number;
   line_total: number;
   tax_amount: number;
+  discount_selected: boolean;
 }
 
 interface InvoiceDialogProps {
@@ -43,11 +51,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
   const [items, setItems] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState(0);
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       invoice_date: new Date().toISOString().split('T')[0],
+      payment_method: "cash",
     },
   });
 
@@ -79,12 +89,16 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
   const addLineItem = () => {
     const newLine: LineItem = {
       id: Math.random().toString(),
+      art_no: "",
       description: "",
+      color: "",
+      size: "",
       quantity: 1,
       unit_price: 0,
       tax_rate: 0,
       line_total: 0,
       tax_amount: 0,
+      discount_selected: false,
     };
     setLineItems([...lineItems, newLine]);
   };
@@ -109,14 +123,21 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
   const calculateTotals = () => {
     const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const tax_total = lineItems.reduce((sum, item) => sum + item.tax_amount, 0);
-    const grand_total = subtotal + tax_total;
-    return { subtotal, tax_total, grand_total };
+    
+    // Calculate discount on selected items
+    const discountableAmount = lineItems
+      .filter(item => item.discount_selected)
+      .reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const discount_amount = (discountableAmount * discountPercent) / 100;
+    
+    const grand_total = subtotal + tax_total - discount_amount;
+    return { subtotal, tax_total, discount_amount, grand_total };
   };
 
   const onSubmit = async (data: InvoiceFormData) => {
     try {
       setLoading(true);
-      const { subtotal, tax_total, grand_total } = calculateTotals();
+      const { subtotal, tax_total, discount_amount, grand_total } = calculateTotals();
 
       // Get user's company_id
       const { data: { user } } = await supabase.auth.getUser();
@@ -145,6 +166,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
           notes: data.notes,
           subtotal,
           tax_total,
+          discount: discount_amount,
           grand_total,
           status: 'draft',
         })
@@ -239,7 +261,41 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
                 {...form.register("due_date")}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="payment_method">Payment Method</Label>
+              <Select
+                value={form.watch("payment_method")}
+                onValueChange={(value) => form.setValue("payment_method", value as any)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+
+          {form.watch("payment_method") === "cheque" && (
+            <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/50">
+              <div className="space-y-2">
+                <Label htmlFor="cheque_no">Cheque No</Label>
+                <Input {...form.register("cheque_no")} placeholder="Cheque number" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cheque_date">Cheque Date</Label>
+                <Input type="date" {...form.register("cheque_date")} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cheque_amount">Cheque Amount</Label>
+                <Input type="number" {...form.register("cheque_amount")} placeholder="0.00" />
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -253,51 +309,92 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
             <div className="space-y-2">
               {lineItems.map((line) => (
                 <div key={line.id} className="grid grid-cols-12 gap-2 items-start p-3 border rounded-lg">
-                  <div className="col-span-4">
-                    <Input
-                      placeholder="Description"
-                      value={line.description}
-                      onChange={(e) => updateLineItem(line.id, "description", e.target.value)}
+                  <div className="col-span-1 flex items-center justify-center pt-2">
+                    <input
+                      type="checkbox"
+                      checked={line.discount_selected}
+                      onChange={(e) => updateLineItem(line.id, "discount_selected", e.target.checked)}
+                      className="h-4 w-4"
                     />
                   </div>
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      placeholder="Qty"
-                      value={line.quantity}
-                      onChange={(e) => updateLineItem(line.id, "quantity", parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      placeholder="Price"
-                      value={line.unit_price}
-                      onChange={(e) => updateLineItem(line.id, "unit_price", parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <Input
-                      type="number"
-                      placeholder="Tax %"
-                      value={line.tax_rate}
-                      onChange={(e) => updateLineItem(line.id, "tax_rate", parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <div className="text-sm font-medium text-right pt-2">
-                      {line.line_total.toFixed(2)}
+                  <div className="col-span-11 grid grid-cols-11 gap-2">
+                    <div className="col-span-2">
+                      <Input
+                        placeholder="Art No"
+                        value={line.art_no}
+                        onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
+                      />
                     </div>
-                  </div>
-                  <div className="col-span-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeLineItem(line.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="col-span-2">
+                      <Input
+                        placeholder="Description"
+                        value={line.description}
+                        onChange={(e) => updateLineItem(line.id, "description", e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <Input
+                        placeholder="Color"
+                        value={line.color}
+                        onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <Select
+                        value={line.size}
+                        onValueChange={(value) => updateLineItem(line.id, "size", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[39, 40, 41, 42, 43, 44, 45].map((size) => (
+                            <SelectItem key={size} value={size.toString()}>
+                              {size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        placeholder="Qty"
+                        value={line.quantity}
+                        onChange={(e) => updateLineItem(line.id, "quantity", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        placeholder="Price"
+                        value={line.unit_price}
+                        onChange={(e) => updateLineItem(line.id, "unit_price", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <Input
+                        type="number"
+                        placeholder="Tax %"
+                        value={line.tax_rate}
+                        onChange={(e) => updateLineItem(line.id, "tax_rate", parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <div className="text-sm font-medium text-right pt-2">
+                        {line.line_total.toFixed(2)}
+                      </div>
+                    </div>
+                    <div className="col-span-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeLineItem(line.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -313,18 +410,43 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess }: InvoiceDialogPr
             />
           </div>
 
-          <div className="border-t pt-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Subtotal:</span>
-              <span>{totals.subtotal.toFixed(2)}</span>
+          <div className="border-t pt-4 space-y-3">
+            <div className="flex items-center gap-4">
+              <Label htmlFor="discount_percent" className="whitespace-nowrap">% Discount:</Label>
+              <Input
+                id="discount_percent"
+                type="number"
+                min="0"
+                max="100"
+                value={discountPercent}
+                onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+                className="w-32"
+                placeholder="0"
+              />
+              <span className="text-sm text-muted-foreground">
+                (Applied to {lineItems.filter(i => i.discount_selected).length} selected items)
+              </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span>Tax:</span>
-              <span>{totals.tax_total.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold">
-              <span>Grand Total:</span>
-              <span>{totals.grand_total.toFixed(2)}</span>
+            
+            <div className="space-y-2 pt-2">
+              <div className="flex justify-between text-sm">
+                <span>Subtotal:</span>
+                <span>{totals.subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span>Tax:</span>
+                <span>{totals.tax_total.toFixed(2)}</span>
+              </div>
+              {totals.discount_amount > 0 && (
+                <div className="flex justify-between text-sm text-destructive">
+                  <span>Discount ({discountPercent}%):</span>
+                  <span>-{totals.discount_amount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-lg font-bold">
+                <span>Grand Total:</span>
+                <span>{totals.grand_total.toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
