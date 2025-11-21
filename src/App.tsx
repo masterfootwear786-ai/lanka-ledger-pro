@@ -37,6 +37,11 @@ import ChartOfAccounts from "./pages/accounting/ChartOfAccounts";
 import Journals from "./pages/accounting/Journals";
 import GeneralLedger from "./pages/accounting/GeneralLedger";
 import Settings from "./pages/Settings";
+import Company from "./pages/settings/Company";
+import TaxRates from "./pages/settings/TaxRates";
+import Users from "./pages/settings/Users";
+import Currencies from "./pages/settings/Currencies";
+import CustomFields from "./pages/settings/CustomFields";
 import { Layout } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -105,6 +110,11 @@ const App = () => (
               <Route path="/reports/tax-summary" element={<ProtectedRoute><TaxSummary /></ProtectedRoute>} />
               {/* Settings */}
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/settings/company" element={<ProtectedRoute><Company /></ProtectedRoute>} />
+              <Route path="/settings/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+              <Route path="/settings/tax-rates" element={<ProtectedRoute><TaxRates /></ProtectedRoute>} />
+              <Route path="/settings/currencies" element={<ProtectedRoute><Currencies /></ProtectedRoute>} />
+              <Route path="/settings/custom-fields" element={<ProtectedRoute><CustomFields /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
