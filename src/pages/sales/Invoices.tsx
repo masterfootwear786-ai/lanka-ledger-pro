@@ -340,7 +340,6 @@ export default function Invoices() {
                         className="text-destructive hover:text-destructive"
                         onClick={() => handleDeleteRequest(invoice)}
                         title="Delete"
-                        disabled={invoice.posted}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
