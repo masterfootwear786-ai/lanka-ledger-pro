@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileX, Download } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileX, FileEdit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateCustomerStatement } from "@/lib/customerStatement";
+import StatementOptionsDialog, { StatementOptions } from "@/components/statements/StatementOptionsDialog";
+import jsPDF from "jspdf";
 
 export default function CustomerDetails() {
   const { id } = useParams();
@@ -27,6 +29,7 @@ export default function CustomerDetails() {
     totalCredited: 0,
     outstanding: 0,
   });
+  const [showStatementDialog, setShowStatementDialog] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -108,8 +111,8 @@ export default function CustomerDetails() {
     return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
   };
 
-  const handleExportPDF = () => {
-    const transactions = [
+  const getTransactions = () => {
+    return [
       ...invoices.map((inv) => ({
         date: inv.invoice_date,
         type: "Invoice",
@@ -132,9 +135,56 @@ export default function CustomerDetails() {
         credit: cn.grand_total || 0,
       })),
     ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  };
 
-    generateCustomerStatement(customer, stats, transactions);
+  const handleExportPDF = (options: StatementOptions) => {
+    const transactions = getTransactions();
+    generateCustomerStatement(customer, stats, transactions, options);
     toast.success("Customer statement exported successfully");
+    setShowStatementDialog(false);
+  };
+
+  const handleEmailStatement = async (options: StatementOptions) => {
+    try {
+      const transactions = getTransactions();
+      
+      // Generate PDF and convert to base64
+      const doc = new jsPDF();
+      generateCustomerStatement(customer, stats, transactions, options);
+      const pdfBase64 = doc.output("datauristring").split(",")[1];
+      
+      const fileName = `Customer_Statement_${customer.code}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+
+      const { error } = await supabase.functions.invoke("send-customer-statement", {
+        body: {
+          to: customer.email,
+          customerName: customer.name,
+          pdfBase64,
+          fileName,
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success("Statement sent successfully to " + customer.email);
+      setShowStatementDialog(false);
+    } catch (error: any) {
+      toast.error("Failed to send email: " + error.message);
+    }
+  };
+
+  const handleWhatsAppStatement = (options: StatementOptions) => {
+    const transactions = getTransactions();
+    generateCustomerStatement(customer, stats, transactions, options);
+    
+    const message = encodeURIComponent(
+      `Hello ${customer.name}, your account statement has been generated. Outstanding balance: ${stats.outstanding.toLocaleString()}`
+    );
+    const whatsappUrl = `https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}?text=${message}`;
+    
+    window.open(whatsappUrl, "_blank");
+    toast.success("Opening WhatsApp...");
+    setShowStatementDialog(false);
   };
 
   if (loading) {
@@ -160,9 +210,9 @@ export default function CustomerDetails() {
           <h1 className="text-3xl font-bold">{customer.name}</h1>
           <p className="text-muted-foreground">Customer Code: {customer.code}</p>
         </div>
-        <Button onClick={handleExportPDF} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export Statement
+        <Button onClick={() => setShowStatementDialog(true)} variant="outline">
+          <FileEdit className="h-4 w-4 mr-2" />
+          Generate Statement
         </Button>
         <Badge variant={customer.active ? "default" : "secondary"}>
           {customer.active ? "Active" : "Inactive"}
@@ -479,6 +529,16 @@ export default function CustomerDetails() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <StatementOptionsDialog
+        open={showStatementDialog}
+        onOpenChange={setShowStatementDialog}
+        customerEmail={customer.email}
+        customerPhone={customer.phone}
+        onExport={handleExportPDF}
+        onEmail={handleEmailStatement}
+        onWhatsApp={handleWhatsAppStatement}
+      />
     </div>
   );
 }

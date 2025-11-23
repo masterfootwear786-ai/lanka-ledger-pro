@@ -27,11 +27,44 @@ interface Transaction {
   credit: number;
 }
 
+export interface StatementOptions {
+  dateFrom?: Date;
+  dateTo?: Date;
+  includeInvoices?: boolean;
+  includeReceipts?: boolean;
+  includeCreditNotes?: boolean;
+  showRunningBalance?: boolean;
+  includeAccountSummary?: boolean;
+  notes?: string;
+}
+
 export const generateCustomerStatement = (
   customer: CustomerData,
   stats: StatsData,
-  transactions: Transaction[]
+  transactions: Transaction[],
+  options?: StatementOptions
 ) => {
+  // Filter transactions based on options
+  let filteredTransactions = transactions;
+  
+  if (options?.dateFrom || options?.dateTo) {
+    filteredTransactions = transactions.filter((txn) => {
+      const txnDate = new Date(txn.date);
+      if (options.dateFrom && txnDate < options.dateFrom) return false;
+      if (options.dateTo && txnDate > options.dateTo) return false;
+      return true;
+    });
+  }
+
+  if (options?.includeInvoices === false) {
+    filteredTransactions = filteredTransactions.filter(txn => txn.type !== "Invoice");
+  }
+  if (options?.includeReceipts === false) {
+    filteredTransactions = filteredTransactions.filter(txn => txn.type !== "Receipt");
+  }
+  if (options?.includeCreditNotes === false) {
+    filteredTransactions = filteredTransactions.filter(txn => txn.type !== "Credit Note");
+  }
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   let yPos = 20;
@@ -74,66 +107,88 @@ export const generateCustomerStatement = (
     doc.text(`Address: ${customer.address}`, 14, yPos);
   }
 
-  // Account Summary
-  yPos += 12;
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("Account Summary", 14, yPos);
-  
-  yPos += 8;
-  autoTable(doc, {
-    startY: yPos,
-    head: [["Description", "Amount"]],
-    body: [
-      ["Total Invoiced", stats.totalInvoiced.toLocaleString("en-US", { minimumFractionDigits: 2 })],
-      ["Total Paid", stats.totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })],
-      ["Total Credited", stats.totalCredited.toLocaleString("en-US", { minimumFractionDigits: 2 })],
-      ["Outstanding Balance", stats.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })],
-    ],
-    theme: "striped",
-    headStyles: { fillColor: [71, 85, 105] },
-    styles: { fontSize: 10 },
-    columnStyles: {
-      0: { cellWidth: 100 },
-      1: { halign: "right", cellWidth: 80 },
-    },
-  });
+  // Account Summary (optional)
+  if (options?.includeAccountSummary !== false) {
+    yPos += 12;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Account Summary", 14, yPos);
+    
+    yPos += 8;
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Description", "Amount"]],
+      body: [
+        ["Total Invoiced", stats.totalInvoiced.toLocaleString("en-US", { minimumFractionDigits: 2 })],
+        ["Total Paid", stats.totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })],
+        ["Total Credited", stats.totalCredited.toLocaleString("en-US", { minimumFractionDigits: 2 })],
+        ["Outstanding Balance", stats.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })],
+      ],
+      theme: "striped",
+      headStyles: { fillColor: [71, 85, 105] },
+      styles: { fontSize: 10 },
+      columnStyles: {
+        0: { cellWidth: 100 },
+        1: { halign: "right", cellWidth: 80 },
+      },
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 15;
+  } else {
+    yPos += 12;
+  }
 
   // Transaction History
-  yPos = (doc as any).lastAutoTable.finalY + 15;
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text("Transaction History", 14, yPos);
 
   // Prepare transaction data with running balance
   let runningBalance = 0;
-  const transactionRows = transactions.map((txn) => {
+  const showBalance = options?.showRunningBalance !== false;
+  const transactionRows = filteredTransactions.map((txn) => {
     runningBalance += txn.debit - txn.credit;
-    return [
+    const row = [
       format(new Date(txn.date), "dd/MM/yyyy"),
       txn.type,
       txn.reference,
       txn.debit > 0 ? txn.debit.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "-",
       txn.credit > 0 ? txn.credit.toLocaleString("en-US", { minimumFractionDigits: 2 }) : "-",
-      runningBalance.toLocaleString("en-US", { minimumFractionDigits: 2 }),
     ];
+    if (showBalance) {
+      row.push(runningBalance.toLocaleString("en-US", { minimumFractionDigits: 2 }));
+    }
+    return row;
   });
 
   yPos += 8;
+  const headers = showBalance 
+    ? [["Date", "Type", "Reference", "Debit", "Credit", "Balance"]]
+    : [["Date", "Type", "Reference", "Debit", "Credit"]];
+  
+  const emptyRow = showBalance
+    ? [["No transactions found", "", "", "", "", ""]]
+    : [["No transactions found", "", "", "", ""]];
+
   autoTable(doc, {
     startY: yPos,
-    head: [["Date", "Type", "Reference", "Debit", "Credit", "Balance"]],
-    body: transactionRows.length > 0 ? transactionRows : [["No transactions found", "", "", "", "", ""]],
+    head: headers,
+    body: transactionRows.length > 0 ? transactionRows : emptyRow,
     theme: "striped",
     headStyles: { fillColor: [71, 85, 105] },
     styles: { fontSize: 9 },
-    columnStyles: {
+    columnStyles: showBalance ? {
       0: { cellWidth: 25 },
       1: { cellWidth: 30 },
       2: { cellWidth: 35 },
       3: { halign: "right", cellWidth: 30 },
       4: { halign: "right", cellWidth: 30 },
       5: { halign: "right", cellWidth: 30 },
+    } : {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 35 },
+      2: { cellWidth: 40 },
+      3: { halign: "right", cellWidth: 40 },
+      4: { halign: "right", cellWidth: 40 },
     },
     didDrawPage: (data) => {
       // Footer
@@ -149,24 +204,34 @@ export const generateCustomerStatement = (
     },
   });
 
-  // Payment Terms Note
+  // Payment Terms Note and Custom Notes
   const finalY = (doc as any).lastAutoTable.finalY + 10;
-  if (finalY < doc.internal.pageSize.getHeight() - 30) {
+  if (finalY < doc.internal.pageSize.getHeight() - 40) {
+    let notesY = finalY;
     doc.setFontSize(9);
     doc.setFont("helvetica", "italic");
+    
     if (customer.payment_terms) {
       doc.text(
         `Payment Terms: ${customer.payment_terms} days`,
         14,
-        finalY
+        notesY
       );
+      notesY += 5;
     }
     if (customer.credit_limit) {
       doc.text(
         `Credit Limit: ${customer.credit_limit.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
         14,
-        finalY + 5
+        notesY
       );
+      notesY += 5;
+    }
+    
+    if (options?.notes) {
+      notesY += 5;
+      doc.setFont("helvetica", "normal");
+      doc.text(`Notes: ${options.notes}`, 14, notesY);
     }
   }
 
