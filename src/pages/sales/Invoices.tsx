@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, FileText, Eye, Edit, Trash2, Printer } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -19,17 +19,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type StatusFilter = "all" | "draft" | "approved" | "paid";
 
 export default function Invoices() {
   const { t } = useTranslation();
   const { toast } = useToast();
+
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
   const [invoices, setInvoices] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -47,17 +53,24 @@ export default function Invoices() {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('invoices')
-        .select(`
+        .from("invoices")
+        .select(
+          `
           *,
           customer:contacts(name, area)
-        `)
-        .order('created_at', { ascending: false });
+        `,
+        )
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
       setInvoices(data || []);
     } catch (error) {
-      console.error('Error fetching invoices:', error);
+      console.error("Error fetching invoices:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load invoices.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -65,21 +78,43 @@ export default function Invoices() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "paid": return "bg-green-500";
-      case "approved": return "bg-blue-500";
-      case "draft": return "bg-gray-500";
-      default: return "bg-gray-500";
+      case "paid":
+        return "bg-green-500";
+      case "approved":
+        return "bg-blue-500";
+      case "draft":
+        return "bg-gray-500";
+      default:
+        return "bg-gray-500";
     }
   };
 
+  // 🔎 Search + Status filter
+  const filteredInvoices = invoices.filter((invoice) => {
+    const term = searchTerm.trim().toLowerCase();
+
+    // status filter
+    if (statusFilter !== "all" && invoice.status !== statusFilter) {
+      return false;
+    }
+
+    if (!term) return true;
+
+    const invoiceNo = String(invoice.invoice_no || "").toLowerCase();
+    const customerName = String(invoice.customer?.name || "").toLowerCase();
+    const city = String(invoice.customer?.area || "").toLowerCase();
+    const status = String(invoice.status || "").toLowerCase();
+
+    return invoiceNo.includes(term) || customerName.includes(term) || city.includes(term) || status.includes(term);
+  });
+
   const handleView = async (invoice: any) => {
     try {
-      // Fetch invoice lines
       const { data: lines, error } = await supabase
-        .from('invoice_lines')
-        .select('*')
-        .eq('invoice_id', invoice.id)
-        .order('line_no', { ascending: true });
+        .from("invoice_lines")
+        .select("*")
+        .eq("invoice_id", invoice.id)
+        .order("line_no", { ascending: true });
 
       if (error) throw error;
 
@@ -110,24 +145,18 @@ export default function Invoices() {
 
     try {
       // Delete invoice lines first
-      const { error: linesError } = await supabase
-        .from('invoice_lines')
-        .delete()
-        .eq('invoice_id', invoiceToDelete.id);
+      const { error: linesError } = await supabase.from("invoice_lines").delete().eq("invoice_id", invoiceToDelete.id);
 
       if (linesError) throw linesError;
 
       // Delete invoice
-      const { error } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', invoiceToDelete.id);
+      const { error } = await supabase.from("invoices").delete().eq("id", invoiceToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Invoice deleted successfully",
+        description: "Invoice deleted successfully.",
       });
 
       setDeleteDialogOpen(false);
@@ -144,15 +173,13 @@ export default function Invoices() {
 
   const handlePrint = async (invoice: any) => {
     try {
-      // Fetch invoice lines
       const { data: lines } = await supabase
-        .from('invoice_lines')
-        .select('*')
-        .eq('invoice_id', invoice.id)
-        .order('line_no', { ascending: true });
+        .from("invoice_lines")
+        .select("*")
+        .eq("invoice_id", invoice.id)
+        .order("line_no", { ascending: true });
 
-      // Create print content
-      const printWindow = window.open('', '', 'width=800,height=600');
+      const printWindow = window.open("", "", "width=800,height=600");
       if (!printWindow) return;
 
       const content = `
@@ -177,8 +204,12 @@ export default function Invoices() {
           </div>
           <div class="info">
             <p><strong>Date:</strong> ${new Date(invoice.invoice_date).toLocaleDateString()}</p>
-            <p><strong>Customer:</strong> ${invoice.customer?.name || 'N/A'}</p>
-            ${invoice.due_date ? `<p><strong>Due Date:</strong> ${new Date(invoice.due_date).toLocaleDateString()}</p>` : ''}
+            <p><strong>Customer:</strong> ${invoice.customer?.name || "N/A"}</p>
+            ${
+              invoice.due_date
+                ? `<p><strong>Due Date:</strong> ${new Date(invoice.due_date).toLocaleDateString()}</p>`
+                : ""
+            }
           </div>
           <table>
             <thead>
@@ -191,7 +222,9 @@ export default function Invoices() {
               </tr>
             </thead>
             <tbody>
-              ${(lines || []).map(line => `
+              ${(lines || [])
+                .map(
+                  (line: any) => `
                 <tr>
                   <td>${line.description}</td>
                   <td>${line.quantity}</td>
@@ -199,16 +232,18 @@ export default function Invoices() {
                   <td>${line.tax_amount.toFixed(2)}</td>
                   <td>${line.line_total.toFixed(2)}</td>
                 </tr>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </tbody>
           </table>
           <div class="total">
-            <p>Subtotal: ${invoice.subtotal?.toFixed(2) || '0.00'}</p>
-            <p>Tax: ${invoice.tax_total?.toFixed(2) || '0.00'}</p>
-            <p>Discount: ${invoice.discount?.toFixed(2) || '0.00'}</p>
-            <p>Grand Total: ${invoice.grand_total?.toFixed(2) || '0.00'}</p>
+            <p>Subtotal: ${invoice.subtotal?.toFixed(2) || "0.00"}</p>
+            <p>Tax: ${invoice.tax_total?.toFixed(2) || "0.00"}</p>
+            <p>Discount: ${invoice.discount?.toFixed(2) || "0.00"}</p>
+            <p>Grand Total: ${invoice.grand_total?.toFixed(2) || "0.00"}</p>
           </div>
-          ${invoice.notes ? `<div style="margin-top: 20px;"><strong>Notes:</strong><p>${invoice.notes}</p></div>` : ''}
+          ${invoice.notes ? `<div style="margin-top: 20px;"><strong>Notes:</strong><p>${invoice.notes}</p></div>` : ""}
         </body>
         </html>
       `;
@@ -225,21 +260,38 @@ export default function Invoices() {
     }
   };
 
+  const getStatusFilterLabel = (value: StatusFilter) => {
+    switch (value) {
+      case "all":
+        return "All Statuses";
+      case "draft":
+        return "Draft";
+      case "approved":
+        return "Approved";
+      case "paid":
+        return "Paid";
+      default:
+        return "All Statuses";
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{t('sales.invoices')}</h1>
-          <p className="text-muted-foreground mt-2">Manage customer invoices</p>
+          <h1 className="text-3xl font-bold">{t("sales.invoices")}</h1>
+          <p className="mt-2 text-muted-foreground">Manage customer invoices</p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          {t('sales.createInvoice')}
+          <Plus className="mr-2 h-4 w-4" />
+          {t("sales.createInvoice")}
         </Button>
       </div>
 
-      <InvoiceDialog 
-        open={dialogOpen} 
+      {/* Create / Edit dialog */}
+      <InvoiceDialog
+        open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open);
           if (!open) setSelectedInvoice(null);
@@ -248,26 +300,39 @@ export default function Invoices() {
         onSuccess={fetchInvoices}
       />
 
+      {/* Search + Filter */}
       <Card>
         <CardHeader>
           <CardTitle>Search & Filter</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <div className="relative flex-1">
+              <Search className="text-muted-foreground absolute left-3 top-3 h-4 w-4" />
               <Input
-                placeholder={t('common.search')}
+                placeholder={t("common.search")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Button variant="outline">{t('common.filter')}</Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">{getStatusFilterLabel(statusFilter)}</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setStatusFilter("all")}>All Statuses</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("draft")}>Draft</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("approved")}>Approved</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStatusFilter("paid")}>Paid</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
 
+      {/* Invoice list */}
       <Card>
         <CardHeader>
           <CardTitle>Invoice List</CardTitle>
@@ -277,74 +342,66 @@ export default function Invoices() {
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice #</TableHead>
-                <TableHead>{t('common.date')}</TableHead>
+                <TableHead>{t("common.date")}</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>City</TableHead>
-                <TableHead className="text-right">{t('common.amount')}</TableHead>
-                <TableHead>{t('common.status')}</TableHead>
-                <TableHead className="text-right">{t('common.actions')}</TableHead>
+                <TableHead className="text-right">{t("common.amount")}</TableHead>
+                <TableHead>{t("common.status")}</TableHead>
+                <TableHead className="text-right">{t("common.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={7} className="text-center">
+                    Loading...
+                  </TableCell>
                 </TableRow>
-              ) : invoices.length === 0 ? (
+              ) : filteredInvoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">No invoices found</TableCell>
+                  <TableCell colSpan={7} className="text-center">
+                    No invoices found
+                  </TableCell>
                 </TableRow>
               ) : (
-                invoices.map((invoice) => (
+                filteredInvoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-mono font-medium">{invoice.invoice_no}</TableCell>
                     <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{invoice.customer?.name || 'N/A'}</TableCell>
-                    <TableCell>{invoice.customer?.area || '-'}</TableCell>
-                    <TableCell className="text-right">{invoice.grand_total?.toLocaleString() || '0'}</TableCell>
+                    <TableCell>{invoice.customer?.name || "N/A"}</TableCell>
+                    <TableCell>{invoice.customer?.area || "-"}</TableCell>
+                    <TableCell className="text-right">{invoice.grand_total?.toLocaleString() || "0"}</TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(invoice.status)}>
-                        {t(`status.${invoice.status}`)}
-                      </Badge>
+                      <Badge className={getStatusColor(invoice.status)}>{t(`status.${invoice.status}`)}</Badge>
                     </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleView(invoice)}
-                        title="View Details"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handleEdit(invoice)}
-                        title="Edit"
-                        disabled={invoice.posted}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => handlePrint(invoice)}
-                        title="Print"
-                      >
-                        <Printer className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteRequest(invoice)}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleView(invoice)} title="View Details">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(invoice)}
+                          title="Edit"
+                          disabled={invoice.posted}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handlePrint(invoice)} title="Print">
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteRequest(invoice)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -362,16 +419,25 @@ export default function Invoices() {
 
           {selectedInvoice && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6 pb-4 border-b">
+              <div className="grid grid-cols-2 gap-6 border-b pb-4">
                 <div>
-                  <h3 className="font-semibold mb-3">Invoice Information</h3>
+                  <h3 className="mb-3 font-semibold">Invoice Information</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Invoice #:</span> {selectedInvoice.invoice_no}</p>
-                    <p><span className="font-medium">Date:</span> {new Date(selectedInvoice.invoice_date).toLocaleDateString()}</p>
+                    <p>
+                      <span className="font-medium">Invoice #:</span> {selectedInvoice.invoice_no}
+                    </p>
+                    <p>
+                      <span className="font-medium">Date:</span>{" "}
+                      {new Date(selectedInvoice.invoice_date).toLocaleDateString()}
+                    </p>
                     {selectedInvoice.due_date && (
-                      <p><span className="font-medium">Due Date:</span> {new Date(selectedInvoice.due_date).toLocaleDateString()}</p>
+                      <p>
+                        <span className="font-medium">Due Date:</span>{" "}
+                        {new Date(selectedInvoice.due_date).toLocaleDateString()}
+                      </p>
                     )}
-                    <p><span className="font-medium">Status:</span> 
+                    <p>
+                      <span className="font-medium">Status:</span>
                       <Badge className={`${getStatusColor(selectedInvoice.status)} ml-2`}>
                         {selectedInvoice.status}
                       </Badge>
@@ -380,35 +446,39 @@ export default function Invoices() {
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-3">Customer Information</h3>
+                  <h3 className="mb-3 font-semibold">Customer Information</h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium">Name:</span> {selectedInvoice.customer?.name || 'N/A'}</p>
+                    <p>
+                      <span className="font-medium">Name:</span> {selectedInvoice.customer?.name || "N/A"}
+                    </p>
                     {selectedInvoice.customer?.area && (
-                      <p><span className="font-medium">City:</span> {selectedInvoice.customer.area}</p>
+                      <p>
+                        <span className="font-medium">City:</span> {selectedInvoice.customer.area}
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold mb-3">Items</h3>
-                <div className="border rounded-lg overflow-hidden">
+                <h3 className="mb-3 font-semibold">Items</h3>
+                <div className="overflow-hidden rounded-lg border">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-muted/50">
-                        <TableHead className="font-semibold w-16">DSG. No</TableHead>
-                        <TableHead className="font-semibold min-w-[200px]">Description</TableHead>
-                        <TableHead className="font-semibold text-center w-16">CLR</TableHead>
-                        <TableHead className="font-semibold text-center w-12 bg-muted/30">39</TableHead>
-                        <TableHead className="font-semibold text-center w-12">40</TableHead>
-                        <TableHead className="font-semibold text-center w-12 bg-muted/30">41</TableHead>
-                        <TableHead className="font-semibold text-center w-12">42</TableHead>
-                        <TableHead className="font-semibold text-center w-12 bg-muted/30">43</TableHead>
-                        <TableHead className="font-semibold text-center w-12">44</TableHead>
-                        <TableHead className="font-semibold text-center w-12 bg-muted/30">45</TableHead>
-                        <TableHead className="font-semibold text-center w-20">Pairs</TableHead>
-                        <TableHead className="font-semibold text-right w-24">Price</TableHead>
-                        <TableHead className="font-semibold text-right w-28">Amount</TableHead>
+                        <TableHead className="w-16 font-semibold">DSG. No</TableHead>
+                        <TableHead className="min-w-[200px] font-semibold">Description</TableHead>
+                        <TableHead className="w-16 text-center font-semibold">CLR</TableHead>
+                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">39</TableHead>
+                        <TableHead className="w-12 text-center font-semibold">40</TableHead>
+                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">41</TableHead>
+                        <TableHead className="w-12 text-center font-semibold">42</TableHead>
+                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">43</TableHead>
+                        <TableHead className="w-12 text-center font-semibold">44</TableHead>
+                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">45</TableHead>
+                        <TableHead className="w-20 text-center font-semibold">Pairs</TableHead>
+                        <TableHead className="w-24 text-right font-semibold">Price</TableHead>
+                        <TableHead className="w-28 text-right font-semibold">Amount</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -417,13 +487,15 @@ export default function Invoices() {
                           <TableCell className="font-medium">{index + 1}</TableCell>
                           <TableCell>{line.description}</TableCell>
                           <TableCell className="text-center">-</TableCell>
-                          <TableCell className="text-center bg-muted/10">{line.quantity > 0 ? line.quantity : '-'}</TableCell>
+                          <TableCell className="bg-muted/10 text-center">
+                            {line.quantity > 0 ? line.quantity : "-"}
+                          </TableCell>
                           <TableCell className="text-center">-</TableCell>
-                          <TableCell className="text-center bg-muted/10">-</TableCell>
+                          <TableCell className="bg-muted/10 text-center">-</TableCell>
                           <TableCell className="text-center">-</TableCell>
-                          <TableCell className="text-center bg-muted/10">-</TableCell>
+                          <TableCell className="bg-muted/10 text-center">-</TableCell>
                           <TableCell className="text-center">-</TableCell>
-                          <TableCell className="text-center bg-muted/10">-</TableCell>
+                          <TableCell className="bg-muted/10 text-center">-</TableCell>
                           <TableCell className="text-center font-medium">{line.quantity}</TableCell>
                           <TableCell className="text-right">{line.unit_price.toFixed(2)}</TableCell>
                           <TableCell className="text-right font-medium">{line.line_total.toFixed(2)}</TableCell>
@@ -436,24 +508,24 @@ export default function Invoices() {
 
               <div className="border-t pt-4">
                 <div className="flex justify-end">
-                  <div className="space-y-2 w-80">
+                  <div className="w-80 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Subtotal:</span>
-                      <span className="font-medium">{selectedInvoice.subtotal?.toFixed(2) || '0.00'}</span>
+                      <span className="font-medium">{selectedInvoice.subtotal?.toFixed(2) || "0.00"}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Tax Total:</span>
-                      <span className="font-medium">{selectedInvoice.tax_total?.toFixed(2) || '0.00'}</span>
+                      <span className="font-medium">{selectedInvoice.tax_total?.toFixed(2) || "0.00"}</span>
                     </div>
                     {selectedInvoice.discount > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Discount:</span>
-                        <span className="font-medium">-{selectedInvoice.discount?.toFixed(2) || '0.00'}</span>
+                        <span className="font-medium">-{selectedInvoice.discount?.toFixed(2) || "0.00"}</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-lg font-bold border-t pt-2">
+                    <div className="flex justify-between border-t pt-2 text-lg font-bold">
                       <span>Grand Total:</span>
-                      <span>{selectedInvoice.grand_total?.toFixed(2) || '0.00'}</span>
+                      <span>{selectedInvoice.grand_total?.toFixed(2) || "0.00"}</span>
                     </div>
                   </div>
                 </div>
@@ -461,7 +533,7 @@ export default function Invoices() {
 
               {selectedInvoice.notes && (
                 <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-2">Notes</h3>
+                  <h3 className="mb-2 font-semibold">Notes</h3>
                   <p className="text-sm text-muted-foreground">{selectedInvoice.notes}</p>
                 </div>
               )}
@@ -471,7 +543,7 @@ export default function Invoices() {
                   Close
                 </Button>
                 <Button onClick={() => handlePrint(selectedInvoice)}>
-                  <Printer className="h-4 w-4 mr-2" />
+                  <Printer className="mr-2 h-4 w-4" />
                   Print
                 </Button>
               </div>
@@ -490,10 +562,11 @@ export default function Invoices() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>
