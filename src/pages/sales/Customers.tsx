@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, Mail, Phone } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Mail, Phone, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
@@ -176,6 +176,13 @@ export default function Customers() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => window.location.href = `/sales/customers/${customer.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(customer)}>
                             <Edit className="h-4 w-4" />
                           </Button>
