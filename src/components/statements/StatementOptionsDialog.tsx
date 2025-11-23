@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { CalendarIcon, Download, Mail, Send } from "lucide-react";
+import { CalendarIcon, Download, Mail, Send, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StatementOptionsDialogProps {
@@ -18,6 +18,7 @@ interface StatementOptionsDialogProps {
   onExport: (options: StatementOptions) => void;
   onEmail: (options: StatementOptions) => void;
   onWhatsApp: (options: StatementOptions) => void;
+  onView: (options: StatementOptions) => void;
 }
 
 export interface StatementOptions {
@@ -39,6 +40,7 @@ export default function StatementOptionsDialog({
   onExport,
   onEmail,
   onWhatsApp,
+  onView,
 }: StatementOptionsDialogProps) {
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
@@ -203,6 +205,13 @@ export default function StatementOptionsDialog({
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button
+            onClick={() => onView(getOptions())}
+            className="w-full sm:w-auto"
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            View Statement
+          </Button>
           <Button
             variant="outline"
             onClick={() => onExport(getOptions())}
