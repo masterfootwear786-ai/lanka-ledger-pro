@@ -157,16 +157,16 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       const groupedLines: { [key: string]: any } = {};
       
       lines.forEach(line => {
-        // Extract art_no, description, color from the description
-        const match = line.description.match(/^(.+?) - (.+?) - (.+?) - Size (\d+)$/);
-        const key = match ? `${match[1]}_${match[2]}_${match[3]}` : line.description;
+        // Extract art_no, color from the description
+        const match = line.description.match(/^(.+?) - (.+?) - Size (\d+)$/);
+        const key = match ? `${match[1]}_${match[2]}` : line.description;
         
         if (!groupedLines[key]) {
           groupedLines[key] = {
             id: Math.random().toString(),
             art_no: match ? match[1] : '',
-            description: match ? match[2] : line.description,
-            color: match ? match[3] : '',
+            description: '',
+            color: match ? match[2] : '',
             size_39: 0,
             size_40: 0,
             size_41: 0,
@@ -185,7 +185,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         
         // Add quantity to appropriate size
         if (match) {
-          const size = match[4];
+          const size = match[3];
           groupedLines[key][`size_${size}`] = line.quantity;
         }
       });
@@ -440,7 +440,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
             lines.push({
               invoice_id: invoiceId,
               line_no: lines.length + 1,
-              description: `${item.art_no} - ${item.description} - ${item.color} - Size ${s.size}`,
+              description: `${item.art_no} - ${item.color} - Size ${s.size}`,
               quantity: s.qty,
               unit_price: item.unit_price,
               tax_rate: item.tax_rate,
@@ -686,10 +686,9 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
             <div className="space-y-2 overflow-x-auto">
               <div className="min-w-[1200px]">
                 {/* Header Row */}
-                <div className="grid grid-cols-[40px_100px_120px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 mb-2 text-xs font-semibold">
+                <div className="grid grid-cols-[40px_100px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 mb-2 text-xs font-semibold">
                   <div className="text-center">✓</div>
                   <div>DSG. No</div>
-                  <div>Description</div>
                   <div>CLR</div>
                   <div className="text-center">39</div>
                   <div className="text-center">40</div>
@@ -706,7 +705,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
                 {/* Line Items */}
                 {lineItems.map((line) => (
-                  <div key={line.id} className="grid grid-cols-[40px_100px_120px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 items-center p-2 border rounded-lg mb-2 bg-background">
+                  <div key={line.id} className="grid grid-cols-[40px_100px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 items-center p-2 border rounded-lg mb-2 bg-background">
                     <div className="flex items-center justify-center">
                       <input
                         type="checkbox"
@@ -719,12 +718,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       placeholder="Art No"
                       value={line.art_no}
                       onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <Input
-                      placeholder="Description"
-                      value={line.description}
-                      onChange={(e) => updateLineItem(line.id, "description", e.target.value)}
                       className="h-8 text-xs"
                     />
                     <Input
