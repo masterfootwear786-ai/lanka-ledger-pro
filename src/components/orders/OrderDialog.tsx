@@ -577,8 +577,8 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[100px]">Art No</TableHead>
-                    <TableHead className="w-[100px]">Color</TableHead>
+                    <TableHead className="w-[150px]">Art No</TableHead>
+                    <TableHead className="w-[150px]">Color</TableHead>
                     <TableHead className="w-[70px]">39</TableHead>
                     <TableHead className="w-[70px]">40</TableHead>
                     <TableHead className="w-[70px]">41</TableHead>
