@@ -23,6 +23,7 @@ import APAging from "./pages/reports/APAging";
 import TaxSummary from "./pages/reports/TaxSummary";
 import Invoices from "./pages/sales/Invoices";
 import Customers from "./pages/sales/Customers";
+import CustomerDetails from "./pages/sales/CustomerDetails";
 import CreditNotes from "./pages/sales/CreditNotes";
 import Receipts from "./pages/sales/Receipts";
 import Bills from "./pages/purchasing/Bills";
@@ -85,6 +86,7 @@ const App = () => (
               <Route path="/sales/credit-notes" element={<ProtectedRoute><CreditNotes /></ProtectedRoute>} />
               <Route path="/sales/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
               <Route path="/sales/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
+              <Route path="/sales/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
               {/* Purchasing routes */}
               <Route path="/purchasing/bills" element={<ProtectedRoute><Bills /></ProtectedRoute>} />
               <Route path="/purchasing/debit-notes" element={<ProtectedRoute><DebitNotes /></ProtectedRoute>} />
