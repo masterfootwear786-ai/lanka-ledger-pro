@@ -1257,6 +1257,7 @@ export type Database = {
           color: string | null
           created_at: string | null
           description: string | null
+          discount: number | null
           id: string
           line_no: number
           size_39: number | null
@@ -1275,6 +1276,7 @@ export type Database = {
           color?: string | null
           created_at?: string | null
           description?: string | null
+          discount?: number | null
           id?: string
           line_no: number
           size_39?: number | null
@@ -1293,6 +1295,7 @@ export type Database = {
           color?: string | null
           created_at?: string | null
           description?: string | null
+          discount?: number | null
           id?: string
           line_no?: number
           size_39?: number | null
@@ -1670,6 +1673,7 @@ export type Database = {
           account_id: string | null
           created_at: string | null
           description: string
+          discount: number | null
           id: string
           item_id: string | null
           line_no: number
@@ -1686,6 +1690,7 @@ export type Database = {
           account_id?: string | null
           created_at?: string | null
           description: string
+          discount?: number | null
           id?: string
           item_id?: string | null
           line_no: number
@@ -1702,6 +1707,7 @@ export type Database = {
           account_id?: string | null
           created_at?: string | null
           description?: string
+          discount?: number | null
           id?: string
           item_id?: string | null
           line_no?: number

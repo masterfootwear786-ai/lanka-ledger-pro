@@ -31,6 +31,7 @@ interface OrderLine {
   size_45: number;
   total_pairs: number;
   unit_price: number;
+  discount: number;
   tax_rate: number;
   line_total: number;
   tax_amount: number;
@@ -55,6 +56,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
     status: "draft",
     notes: "",
     terms: "",
+    discount: 0,
   });
   const [lines, setLines] = useState<OrderLine[]>([]);
 
@@ -145,10 +147,10 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
 
       // Load template lines
       if (templateLines && templateLines.length > 0) {
-      setLines(templateLines.map(line => ({
-        id: crypto.randomUUID(),
-        art_no: line.art_no || "",
-        color: line.color || "",
+        setLines(templateLines.map(line => ({
+          id: crypto.randomUUID(),
+          art_no: line.art_no || "",
+          color: line.color || "",
           size_39: Number(line.size_39),
           size_40: Number(line.size_40),
           size_41: Number(line.size_41),
@@ -159,13 +161,15 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
           total_pairs: Number(line.size_39) + Number(line.size_40) + Number(line.size_41) + 
                       Number(line.size_42) + Number(line.size_43) + Number(line.size_44) + Number(line.size_45),
           unit_price: Number(line.unit_price),
+          discount: Number(line.discount || 0),
           tax_rate: Number(line.tax_rate),
           line_total: 0,
           tax_amount: 0,
         })).map(line => {
           const subtotal = line.total_pairs * line.unit_price;
-          line.tax_amount = subtotal * (line.tax_rate / 100);
-          line.line_total = subtotal + line.tax_amount;
+          const afterDiscount = subtotal - line.discount;
+          line.tax_amount = afterDiscount * (line.tax_rate / 100);
+          line.line_total = afterDiscount + line.tax_amount;
           return line;
         }));
       }
@@ -228,6 +232,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         status: order.status,
         notes: order.notes || "",
         terms: order.terms || "",
+        discount: order.discount || 0,
       });
 
       // Group lines by art_no and color to reconstruct the original line items
@@ -252,6 +257,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               size_45: 0,
               total_pairs: 0,
               unit_price: Number(line.unit_price),
+              discount: 0,
               tax_rate: Number(line.tax_rate || 0),
               line_total: 0,
               tax_amount: 0,
@@ -268,8 +274,9 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
           item.total_pairs = item.size_39 + item.size_40 + item.size_41 + 
                             item.size_42 + item.size_43 + item.size_44 + item.size_45;
           const subtotal = item.total_pairs * item.unit_price;
-          item.tax_amount = subtotal * (item.tax_rate / 100);
-          item.line_total = subtotal + item.tax_amount;
+          const afterDiscount = subtotal - item.discount;
+          item.tax_amount = afterDiscount * (item.tax_rate / 100);
+          item.line_total = afterDiscount + item.tax_amount;
           return item;
         });
 
@@ -294,6 +301,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
       size_45: 0,
       total_pairs: 0,
       unit_price: 0,
+      discount: 0,
       tax_rate: 0,
       line_total: 0,
       tax_amount: 0,
@@ -316,10 +324,11 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         Number(updated.size_39) + Number(updated.size_40) + Number(updated.size_41) + 
         Number(updated.size_42) + Number(updated.size_43) + Number(updated.size_44) + Number(updated.size_45);
       
-      // Calculate totals
+      // Calculate totals with discount
       const subtotal = updated.total_pairs * Number(updated.unit_price);
-      updated.tax_amount = subtotal * (Number(updated.tax_rate) / 100);
-      updated.line_total = subtotal + updated.tax_amount;
+      const afterDiscount = subtotal - Number(updated.discount);
+      updated.tax_amount = afterDiscount * (Number(updated.tax_rate) / 100);
+      updated.line_total = afterDiscount + updated.tax_amount;
 
       return updated;
     }));
@@ -327,10 +336,12 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
 
   const calculateTotals = () => {
     const subtotal = lines.reduce((sum, line) => sum + (line.total_pairs * line.unit_price), 0);
+    const lineDiscounts = lines.reduce((sum, line) => sum + Number(line.discount), 0);
     const taxTotal = lines.reduce((sum, line) => sum + line.tax_amount, 0);
-    const grandTotal = subtotal + taxTotal;
+    const orderDiscount = Number(formData.discount || 0);
+    const grandTotal = subtotal - lineDiscounts + taxTotal - orderDiscount;
     
-    return { subtotal, taxTotal, grandTotal };
+    return { subtotal, lineDiscounts, taxTotal, orderDiscount, grandTotal };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -367,6 +378,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         notes: formData.notes,
         terms: formData.terms,
         subtotal: totals.subtotal,
+        discount: totals.orderDiscount + totals.lineDiscounts,
         tax_total: totals.taxTotal,
         grand_total: totals.grandTotal,
       };
@@ -453,6 +465,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
       status: "draft",
       notes: "",
       terms: "",
+      discount: 0,
     });
     setLines([]);
   };
@@ -588,6 +601,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                     <TableHead className="w-[70px]">45</TableHead>
                     <TableHead className="w-[80px]">Total</TableHead>
                     <TableHead className="w-[100px]">Price</TableHead>
+                    <TableHead className="w-[100px]">Disc</TableHead>
                     <TableHead className="w-[80px]">Tax %</TableHead>
                     <TableHead className="w-[120px]">Amount</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
@@ -691,6 +705,17 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                       <TableCell>
                         <Input
                           type="number"
+                          value={line.discount}
+                          onChange={(e) => updateLine(line.id, 'discount', e.target.value)}
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          className="h-8"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
                           value={line.tax_rate}
                           onChange={(e) => updateLine(line.id, 'tax_rate', e.target.value)}
                           min="0"
@@ -720,17 +745,36 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
           </div>
 
           <div className="flex justify-end">
-            <div className="w-64 space-y-2">
+            <div className="w-80 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span className="font-medium">{totals.subtotal.toFixed(2)}</span>
               </div>
+              {totals.lineDiscounts > 0 && (
+                <div className="flex justify-between text-red-600">
+                  <span>Line Discounts:</span>
+                  <span className="font-medium">-{totals.lineDiscounts.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span>Tax:</span>
                 <span className="font-medium">{totals.taxTotal.toFixed(2)}</span>
               </div>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="order_discount">Order Discount:</Label>
+                <Input
+                  id="order_discount"
+                  type="number"
+                  value={formData.discount}
+                  onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="h-8 w-32 text-right"
+                />
+              </div>
               <div className="flex justify-between font-bold text-lg border-t pt-2">
-                <span>Total:</span>
+                <span>Grand Total:</span>
                 <span>{totals.grandTotal.toFixed(2)}</span>
               </div>
             </div>
