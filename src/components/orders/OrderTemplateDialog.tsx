@@ -319,16 +319,16 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[200px]">Art No</TableHead>
-                    <TableHead className="w-[200px]">Color</TableHead>
-                    <TableHead className="w-[70px]">39</TableHead>
-                    <TableHead className="w-[70px]">40</TableHead>
-                    <TableHead className="w-[70px]">41</TableHead>
-                    <TableHead className="w-[70px]">42</TableHead>
-                    <TableHead className="w-[70px]">43</TableHead>
-                    <TableHead className="w-[70px]">44</TableHead>
-                    <TableHead className="w-[70px]">45</TableHead>
-                    <TableHead className="w-[80px]">Total</TableHead>
+                    <TableHead className="w-[280px]">Art No</TableHead>
+                    <TableHead className="w-[280px]">Color</TableHead>
+                    <TableHead className="w-[55px] text-center">39</TableHead>
+                    <TableHead className="w-[55px] text-center">40</TableHead>
+                    <TableHead className="w-[55px] text-center">41</TableHead>
+                    <TableHead className="w-[55px] text-center">42</TableHead>
+                    <TableHead className="w-[55px] text-center">43</TableHead>
+                    <TableHead className="w-[55px] text-center">44</TableHead>
+                    <TableHead className="w-[55px] text-center">45</TableHead>
+                    <TableHead className="w-[70px] text-center">Total</TableHead>
                     <TableHead className="w-[150px]">Price</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
