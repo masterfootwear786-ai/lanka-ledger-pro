@@ -129,7 +129,6 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 required
-                disabled={!!contact}
               />
             </div>
             <div className="space-y-2">
