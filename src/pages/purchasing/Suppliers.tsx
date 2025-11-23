@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,16 +6,82 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Edit, Trash2, Mail, Phone } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { ContactDialog } from "@/components/contacts/ContactDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Suppliers() {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<any>(null);
 
-  const suppliers = [
-    { id: "S001", name: "Tech Supplies Ltd", email: "tech@supplies.com", phone: "+94771234567", balance: 15000, status: "active" },
-    { id: "S002", name: "Office Equipment Co", email: "office@equipment.com", phone: "+94777654321", balance: 0, status: "active" },
-    { id: "S003", name: "Raw Materials Inc", email: "raw@materials.com", phone: "+94711234567", balance: 25000, status: "active" },
-  ];
+  useEffect(() => {
+    fetchSuppliers();
+  }, []);
+
+  const fetchSuppliers = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("contact_type", "supplier")
+        .order("code");
+      
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEdit = (supplier: any) => {
+    setSelectedSupplier(supplier);
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!supplierToDelete) return;
+    
+    try {
+      const { error } = await supabase
+        .from("contacts")
+        .delete()
+        .eq("id", supplierToDelete.id);
+      
+      if (error) throw error;
+      toast.success("Supplier deleted successfully");
+      fetchSuppliers();
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setDeleteDialogOpen(false);
+      setSupplierToDelete(null);
+    }
+  };
+
+  const filteredSuppliers = suppliers.filter(supplier =>
+    supplier.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    supplier.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    supplier.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -24,7 +90,10 @@ export default function Suppliers() {
           <h1 className="text-3xl font-bold">{t('purchasing.suppliers')}</h1>
           <p className="text-muted-foreground mt-2">Manage supplier information</p>
         </div>
-        <Button>
+        <Button onClick={() => {
+          setSelectedSupplier(null);
+          setDialogOpen(true);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Add Supplier
         </Button>
@@ -52,54 +121,107 @@ export default function Suppliers() {
           <CardTitle>Supplier List</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
-                <TableHead>{t('common.status')}</TableHead>
-                <TableHead className="text-right">{t('common.actions')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {suppliers.map((supplier) => (
-                <TableRow key={supplier.id}>
-                  <TableCell className="font-mono">{supplier.id}</TableCell>
-                  <TableCell className="font-medium">{supplier.name}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-col gap-1 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                        {supplier.email}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                        {supplier.phone}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">{supplier.balance.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant="default">{t(`status.${supplier.status}`)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {loading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Code</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead className="text-right">Credit Limit</TableHead>
+                  <TableHead>{t('common.status')}</TableHead>
+                  <TableHead className="text-right">{t('common.actions')}</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredSuppliers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      No suppliers found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredSuppliers.map((supplier) => (
+                    <TableRow key={supplier.id}>
+                      <TableCell className="font-mono">{supplier.code}</TableCell>
+                      <TableCell className="font-medium">{supplier.name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1 text-sm">
+                          {supplier.email && (
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {supplier.email}
+                            </div>
+                          )}
+                          {supplier.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {supplier.phone}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {supplier.credit_limit?.toLocaleString() || '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={supplier.active ? "default" : "secondary"}>
+                          {supplier.active ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(supplier)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSupplierToDelete(supplier);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <ContactDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedSupplier(null);
+        }}
+        contact={selectedSupplier}
+        type="supplier"
+        onSuccess={fetchSuppliers}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Supplier</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {supplierToDelete?.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
