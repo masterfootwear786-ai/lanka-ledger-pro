@@ -7,6 +7,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ContactDialogProps {
   open: boolean;
@@ -18,6 +28,8 @@ interface ContactDialogProps {
 
 export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: ContactDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [showCodeChangeWarning, setShowCodeChangeWarning] = useState(false);
+  const [pendingSubmit, setPendingSubmit] = useState(false);
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -63,7 +75,15 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if customer code has changed
+    if (contact && formData.code !== contact.code && !pendingSubmit) {
+      setShowCodeChangeWarning(true);
+      return;
+    }
+    
     setLoading(true);
+    setPendingSubmit(false);
     
     try {
       // Get user's company_id
@@ -112,15 +132,26 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
     }
   };
 
+  const confirmCodeChange = () => {
+    setShowCodeChangeWarning(false);
+    setPendingSubmit(true);
+    // Trigger form submit programmatically
+    const form = document.getElementById('contact-form') as HTMLFormElement;
+    if (form) {
+      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {contact ? `Edit ${type === 'customer' ? 'Customer' : 'Supplier'}` : `Add ${type === 'customer' ? 'Customer' : 'Supplier'}`}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {contact ? `Edit ${type === 'customer' ? 'Customer' : 'Supplier'}` : `Add ${type === 'customer' ? 'Customer' : 'Supplier'}`}
+            </DialogTitle>
+          </DialogHeader>
+          <form id="contact-form" onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="code">Code *</Label>
@@ -232,5 +263,22 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
         </form>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={showCodeChangeWarning} onOpenChange={setShowCodeChangeWarning}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Confirm Code Change</AlertDialogTitle>
+          <AlertDialogDescription>
+            You are about to change the {type === 'customer' ? 'customer' : 'supplier'} code from "<strong>{contact?.code}</strong>" to "<strong>{formData.code}</strong>". 
+            This may affect existing transactions and reports. Are you sure you want to continue?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => setPendingSubmit(false)}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmCodeChange}>Confirm Change</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
