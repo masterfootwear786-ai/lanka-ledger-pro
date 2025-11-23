@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { generateCustomerStatement } from "@/lib/customerStatement";
 import StatementOptionsDialog, { StatementOptions } from "@/components/statements/StatementOptionsDialog";
+import StatementPreviewDialog from "@/components/statements/StatementPreviewDialog";
 import jsPDF from "jspdf";
 
 export default function CustomerDetails() {
@@ -30,6 +31,8 @@ export default function CustomerDetails() {
     outstanding: 0,
   });
   const [showStatementDialog, setShowStatementDialog] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [previewOptions, setPreviewOptions] = useState<StatementOptions | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -188,16 +191,61 @@ export default function CustomerDetails() {
   };
 
   const handleViewStatement = (options: StatementOptions) => {
+    setPreviewOptions(options);
+    setShowStatementDialog(false);
+    setShowPreviewDialog(true);
+  };
+
+  const handleExportFromPreview = () => {
+    if (previewOptions) {
+      const transactions = getTransactions();
+      generateCustomerStatement(customer, stats, transactions, previewOptions);
+      toast.success("Customer statement exported successfully");
+    }
+  };
+
+  const handleEmailFromPreview = async () => {
+    if (!previewOptions) return;
+    try {
+      const transactions = getTransactions();
+      
+      const doc = new jsPDF();
+      generateCustomerStatement(customer, stats, transactions, previewOptions);
+      const pdfBase64 = doc.output("datauristring").split(",")[1];
+      
+      const fileName = `Customer_Statement_${customer.code}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+
+      const { error } = await supabase.functions.invoke("send-customer-statement", {
+        body: {
+          to: customer.email,
+          customerName: customer.name,
+          pdfBase64,
+          fileName,
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success("Statement sent successfully to " + customer.email);
+      setShowPreviewDialog(false);
+    } catch (error: any) {
+      toast.error("Failed to send email: " + error.message);
+    }
+  };
+
+  const handleWhatsAppFromPreview = () => {
+    if (!previewOptions) return;
     const transactions = getTransactions();
-    const doc = new jsPDF();
-    generateCustomerStatement(customer, stats, transactions, options);
+    generateCustomerStatement(customer, stats, transactions, previewOptions);
     
-    // Open PDF in new window
-    const pdfBlob = doc.output("blob");
-    const pdfUrl = URL.createObjectURL(pdfBlob);
-    window.open(pdfUrl, "_blank");
+    const message = encodeURIComponent(
+      `Hello ${customer.name}, your account statement has been generated. Outstanding balance: ${stats.outstanding.toLocaleString()}`
+    );
+    const whatsappUrl = `https://wa.me/${customer.phone?.replace(/[^0-9]/g, "")}?text=${message}`;
     
-    toast.success("Statement opened in new tab");
+    window.open(whatsappUrl, "_blank");
+    toast.success("Opening WhatsApp...");
+    setShowPreviewDialog(false);
   };
 
   if (loading) {
@@ -553,6 +601,20 @@ export default function CustomerDetails() {
         onWhatsApp={handleWhatsAppStatement}
         onView={handleViewStatement}
       />
+
+      {previewOptions && (
+        <StatementPreviewDialog
+          open={showPreviewDialog}
+          onOpenChange={setShowPreviewDialog}
+          customer={customer}
+          stats={stats}
+          transactions={getTransactions()}
+          options={previewOptions}
+          onExport={handleExportFromPreview}
+          onEmail={handleEmailFromPreview}
+          onWhatsApp={handleWhatsAppFromPreview}
+        />
+      )}
     </div>
   );
 }
