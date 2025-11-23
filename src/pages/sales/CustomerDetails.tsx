@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileX } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileX, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { generateCustomerStatement } from "@/lib/customerStatement";
 
 export default function CustomerDetails() {
   const { id } = useParams();
@@ -107,6 +108,35 @@ export default function CustomerDetails() {
     return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
   };
 
+  const handleExportPDF = () => {
+    const transactions = [
+      ...invoices.map((inv) => ({
+        date: inv.invoice_date,
+        type: "Invoice",
+        reference: inv.invoice_no,
+        debit: inv.grand_total || 0,
+        credit: 0,
+      })),
+      ...receipts.map((rec) => ({
+        date: rec.receipt_date,
+        type: "Receipt",
+        reference: rec.receipt_no,
+        debit: 0,
+        credit: rec.amount || 0,
+      })),
+      ...creditNotes.map((cn) => ({
+        date: cn.credit_date,
+        type: "Credit Note",
+        reference: cn.credit_note_no,
+        debit: 0,
+        credit: cn.grand_total || 0,
+      })),
+    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    generateCustomerStatement(customer, stats, transactions);
+    toast.success("Customer statement exported successfully");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -130,6 +160,10 @@ export default function CustomerDetails() {
           <h1 className="text-3xl font-bold">{customer.name}</h1>
           <p className="text-muted-foreground">Customer Code: {customer.code}</p>
         </div>
+        <Button onClick={handleExportPDF} variant="outline">
+          <Download className="h-4 w-4 mr-2" />
+          Export Statement
+        </Button>
         <Badge variant={customer.active ? "default" : "secondary"}>
           {customer.active ? "Active" : "Inactive"}
         </Badge>
