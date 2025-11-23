@@ -39,6 +39,7 @@ export function AppSidebar() {
 
   const salesItems = [
     { title: 'Orders', url: '/sales/orders' },
+    { title: 'Order Templates', url: '/sales/order-templates' },
     { title: t('sales.invoices'), url: '/sales/invoices' },
     { title: t('sales.creditNotes'), url: '/sales/credit-notes' },
     { title: t('sales.receipts'), url: '/sales/receipts' },

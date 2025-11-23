@@ -1251,6 +1251,128 @@ export type Database = {
           },
         ]
       }
+      order_template_lines: {
+        Row: {
+          art_no: string | null
+          color: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          line_no: number
+          size_39: number | null
+          size_40: number | null
+          size_41: number | null
+          size_42: number | null
+          size_43: number | null
+          size_44: number | null
+          size_45: number | null
+          tax_rate: number | null
+          template_id: string
+          unit_price: number | null
+        }
+        Insert: {
+          art_no?: string | null
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          line_no: number
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
+          tax_rate?: number | null
+          template_id: string
+          unit_price?: number | null
+        }
+        Update: {
+          art_no?: string | null
+          color?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          line_no?: number
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
+          tax_rate?: number | null
+          template_id?: string
+          unit_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_template_lines_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "order_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_templates: {
+        Row: {
+          active: boolean | null
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          customer_id: string | null
+          id: string
+          notes: string | null
+          template_name: string
+          terms: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          notes?: string | null
+          template_name: string
+          terms?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          notes?: string | null
+          template_name?: string
+          terms?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_templates_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_templates_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_allocations: {
         Row: {
           amount: number
