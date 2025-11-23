@@ -1,21 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Search, Eye, Edit, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Journals() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [journals, setJournals] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [journalToDelete, setJournalToDelete] = useState<any>(null);
 
-  const journals = [
-    { id: "JE-001", date: "2024-01-15", description: "Opening Balance", status: "posted" },
-    { id: "JE-002", date: "2024-01-20", description: "Depreciation Entry", status: "posted" },
-    { id: "JE-003", date: "2024-01-25", description: "Accrual Entry", status: "draft" },
-  ];
+  useEffect(() => {
+    fetchJournals();
+  }, []);
+
+  const fetchJournals = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('journals')
+        .select('*')
+        .order('journal_date', { ascending: false });
+
+      if (error) throw error;
+      setJournals(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRequest = (journal: any) => {
+    setJournalToDelete(journal);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!journalToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('journals')
+        .delete()
+        .eq('id', journalToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Journal entry deleted successfully",
+      });
+
+      fetchJournals();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setJournalToDelete(null);
+    }
+  };
+
+  const filteredJournals = journals.filter(journal =>
+    journal.journal_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    journal.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -63,35 +129,60 @@ export default function Journals() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {journals.map((journal) => (
-                <TableRow key={journal.id}>
-                  <TableCell className="font-mono font-medium">{journal.id}</TableCell>
-                  <TableCell>{journal.date}</TableCell>
-                  <TableCell>{journal.description}</TableCell>
-                  <TableCell>
-                    <Badge variant={journal.status === "posted" ? "default" : "secondary"}>
-                      {journal.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">Loading...</TableCell>
                 </TableRow>
-              ))}
+              ) : filteredJournals.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">No journal entries found</TableCell>
+                </TableRow>
+              ) : (
+                filteredJournals.map((journal) => (
+                  <TableRow key={journal.id}>
+                    <TableCell className="font-mono font-medium">{journal.journal_no}</TableCell>
+                    <TableCell>{new Date(journal.journal_date).toLocaleDateString()}</TableCell>
+                    <TableCell>{journal.description}</TableCell>
+                    <TableCell>
+                      <Badge variant={journal.posted ? "default" : "secondary"}>
+                        {journal.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(journal)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Journal Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete journal entry {journalToDelete?.journal_no}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
