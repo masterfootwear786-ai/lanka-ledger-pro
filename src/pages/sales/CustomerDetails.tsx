@@ -43,44 +43,27 @@ export default function CustomerDetails() {
   const fetchCustomerData = async () => {
     setLoading(true);
     try {
-      // Fetch customer details
-      const { data: customerData, error: customerError } = await supabase
-        .from("contacts")
-        .select("*")
-        .eq("id", id)
-        .single();
+      // Fetch all data in parallel for faster loading
+      const [
+        { data: customerData, error: customerError },
+        { data: invoicesData, error: invoicesError },
+        { data: receiptsData, error: receiptsError },
+        { data: creditNotesData, error: creditNotesError }
+      ] = await Promise.all([
+        supabase.from("contacts").select("*").eq("id", id).single(),
+        supabase.from("invoices").select("*").eq("customer_id", id).order("invoice_date", { ascending: false }),
+        supabase.from("receipts").select("*").eq("customer_id", id).order("receipt_date", { ascending: false }),
+        supabase.from("credit_notes").select("*").eq("customer_id", id).order("credit_date", { ascending: false })
+      ]);
 
       if (customerError) throw customerError;
-      setCustomer(customerData);
-
-      // Fetch invoices
-      const { data: invoicesData, error: invoicesError } = await supabase
-        .from("invoices")
-        .select("*")
-        .eq("customer_id", id)
-        .order("invoice_date", { ascending: false });
-
       if (invoicesError) throw invoicesError;
-      setInvoices(invoicesData || []);
-
-      // Fetch receipts
-      const { data: receiptsData, error: receiptsError } = await supabase
-        .from("receipts")
-        .select("*")
-        .eq("customer_id", id)
-        .order("receipt_date", { ascending: false });
-
       if (receiptsError) throw receiptsError;
-      setReceipts(receiptsData || []);
-
-      // Fetch credit notes
-      const { data: creditNotesData, error: creditNotesError } = await supabase
-        .from("credit_notes")
-        .select("*")
-        .eq("customer_id", id)
-        .order("credit_date", { ascending: false });
-
       if (creditNotesError) throw creditNotesError;
+
+      setCustomer(customerData);
+      setInvoices(invoicesData || []);
+      setReceipts(receiptsData || []);
       setCreditNotes(creditNotesData || []);
 
       // Calculate statistics
@@ -250,8 +233,20 @@ export default function CustomerDetails() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-lg">Loading...</div>
+      <div className="space-y-6 animate-pulse">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 bg-muted rounded" />
+          <div className="flex-1 space-y-2">
+            <div className="h-8 bg-muted rounded w-48" />
+            <div className="h-4 bg-muted rounded w-32" />
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-muted rounded" />
+          ))}
+        </div>
+        <div className="h-64 bg-muted rounded" />
       </div>
     );
   }
