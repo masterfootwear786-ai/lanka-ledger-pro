@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Eye, Edit } from "lucide-react";
+import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReceiptDialog } from "@/components/receipts/ReceiptDialog";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 export default function Receipts() {
   const { t } = useTranslation();
@@ -17,6 +18,8 @@ export default function Receipts() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [receiptToDelete, setReceiptToDelete] = useState<any>(null);
 
   useEffect(() => {
     fetchReceipts();
@@ -49,6 +52,40 @@ export default function Receipts() {
   const handleEdit = (receipt: any) => {
     setSelectedReceipt(receipt);
     setDialogOpen(true);
+  };
+
+  const handleDeleteRequest = (receipt: any) => {
+    setReceiptToDelete(receipt);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!receiptToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('receipts')
+        .delete()
+        .eq('id', receiptToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Receipt deleted successfully",
+      });
+
+      fetchReceipts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setReceiptToDelete(null);
+    }
   };
 
   return (
@@ -134,6 +171,14 @@ export default function Receipts() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteRequest(receipt)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -143,6 +188,21 @@ export default function Receipts() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Receipt</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete receipt {receiptToDelete?.receipt_no}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

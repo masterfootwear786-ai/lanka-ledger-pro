@@ -1,25 +1,87 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ChartOfAccounts() {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<any>(null);
 
-  const accounts = [
-    { code: "1000", name: "Cash", type: "Asset", balance: 50000, status: "active" },
-    { code: "1100", name: "Accounts Receivable", type: "Asset", balance: 75000, status: "active" },
-    { code: "1200", name: "Inventory", type: "Asset", balance: 100000, status: "active" },
-    { code: "2000", name: "Accounts Payable", type: "Liability", balance: 45000, status: "active" },
-    { code: "3000", name: "Capital", type: "Equity", balance: 100000, status: "active" },
-    { code: "4000", name: "Sales Revenue", type: "Income", balance: 150000, status: "active" },
-    { code: "5000", name: "Cost of Goods Sold", type: "Expense", balance: 50000, status: "active" },
-  ];
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  const fetchAccounts = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('chart_of_accounts')
+        .select('*')
+        .order('code', { ascending: true });
+
+      if (error) throw error;
+      setAccounts(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteRequest = (account: any) => {
+    setAccountToDelete(account);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!accountToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('chart_of_accounts')
+        .delete()
+        .eq('id', accountToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Account deleted successfully",
+      });
+
+      fetchAccounts();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setAccountToDelete(null);
+    }
+  };
+
+  const filteredAccounts = accounts.filter(account =>
+    account.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    account.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -68,33 +130,58 @@ export default function ChartOfAccounts() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {accounts.map((account) => (
-                <TableRow key={account.code}>
-                  <TableCell className="font-mono">{account.code}</TableCell>
-                  <TableCell className="font-medium">{account.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{account.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">{account.balance.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant="default">{t(`status.${account.status}`)}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">Loading...</TableCell>
                 </TableRow>
-              ))}
+              ) : filteredAccounts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center">No accounts found</TableCell>
+                </TableRow>
+              ) : (
+                filteredAccounts.map((account) => (
+                  <TableRow key={account.id}>
+                    <TableCell className="font-mono">{account.code}</TableCell>
+                    <TableCell className="font-medium">{account.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{account.account_type}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">-</TableCell>
+                    <TableCell>
+                      <Badge variant="default">{account.active ? 'Active' : 'Inactive'}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(account)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete account {accountToDelete?.code}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
