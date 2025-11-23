@@ -1543,6 +1543,169 @@ export type Database = {
           },
         ]
       }
+      sales_order_lines: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          description: string
+          id: string
+          item_id: string | null
+          line_no: number
+          line_total: number
+          order_id: string
+          quantity: number
+          tax_amount: number | null
+          tax_code: string | null
+          tax_inclusive: boolean | null
+          tax_rate: number | null
+          unit_price: number
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          description: string
+          id?: string
+          item_id?: string | null
+          line_no: number
+          line_total?: number
+          order_id: string
+          quantity?: number
+          tax_amount?: number | null
+          tax_code?: string | null
+          tax_inclusive?: boolean | null
+          tax_rate?: number | null
+          unit_price?: number
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          description?: string
+          id?: string
+          item_id?: string | null
+          line_no?: number
+          line_total?: number
+          order_id?: string
+          quantity?: number
+          tax_amount?: number | null
+          tax_code?: string | null
+          tax_inclusive?: boolean | null
+          tax_rate?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_lines_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_lines_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_orders: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          currency_code: string | null
+          customer_id: string
+          delivery_date: string | null
+          discount: number | null
+          exchange_rate: number | null
+          grand_total: number | null
+          id: string
+          notes: string | null
+          order_date: string
+          order_no: string
+          posted: boolean | null
+          posted_at: string | null
+          posted_by: string | null
+          status: string | null
+          subtotal: number | null
+          tax_total: number | null
+          terms: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          currency_code?: string | null
+          customer_id: string
+          delivery_date?: string | null
+          discount?: number | null
+          exchange_rate?: number | null
+          grand_total?: number | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_no: string
+          posted?: boolean | null
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_total?: number | null
+          terms?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          currency_code?: string | null
+          customer_id?: string
+          delivery_date?: string | null
+          discount?: number | null
+          exchange_rate?: number | null
+          grand_total?: number | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          order_no?: string
+          posted?: boolean | null
+          posted_at?: string | null
+          posted_by?: string | null
+          status?: string | null
+          subtotal?: number | null
+          tax_total?: number | null
+          terms?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_orders_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_locations: {
         Row: {
           active: boolean | null
