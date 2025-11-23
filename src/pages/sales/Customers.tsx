@@ -66,12 +66,25 @@ export default function Customers() {
         .delete()
         .eq("id", customerToDelete.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Delete error:", error);
+        if (error.message.includes("row-level security")) {
+          toast.error("You don't have permission to delete customers. Only admins can delete customers.");
+        } else if (error.message.includes("foreign key")) {
+          toast.error("Cannot delete customer with existing transactions. Please delete related invoices, receipts, and credit notes first.");
+        } else {
+          toast.error(`Failed to delete customer: ${error.message}`);
+        }
+        return;
+      }
+      
       toast.success("Customer deleted successfully");
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
       fetchCustomers();
     } catch (error: any) {
-      toast.error(error.message);
-    } finally {
+      console.error("Delete error:", error);
+      toast.error(`Failed to delete customer: ${error.message}`);
       setDeleteDialogOpen(false);
       setCustomerToDelete(null);
     }
