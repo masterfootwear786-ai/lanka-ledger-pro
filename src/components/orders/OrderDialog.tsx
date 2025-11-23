@@ -16,16 +16,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface OrderLine {
   id: string;
-  line_no: number;
-  item_id: string;
+  art_no: string;
   description: string;
-  quantity: number;
+  color: string;
+  size_39: number;
+  size_40: number;
+  size_41: number;
+  size_42: number;
+  size_43: number;
+  size_44: number;
+  size_45: number;
+  total_pairs: number;
   unit_price: number;
-  line_total: number;
   tax_rate: number;
+  line_total: number;
   tax_amount: number;
 }
 
@@ -39,7 +47,6 @@ interface OrderDialogProps {
 export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialogProps) {
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
-  const [items, setItems] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     customer_id: "",
     order_no: "",
@@ -54,7 +61,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
   useEffect(() => {
     if (open) {
       fetchCustomers();
-      fetchItems();
       
       if (order) {
         loadOrderData();
@@ -86,27 +92,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
       setCustomers(data || []);
     } catch (error: any) {
       toast.error("Error fetching customers: " + error.message);
-    }
-  };
-
-  const fetchItems = async () => {
-    try {
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('company_id')
-        .single();
-
-      const { data, error } = await supabase
-        .from('items')
-        .select('*')
-        .eq('company_id', profileData?.company_id)
-        .eq('active', true)
-        .order('name');
-
-      if (error) throw error;
-      setItems(data || []);
-    } catch (error: any) {
-      toast.error("Error fetching items: " + error.message);
     }
   };
 
@@ -164,17 +149,52 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         terms: order.terms || "",
       });
 
-      setLines(orderLines.map(line => ({
-        id: line.id,
-        line_no: line.line_no,
-        item_id: line.item_id || "",
-        description: line.description,
-        quantity: Number(line.quantity),
-        unit_price: Number(line.unit_price),
-        line_total: Number(line.line_total),
-        tax_rate: Number(line.tax_rate),
-        tax_amount: Number(line.tax_amount),
-      })));
+      // Group lines by art_no and color to reconstruct the original line items
+      if (orderLines && orderLines.length > 0) {
+        const groupedLines: { [key: string]: any } = {};
+        
+        orderLines.forEach(line => {
+          const match = line.description.match(/^(.+?) - (.+?) - Size (\d+)$/);
+          const key = match ? `${match[1]}_${match[2]}` : line.description;
+          
+          if (!groupedLines[key]) {
+            groupedLines[key] = {
+              id: Math.random().toString(),
+              art_no: match ? match[1] : '',
+              description: '',
+              color: match ? match[2] : '',
+              size_39: 0,
+              size_40: 0,
+              size_41: 0,
+              size_42: 0,
+              size_43: 0,
+              size_44: 0,
+              size_45: 0,
+              total_pairs: 0,
+              unit_price: Number(line.unit_price),
+              tax_rate: Number(line.tax_rate || 0),
+              line_total: 0,
+              tax_amount: 0,
+            };
+          }
+          
+          if (match) {
+            const size = match[3];
+            groupedLines[key][`size_${size}`] = Number(line.quantity);
+          }
+        });
+
+        const reconstructedLines = Object.values(groupedLines).map((item: any) => {
+          item.total_pairs = item.size_39 + item.size_40 + item.size_41 + 
+                            item.size_42 + item.size_43 + item.size_44 + item.size_45;
+          const subtotal = item.total_pairs * item.unit_price;
+          item.tax_amount = subtotal * (item.tax_rate / 100);
+          item.line_total = subtotal + item.tax_amount;
+          return item;
+        });
+
+        setLines(reconstructedLines);
+      }
     } catch (error: any) {
       toast.error("Error loading order: " + error.message);
     }
@@ -183,13 +203,20 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
   const addNewLine = () => {
     const newLine: OrderLine = {
       id: crypto.randomUUID(),
-      line_no: lines.length + 1,
-      item_id: "",
+      art_no: "",
       description: "",
-      quantity: 1,
+      color: "",
+      size_39: 0,
+      size_40: 0,
+      size_41: 0,
+      size_42: 0,
+      size_43: 0,
+      size_44: 0,
+      size_45: 0,
+      total_pairs: 0,
       unit_price: 0,
-      line_total: 0,
       tax_rate: 0,
+      line_total: 0,
       tax_amount: 0,
     };
     setLines([...lines, newLine]);
@@ -199,35 +226,28 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
     setLines(lines.filter(line => line.id !== id));
   };
 
-  const updateLine = (id: string, field: string, value: any) => {
+  const updateLine = (id: string, field: keyof OrderLine, value: any) => {
     setLines(lines.map(line => {
       if (line.id !== id) return line;
 
       const updated = { ...line, [field]: value };
 
-      // If item selected, populate description and price
-      if (field === 'item_id' && value) {
-        const item = items.find(i => i.id === value);
-        if (item) {
-          updated.description = item.name;
-          updated.unit_price = Number(item.sale_price || 0);
-        }
-      }
-
-      // Recalculate totals
-      const quantity = Number(updated.quantity);
-      const unitPrice = Number(updated.unit_price);
-      const taxRate = Number(updated.tax_rate);
-
-      updated.line_total = quantity * unitPrice;
-      updated.tax_amount = (updated.line_total * taxRate) / 100;
+      // Calculate total pairs
+      updated.total_pairs = 
+        Number(updated.size_39) + Number(updated.size_40) + Number(updated.size_41) + 
+        Number(updated.size_42) + Number(updated.size_43) + Number(updated.size_44) + Number(updated.size_45);
+      
+      // Calculate totals
+      const subtotal = updated.total_pairs * Number(updated.unit_price);
+      updated.tax_amount = subtotal * (Number(updated.tax_rate) / 100);
+      updated.line_total = subtotal + updated.tax_amount;
 
       return updated;
     }));
   };
 
   const calculateTotals = () => {
-    const subtotal = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const subtotal = lines.reduce((sum, line) => sum + (line.total_pairs * line.unit_price), 0);
     const taxTotal = lines.reduce((sum, line) => sum + line.tax_amount, 0);
     const grandTotal = subtotal + taxTotal;
     
@@ -252,7 +272,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         throw new Error("Please select a customer");
       }
 
-      if (lines.length === 0 || lines.every(l => !l.description)) {
+      if (lines.length === 0 || lines.every(l => !l.art_no && l.total_pairs === 0)) {
         throw new Error("Please add at least one line item");
       }
 
@@ -303,26 +323,38 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         orderId = newOrder.id;
       }
 
-      // Insert order lines
-      const lineData = lines
-        .filter(line => line.description)
-        .map((line, index) => ({
-          order_id: orderId,
-          line_no: index + 1,
-          item_id: line.item_id || null,
-          description: line.description,
-          quantity: line.quantity,
-          unit_price: line.unit_price,
-          line_total: line.line_total,
-          tax_rate: line.tax_rate,
-          tax_amount: line.tax_amount,
-        }));
+      // Insert order lines (expand sizes to individual lines)
+      const lineData: any[] = [];
+      let lineNo = 1;
 
-      const { error: linesError } = await supabase
-        .from('sales_order_lines')
-        .insert(lineData);
+      lines.forEach(line => {
+        if (!line.art_no && line.total_pairs === 0) return;
 
-      if (linesError) throw linesError;
+        const sizes = [39, 40, 41, 42, 43, 44, 45];
+        sizes.forEach(size => {
+          const qty = line[`size_${size}` as keyof OrderLine];
+          if (qty && Number(qty) > 0) {
+            lineData.push({
+              order_id: orderId,
+              line_no: lineNo++,
+              description: `${line.art_no} - ${line.color} - Size ${size}`,
+              quantity: Number(qty),
+              unit_price: Number(line.unit_price),
+              line_total: Number(qty) * Number(line.unit_price),
+              tax_rate: Number(line.tax_rate),
+              tax_amount: (Number(qty) * Number(line.unit_price) * Number(line.tax_rate)) / 100,
+            });
+          }
+        });
+      });
+
+      if (lineData.length > 0) {
+        const { error: linesError } = await supabase
+          .from('sales_order_lines')
+          .insert(lineData);
+
+        if (linesError) throw linesError;
+      }
 
       toast.success(order ? "Order updated successfully" : "Order created successfully");
       onSuccess();
@@ -350,7 +382,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{order ? 'Edit Order' : 'New Order'}</DialogTitle>
         </DialogHeader>
@@ -439,16 +471,24 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               </Button>
             </div>
 
-            <div className="border rounded-lg">
+            <div className="border rounded-lg overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[200px]">Item</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-[100px]">Qty</TableHead>
-                    <TableHead className="w-[120px]">Price</TableHead>
-                    <TableHead className="w-[100px]">Tax %</TableHead>
-                    <TableHead className="w-[120px]">Total</TableHead>
+                    <TableHead className="w-[100px]">Art No</TableHead>
+                    <TableHead className="w-[150px]">Description</TableHead>
+                    <TableHead className="w-[100px]">Color</TableHead>
+                    <TableHead className="w-[70px]">39</TableHead>
+                    <TableHead className="w-[70px]">40</TableHead>
+                    <TableHead className="w-[70px]">41</TableHead>
+                    <TableHead className="w-[70px]">42</TableHead>
+                    <TableHead className="w-[70px]">43</TableHead>
+                    <TableHead className="w-[70px]">44</TableHead>
+                    <TableHead className="w-[70px]">45</TableHead>
+                    <TableHead className="w-[80px]">Total</TableHead>
+                    <TableHead className="w-[100px]">Price</TableHead>
+                    <TableHead className="w-[80px]">Tax %</TableHead>
+                    <TableHead className="w-[120px]">Amount</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -456,37 +496,94 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                   {lines.map((line) => (
                     <TableRow key={line.id}>
                       <TableCell>
-                        <Select
-                          value={line.item_id}
-                          onValueChange={(value) => updateLine(line.id, 'item_id', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {items.map((item) => (
-                              <SelectItem key={item.id} value={item.id}>
-                                {item.code}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Input
+                          value={line.art_no}
+                          onChange={(e) => updateLine(line.id, 'art_no', e.target.value)}
+                          placeholder="Art No"
+                          className="h-8"
+                        />
                       </TableCell>
                       <TableCell>
                         <Input
                           value={line.description}
                           onChange={(e) => updateLine(line.id, 'description', e.target.value)}
                           placeholder="Description"
+                          className="h-8"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          value={line.color}
+                          onChange={(e) => updateLine(line.id, 'color', e.target.value)}
+                          placeholder="Color"
+                          className="h-8"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
                           type="number"
-                          value={line.quantity}
-                          onChange={(e) => updateLine(line.id, 'quantity', e.target.value)}
+                          value={line.size_39}
+                          onChange={(e) => updateLine(line.id, 'size_39', e.target.value)}
                           min="0"
-                          step="1"
+                          className="h-8 w-16"
                         />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={line.size_40}
+                          onChange={(e) => updateLine(line.id, 'size_40', e.target.value)}
+                          min="0"
+                          className="h-8 w-16"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={line.size_41}
+                          onChange={(e) => updateLine(line.id, 'size_41', e.target.value)}
+                          min="0"
+                          className="h-8 w-16"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={line.size_42}
+                          onChange={(e) => updateLine(line.id, 'size_42', e.target.value)}
+                          min="0"
+                          className="h-8 w-16"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={line.size_43}
+                          onChange={(e) => updateLine(line.id, 'size_43', e.target.value)}
+                          min="0"
+                          className="h-8 w-16"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={line.size_44}
+                          onChange={(e) => updateLine(line.id, 'size_44', e.target.value)}
+                          min="0"
+                          className="h-8 w-16"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          value={line.size_45}
+                          onChange={(e) => updateLine(line.id, 'size_45', e.target.value)}
+                          min="0"
+                          className="h-8 w-16"
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {line.total_pairs}
                       </TableCell>
                       <TableCell>
                         <Input
@@ -495,6 +592,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'unit_price', e.target.value)}
                           min="0"
                           step="0.01"
+                          className="h-8"
                         />
                       </TableCell>
                       <TableCell>
@@ -504,10 +602,11 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'tax_rate', e.target.value)}
                           min="0"
                           step="0.01"
+                          className="h-8 w-20"
                         />
                       </TableCell>
-                      <TableCell className="text-right">
-                        {(line.line_total + line.tax_amount).toFixed(2)}
+                      <TableCell className="text-right font-medium">
+                        {line.line_total.toFixed(2)}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -515,6 +614,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           variant="ghost"
                           size="icon"
                           onClick={() => removeLine(line.id)}
+                          className="h-8 w-8"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -530,13 +630,13 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
             <div className="w-64 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span>{totals.subtotal.toFixed(2)}</span>
+                <span className="font-medium">{totals.subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Tax:</span>
-                <span>{totals.taxTotal.toFixed(2)}</span>
+                <span className="font-medium">{totals.taxTotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between font-bold text-lg">
+              <div className="flex justify-between font-bold text-lg border-t pt-2">
                 <span>Total:</span>
                 <span>{totals.grandTotal.toFixed(2)}</span>
               </div>
