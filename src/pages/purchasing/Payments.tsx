@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Search, Eye, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { PaymentDialog } from "@/components/payments/PaymentDialog";
 
 export default function Payments() {
   const { t } = useTranslation();
@@ -17,6 +18,8 @@ export default function Payments() {
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
 
   useEffect(() => {
     fetchPayments();
@@ -80,6 +83,11 @@ export default function Payments() {
     }
   };
 
+  const handleEdit = (payment: any) => {
+    setSelectedPayment(payment);
+    setDialogOpen(true);
+  };
+
   const filteredPayments = payments.filter(payment =>
     payment.payment_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     payment.contacts?.name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -92,7 +100,7 @@ export default function Payments() {
           <h1 className="text-3xl font-bold">{t('purchasing.payments')}</h1>
           <p className="text-muted-foreground mt-2">Manage supplier payments</p>
         </div>
-        <Button>
+        <Button onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create Payment
         </Button>
@@ -114,6 +122,16 @@ export default function Payments() {
           </div>
         </CardContent>
       </Card>
+
+      <PaymentDialog 
+        open={dialogOpen} 
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedPayment(null);
+        }}
+        payment={selectedPayment}
+        onSuccess={fetchPayments}
+      />
 
       <Card>
         <CardHeader>
@@ -150,10 +168,7 @@ export default function Payments() {
                     <TableCell className="text-right">{payment.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(payment)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(payment)}>
