@@ -187,6 +187,19 @@ export default function CustomerDetails() {
     setShowStatementDialog(false);
   };
 
+  const handleViewStatement = (options: StatementOptions) => {
+    const transactions = getTransactions();
+    const doc = new jsPDF();
+    generateCustomerStatement(customer, stats, transactions, options);
+    
+    // Open PDF in new window
+    const pdfBlob = doc.output("blob");
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    window.open(pdfUrl, "_blank");
+    
+    toast.success("Statement opened in new tab");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -538,6 +551,7 @@ export default function CustomerDetails() {
         onExport={handleExportPDF}
         onEmail={handleEmailStatement}
         onWhatsApp={handleWhatsAppStatement}
+        onView={handleViewStatement}
       />
     </div>
   );
