@@ -31,10 +31,7 @@ interface OrderLine {
   size_45: number;
   total_pairs: number;
   unit_price: number;
-  discount: number;
-  tax_rate: number;
   line_total: number;
-  tax_amount: number;
 }
 
 interface OrderDialogProps {
@@ -56,7 +53,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
     status: "draft",
     notes: "",
     terms: "",
-    discount: 0,
   });
   const [lines, setLines] = useState<OrderLine[]>([]);
 
@@ -161,15 +157,9 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
           total_pairs: Number(line.size_39) + Number(line.size_40) + Number(line.size_41) + 
                       Number(line.size_42) + Number(line.size_43) + Number(line.size_44) + Number(line.size_45),
           unit_price: Number(line.unit_price),
-          discount: Number(line.discount || 0),
-          tax_rate: Number(line.tax_rate),
           line_total: 0,
-          tax_amount: 0,
         })).map(line => {
-          const subtotal = line.total_pairs * line.unit_price;
-          const afterDiscount = subtotal - line.discount;
-          line.tax_amount = afterDiscount * (line.tax_rate / 100);
-          line.line_total = afterDiscount + line.tax_amount;
+          line.line_total = line.total_pairs * line.unit_price;
           return line;
         }));
       }
@@ -232,7 +222,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         status: order.status,
         notes: order.notes || "",
         terms: order.terms || "",
-        discount: order.discount || 0,
       });
 
       // Group lines by art_no and color to reconstruct the original line items
@@ -257,10 +246,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               size_45: 0,
               total_pairs: 0,
               unit_price: Number(line.unit_price),
-              discount: 0,
-              tax_rate: Number(line.tax_rate || 0),
               line_total: 0,
-              tax_amount: 0,
             };
           }
           
@@ -273,10 +259,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         const reconstructedLines = Object.values(groupedLines).map((item: any) => {
           item.total_pairs = item.size_39 + item.size_40 + item.size_41 + 
                             item.size_42 + item.size_43 + item.size_44 + item.size_45;
-          const subtotal = item.total_pairs * item.unit_price;
-          const afterDiscount = subtotal - item.discount;
-          item.tax_amount = afterDiscount * (item.tax_rate / 100);
-          item.line_total = afterDiscount + item.tax_amount;
+          item.line_total = item.total_pairs * item.unit_price;
           return item;
         });
 
@@ -301,10 +284,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
       size_45: 0,
       total_pairs: 0,
       unit_price: 0,
-      discount: 0,
-      tax_rate: 0,
       line_total: 0,
-      tax_amount: 0,
     };
     setLines([...lines, newLine]);
   };
@@ -324,24 +304,17 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         Number(updated.size_39) + Number(updated.size_40) + Number(updated.size_41) + 
         Number(updated.size_42) + Number(updated.size_43) + Number(updated.size_44) + Number(updated.size_45);
       
-      // Calculate totals with discount
-      const subtotal = updated.total_pairs * Number(updated.unit_price);
-      const afterDiscount = subtotal - Number(updated.discount);
-      updated.tax_amount = afterDiscount * (Number(updated.tax_rate) / 100);
-      updated.line_total = afterDiscount + updated.tax_amount;
+      // Calculate line total
+      updated.line_total = updated.total_pairs * Number(updated.unit_price);
 
       return updated;
     }));
   };
 
   const calculateTotals = () => {
-    const subtotal = lines.reduce((sum, line) => sum + (line.total_pairs * line.unit_price), 0);
-    const lineDiscounts = lines.reduce((sum, line) => sum + Number(line.discount), 0);
-    const taxTotal = lines.reduce((sum, line) => sum + line.tax_amount, 0);
-    const orderDiscount = Number(formData.discount || 0);
-    const grandTotal = subtotal - lineDiscounts + taxTotal - orderDiscount;
+    const grandTotal = lines.reduce((sum, line) => sum + line.line_total, 0);
     
-    return { subtotal, lineDiscounts, taxTotal, orderDiscount, grandTotal };
+    return { grandTotal };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -377,9 +350,9 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
         status: formData.status,
         notes: formData.notes,
         terms: formData.terms,
-        subtotal: totals.subtotal,
-        discount: totals.orderDiscount + totals.lineDiscounts,
-        tax_total: totals.taxTotal,
+        subtotal: totals.grandTotal,
+        discount: 0,
+        tax_total: 0,
         grand_total: totals.grandTotal,
       };
 
@@ -465,7 +438,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
       status: "draft",
       notes: "",
       terms: "",
-      discount: 0,
     });
     setLines([]);
   };
@@ -590,20 +562,18 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[150px]">Art No</TableHead>
-                    <TableHead className="w-[150px]">Color</TableHead>
-                    <TableHead className="w-[70px]">39</TableHead>
-                    <TableHead className="w-[70px]">40</TableHead>
-                    <TableHead className="w-[70px]">41</TableHead>
-                    <TableHead className="w-[70px]">42</TableHead>
-                    <TableHead className="w-[70px]">43</TableHead>
-                    <TableHead className="w-[70px]">44</TableHead>
-                    <TableHead className="w-[70px]">45</TableHead>
-                    <TableHead className="w-[80px]">Total</TableHead>
-                    <TableHead className="w-[100px]">Price</TableHead>
-                    <TableHead className="w-[100px]">Disc</TableHead>
-                    <TableHead className="w-[80px]">Tax %</TableHead>
-                    <TableHead className="w-[120px]">Amount</TableHead>
+                    <TableHead className="w-[200px]">Art No</TableHead>
+                    <TableHead className="w-[200px]">Color</TableHead>
+                    <TableHead className="w-[80px]">39</TableHead>
+                    <TableHead className="w-[80px]">40</TableHead>
+                    <TableHead className="w-[80px]">41</TableHead>
+                    <TableHead className="w-[80px]">42</TableHead>
+                    <TableHead className="w-[80px]">43</TableHead>
+                    <TableHead className="w-[80px]">44</TableHead>
+                    <TableHead className="w-[80px]">45</TableHead>
+                    <TableHead className="w-[90px]">Total</TableHead>
+                    <TableHead className="w-[150px]">Price</TableHead>
+                    <TableHead className="w-[150px]">Amount</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -615,7 +585,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           value={line.art_no}
                           onChange={(e) => updateLine(line.id, 'art_no', e.target.value)}
                           placeholder="Art No"
-                          className="h-8"
+                          className="h-9 text-base font-medium"
                         />
                       </TableCell>
                       <TableCell>
@@ -623,7 +593,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           value={line.color}
                           onChange={(e) => updateLine(line.id, 'color', e.target.value)}
                           placeholder="Color"
-                          className="h-8"
+                          className="h-9 text-base font-medium"
                         />
                       </TableCell>
                       <TableCell>
@@ -689,7 +659,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           className="h-8 w-16"
                         />
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell className="font-semibold text-base">
                         {line.total_pairs}
                       </TableCell>
                       <TableCell>
@@ -699,31 +669,11 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'unit_price', e.target.value)}
                           min="0"
                           step="0.01"
-                          className="h-8"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={line.discount}
-                          onChange={(e) => updateLine(line.id, 'discount', e.target.value)}
-                          min="0"
-                          step="0.01"
                           placeholder="0.00"
-                          className="h-8"
+                          className="h-9 text-base font-medium"
                         />
                       </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={line.tax_rate}
-                          onChange={(e) => updateLine(line.id, 'tax_rate', e.target.value)}
-                          min="0"
-                          step="0.01"
-                          className="h-8 w-20"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-semibold text-base">
                         {line.line_total.toFixed(2)}
                       </TableCell>
                       <TableCell>
