@@ -297,14 +297,13 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
             <div className="space-y-2">
               <Label htmlFor="customer">Default Customer (Optional)</Label>
               <Select
-                value={formData.customer_id}
+                value={formData.customer_id || undefined}
                 onValueChange={(value) => setFormData({ ...formData, customer_id: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
+                  <SelectValue placeholder="None (Optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
                   {customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
                       {customer.code} - {customer.name}
