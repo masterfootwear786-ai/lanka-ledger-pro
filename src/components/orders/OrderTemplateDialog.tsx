@@ -30,8 +30,6 @@ interface TemplateLine {
   size_45: number;
   total_pairs: number;
   unit_price: number;
-  discount: number;
-  tax_rate: number;
 }
 
 interface OrderTemplateDialogProps {
@@ -120,8 +118,6 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
           total_pairs: Number(line.size_39) + Number(line.size_40) + Number(line.size_41) + 
                       Number(line.size_42) + Number(line.size_43) + Number(line.size_44) + Number(line.size_45),
           unit_price: Number(line.unit_price),
-          discount: Number(line.discount || 0),
-          tax_rate: Number(line.tax_rate),
         })));
       }
     } catch (error: any) {
@@ -143,8 +139,6 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
       size_45: 0,
       total_pairs: 0,
       unit_price: 0,
-      discount: 0,
-      tax_rate: 0,
     };
     setLines([...lines, newLine]);
   };
@@ -243,8 +237,6 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
           size_44: Number(line.size_44),
           size_45: Number(line.size_45),
           unit_price: Number(line.unit_price),
-          discount: Number(line.discount),
-          tax_rate: Number(line.tax_rate),
         }));
 
       if (lineData.length > 0) {
@@ -327,8 +319,8 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[150px]">Art No</TableHead>
-                    <TableHead className="w-[150px]">Color</TableHead>
+                    <TableHead className="w-[200px]">Art No</TableHead>
+                    <TableHead className="w-[200px]">Color</TableHead>
                     <TableHead className="w-[70px]">39</TableHead>
                     <TableHead className="w-[70px]">40</TableHead>
                     <TableHead className="w-[70px]">41</TableHead>
@@ -337,9 +329,7 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
                     <TableHead className="w-[70px]">44</TableHead>
                     <TableHead className="w-[70px]">45</TableHead>
                     <TableHead className="w-[80px]">Total</TableHead>
-                    <TableHead className="w-[100px]">Price</TableHead>
-                    <TableHead className="w-[100px]">Disc</TableHead>
-                    <TableHead className="w-[80px]">Tax %</TableHead>
+                    <TableHead className="w-[150px]">Price</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -436,27 +426,6 @@ export function OrderTemplateDialog({ open, onOpenChange, template, onSuccess }:
                           min="0"
                           step="0.01"
                           className="h-8"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={line.discount}
-                          onChange={(e) => updateLine(line.id, 'discount', e.target.value)}
-                          min="0"
-                          step="0.01"
-                          placeholder="0.00"
-                          className="h-8"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          value={line.tax_rate}
-                          onChange={(e) => updateLine(line.id, 'tax_rate', e.target.value)}
-                          min="0"
-                          step="0.01"
-                          className="h-8 w-20"
                         />
                       </TableCell>
                       <TableCell>
