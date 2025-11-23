@@ -21,7 +21,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface OrderLine {
   id: string;
   art_no: string;
-  description: string;
   color: string;
   size_39: number;
   size_40: number;
@@ -146,11 +145,10 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
 
       // Load template lines
       if (templateLines && templateLines.length > 0) {
-        setLines(templateLines.map(line => ({
-          id: crypto.randomUUID(),
-          art_no: line.art_no || "",
-          description: line.description || "",
-          color: line.color || "",
+      setLines(templateLines.map(line => ({
+        id: crypto.randomUUID(),
+        art_no: line.art_no || "",
+        color: line.color || "",
           size_39: Number(line.size_39),
           size_40: Number(line.size_40),
           size_41: Number(line.size_41),
@@ -244,7 +242,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
             groupedLines[key] = {
               id: Math.random().toString(),
               art_no: match ? match[1] : '',
-              description: '',
               color: match ? match[2] : '',
               size_39: 0,
               size_40: 0,
@@ -287,7 +284,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
     const newLine: OrderLine = {
       id: crypto.randomUUID(),
       art_no: "",
-      description: "",
       color: "",
       size_39: 0,
       size_40: 0,
@@ -582,7 +578,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[100px]">Art No</TableHead>
-                    <TableHead className="w-[150px]">Description</TableHead>
                     <TableHead className="w-[100px]">Color</TableHead>
                     <TableHead className="w-[70px]">39</TableHead>
                     <TableHead className="w-[70px]">40</TableHead>
@@ -606,14 +601,6 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           value={line.art_no}
                           onChange={(e) => updateLine(line.id, 'art_no', e.target.value)}
                           placeholder="Art No"
-                          className="h-8"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          value={line.description}
-                          onChange={(e) => updateLine(line.id, 'description', e.target.value)}
-                          placeholder="Description"
                           className="h-8"
                         />
                       </TableCell>
