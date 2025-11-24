@@ -505,7 +505,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         // Generate invoice number
         invoice_no = `INV-${Date.now()}`;
 
-        // Insert new invoice
+        // Insert new invoice (initially as draft)
         const { data: newInvoice, error: invoiceError } = await supabase
           .from('invoices')
           .insert({
@@ -519,10 +519,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
             tax_total,
             discount: discount_amount,
             grand_total,
-            status: 'approved',
-            posted: true,  // Auto-post invoice to deduct stock immediately
-            posted_at: new Date().toISOString(),
-            posted_by: user.id,
+            status: 'draft',
+            posted: false,
             terms: data.payment_method === 'cheque' 
               ? JSON.stringify({ payment_method: 'cheque', cheques }) 
               : data.payment_method,
@@ -571,6 +569,21 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         .insert(lines);
 
         if (linesError) throw linesError;
+
+        // Now post the invoice to trigger stock deduction
+        if (!invoice) {
+          const { error: postError } = await supabase
+            .from('invoices')
+            .update({
+              posted: true,
+              posted_at: new Date().toISOString(),
+              posted_by: user.id,
+              status: 'approved',
+            })
+            .eq('id', invoiceId);
+
+          if (postError) throw postError;
+        }
 
         toast({
           title: "Success",
