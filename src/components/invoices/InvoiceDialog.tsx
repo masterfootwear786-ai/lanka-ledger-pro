@@ -842,8 +842,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                           const value = e.target.value;
                           console.log("Art No typed:", value);
                           updateLineItem(line.id, "art_no", value);
-                          updateLineItem(line.id, "color", "");
-                          // Try to find matching item and auto-fill price
+                          // Don't clear color when typing
+                          // Try to find matching item and auto-fill price if exists
                           const selectedItem = items.find(item => item.code === value);
                           if (selectedItem) {
                             updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
@@ -914,7 +914,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         }}
                         placeholder="Color"
                         className="h-8 text-xs flex-1 bg-background"
-                        disabled={!line.art_no}
                       />
                       <Popover open={colorOpen[line.id] || false} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
                         <PopoverTrigger asChild>
@@ -922,7 +921,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                             variant="outline"
                             size="sm"
                             className="h-8 w-8 p-0 shrink-0"
-                            disabled={!line.art_no}
                             type="button"
                           >
                             <ChevronsUpDown className="h-3 w-3" />
