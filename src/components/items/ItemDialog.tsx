@@ -20,6 +20,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
   const [formData, setFormData] = useState({
     code: "",
     name: "",
+    color: "",
     description: "",
     uom: "EA",
     sale_price: "",
@@ -33,6 +34,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
       setFormData({
         code: item.code || "",
         name: item.name || "",
+        color: item.color || "",
         description: item.description || "",
         uom: item.uom || "EA",
         sale_price: item.sale_price?.toString() || "",
@@ -44,6 +46,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
       setFormData({
         code: "",
         name: "",
+        color: "",
         description: "",
         uom: "EA",
         sale_price: "",
@@ -111,9 +114,9 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
           <DialogTitle>{item ? "Edit Item" : "Add Item"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="code">Item Code *</Label>
+              <Label htmlFor="code">Art No / Design No *</Label>
               <Input
                 id="code"
                 value={formData.code}
@@ -129,6 +132,14 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="color">Color</Label>
+              <Input
+                id="color"
+                value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
               />
             </div>
           </div>

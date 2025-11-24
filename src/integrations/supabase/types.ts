@@ -1077,6 +1077,7 @@ export type Database = {
           active: boolean | null
           avg_cost: number | null
           code: string
+          color: string | null
           company_id: string
           created_at: string | null
           created_by: string | null
@@ -1095,6 +1096,7 @@ export type Database = {
           active?: boolean | null
           avg_cost?: number | null
           code: string
+          color?: string | null
           company_id: string
           created_at?: string | null
           created_by?: string | null
@@ -1113,6 +1115,7 @@ export type Database = {
           active?: boolean | null
           avg_cost?: number | null
           code?: string
+          color?: string | null
           company_id?: string
           created_at?: string | null
           created_by?: string | null
