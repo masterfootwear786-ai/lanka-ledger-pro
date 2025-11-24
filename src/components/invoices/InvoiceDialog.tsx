@@ -562,7 +562,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {!invoice && (
             <div className="space-y-2 p-4 border rounded-lg bg-primary/5">
-              <Label>Document Type (ලේඛන වර්ගය)</Label>
+              <Label>Document Type</Label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -573,7 +573,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     onChange={(e) => setDocumentType(e.target.value as 'invoice' | 'order')}
                     className="h-4 w-4"
                   />
-                  <span className="font-medium">Invoice (ඉන්වොයිස්)</span>
+                  <span className="font-medium">Invoice</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -584,7 +584,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     onChange={(e) => setDocumentType(e.target.value as 'invoice' | 'order')}
                     className="h-4 w-4"
                   />
-                  <span className="font-medium">Order (ඇණවුම)</span>
+                  <span className="font-medium">Order</span>
                 </label>
               </div>
             </div>
