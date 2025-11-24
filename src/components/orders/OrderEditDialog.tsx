@@ -266,45 +266,45 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Order</DialogTitle>
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="text-lg">Edit Order</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 p-6 bg-background">
+        <div className="space-y-3 p-3 bg-background">
           {/* Company Header */}
-          <div className="flex items-start justify-between pb-6 border-b-2 border-primary">
-            <div className="flex items-start gap-6">
+          <div className="flex items-start justify-between pb-3 border-b border-primary">
+            <div className="flex items-start gap-3">
               {companyData?.logo_url && (
                 <img 
                   src={companyData.logo_url} 
                   alt={companyData.name} 
-                  className="h-20 w-20 object-contain"
+                  className="h-14 w-14 object-contain"
                 />
               )}
-              <div className="space-y-1">
-                <div className="text-2xl font-bold text-primary">{companyData?.name || "Company Name"}</div>
+              <div className="space-y-0.5">
+                <div className="text-lg font-bold text-primary">{companyData?.name || "Company Name"}</div>
                 {companyData?.address && (
-                  <div className="text-sm text-muted-foreground">{companyData.address}</div>
+                  <div className="text-xs text-muted-foreground">{companyData.address}</div>
                 )}
-                <div className="text-sm text-muted-foreground space-x-4">
+                <div className="text-xs text-muted-foreground space-x-3">
                   {companyData?.phone && <span>Tel: {companyData.phone}</span>}
                   {companyData?.email && <span>Email: {companyData.email}</span>}
                 </div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-primary mb-2">SALES ORDER</div>
-              <div className="text-lg font-semibold">#{orderData.order_no}</div>
+              <div className="text-xl font-bold text-primary mb-1">SALES ORDER</div>
+              <div className="text-sm font-semibold">#{orderData.order_no}</div>
             </div>
           </div>
 
           {/* Customer Info Section */}
-          <div className="bg-muted/30 rounded-lg p-6">
-            <div className="grid grid-cols-3 gap-6">
-              <div className="space-y-4">
+          <div className="bg-muted/30 rounded-lg p-3">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
                 <div>
-                  <Label className="text-base font-semibold mb-2">Customer</Label>
+                  <Label className="text-sm font-semibold mb-1">Customer</Label>
                   <Select 
                     value={orderData.customer_id} 
                     onValueChange={(value) => {
@@ -316,7 +316,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
                       });
                     }}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -330,50 +330,50 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
                 </div>
 
                 {orderData.customer?.area && (
-                  <div className="text-sm p-3 bg-background rounded border">
+                  <div className="text-xs p-2 bg-background rounded border">
                     <span className="text-muted-foreground font-medium">City: </span>
                     <span className="font-semibold">{orderData.customer.area}</span>
                   </div>
                 )}
 
                 {orderData.customer?.phone && (
-                  <div className="text-sm p-3 bg-background rounded border">
+                  <div className="text-xs p-2 bg-background rounded border">
                     <span className="text-muted-foreground font-medium">Phone: </span>
                     <span className="font-semibold">{orderData.customer.phone}</span>
                   </div>
                 )}
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <div>
-                  <Label className="text-base font-semibold mb-2">Order Date</Label>
+                  <Label className="text-sm font-semibold mb-1">Order Date</Label>
                   <Input
                     type="date"
-                    className="h-10"
+                    className="h-8 text-sm"
                     value={orderData.order_date}
                     onChange={(e) => setOrderData({...orderData, order_date: e.target.value})}
                   />
                 </div>
 
                 <div>
-                  <Label className="text-base font-semibold mb-2">Delivery Date</Label>
+                  <Label className="text-sm font-semibold mb-1">Delivery Date</Label>
                   <Input
                     type="date"
-                    className="h-10"
+                    className="h-8 text-sm"
                     value={orderData.delivery_date || ""}
                     onChange={(e) => setOrderData({...orderData, delivery_date: e.target.value})}
                   />
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <div>
-                  <Label className="text-base font-semibold mb-2">Status</Label>
+                  <Label className="text-sm font-semibold mb-1">Status</Label>
                   <Select 
                     value={orderData.status} 
                     onValueChange={(value) => setOrderData({...orderData, status: value})}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-8 text-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -388,11 +388,11 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
                 </div>
 
                 <div>
-                  <Label className="text-base font-semibold mb-2">Discount</Label>
+                  <Label className="text-sm font-semibold mb-1">Discount</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    className="h-10"
+                    className="h-8 text-sm"
                     value={orderData.discount || 0}
                     onChange={(e) => setOrderData({...orderData, discount: e.target.value})}
                   />
@@ -403,33 +403,33 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
 
           {/* Editable Line Items - Grouped by Art No and Color */}
           <div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-base font-semibold text-primary">ORDER ITEMS</div>
-              <Button size="sm" onClick={handleAddLine}>
-                <Plus className="h-4 w-4 mr-2" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold text-primary">ORDER ITEMS</div>
+              <Button size="sm" onClick={handleAddLine} className="h-7 text-xs">
+                <Plus className="h-3 w-3 mr-1" />
                 Add Line
               </Button>
             </div>
             
             <div className="overflow-x-auto">
-              <div className="min-w-[1400px]">
-                <div className="overflow-hidden rounded-lg border-2 border-border">
+              <div className="min-w-[1200px]">
+                <div className="overflow-hidden rounded-lg border border-border">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-primary/10">
-                        <TableHead className="w-36 font-bold border-r">Art No</TableHead>
-                        <TableHead className="w-36 text-center font-bold border-r">Color</TableHead>
-                        <TableHead className="w-24 bg-primary/5 text-center font-bold border-r">39</TableHead>
-                        <TableHead className="w-24 text-center font-bold border-r">40</TableHead>
-                        <TableHead className="w-24 bg-primary/5 text-center font-bold border-r">41</TableHead>
-                        <TableHead className="w-24 text-center font-bold border-r">42</TableHead>
-                        <TableHead className="w-24 bg-primary/5 text-center font-bold border-r">43</TableHead>
-                        <TableHead className="w-24 text-center font-bold border-r">44</TableHead>
-                        <TableHead className="w-24 bg-primary/5 text-center font-bold border-r">45</TableHead>
-                        <TableHead className="w-32 text-center font-bold border-r">Total Pairs</TableHead>
-                        <TableHead className="w-36 text-right font-bold border-r">Unit Price</TableHead>
-                        <TableHead className="w-40 text-right font-bold border-r">Line Total</TableHead>
-                        <TableHead className="w-20"></TableHead>
+                      <TableRow className="bg-primary/10 h-8">
+                        <TableHead className="w-28 text-xs font-bold border-r">Art No</TableHead>
+                        <TableHead className="w-28 text-center text-xs font-bold border-r">Color</TableHead>
+                        <TableHead className="w-16 bg-primary/5 text-center text-xs font-bold border-r">39</TableHead>
+                        <TableHead className="w-16 text-center text-xs font-bold border-r">40</TableHead>
+                        <TableHead className="w-16 bg-primary/5 text-center text-xs font-bold border-r">41</TableHead>
+                        <TableHead className="w-16 text-center text-xs font-bold border-r">42</TableHead>
+                        <TableHead className="w-16 bg-primary/5 text-center text-xs font-bold border-r">43</TableHead>
+                        <TableHead className="w-16 text-center text-xs font-bold border-r">44</TableHead>
+                        <TableHead className="w-16 bg-primary/5 text-center text-xs font-bold border-r">45</TableHead>
+                        <TableHead className="w-24 text-center text-xs font-bold border-r">Total</TableHead>
+                        <TableHead className="w-28 text-right text-xs font-bold border-r">Price</TableHead>
+                        <TableHead className="w-32 text-right text-xs font-bold border-r">Total</TableHead>
+                        <TableHead className="w-12"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -442,107 +442,108 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
                         
                         return (
                           <TableRow key={index} className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                            <TableCell className="border-r p-2">
+                            <TableCell className="border-r p-1">
                               <Input
                                 value={group.artNo}
                                 onChange={(e) => handleUpdateGroupedLine(index, "artNo", e.target.value)}
                                 placeholder="Art No"
-                                className="h-10"
+                                className="h-7 text-xs"
                               />
                             </TableCell>
-                            <TableCell className="border-r p-2">
+                            <TableCell className="border-r p-1">
                               <Input
                                 value={group.color}
                                 onChange={(e) => handleUpdateGroupedLine(index, "color", e.target.value)}
                                 placeholder="Color"
-                                className="h-10"
+                                className="h-7 text-xs"
                               />
                             </TableCell>
-                            <TableCell className="bg-primary/5 border-r p-2">
+                            <TableCell className="bg-primary/5 border-r p-1">
                               <Input
                                 type="number"
                                 step="1"
                                 value={group.sizes["39"]}
                                 onChange={(e) => handleUpdateGroupedLine(index, "size_39", e.target.value)}
-                                className="h-10 text-center"
+                                className="h-7 text-center text-xs"
                               />
                             </TableCell>
-                            <TableCell className="border-r p-2">
+                            <TableCell className="border-r p-1">
                               <Input
                                 type="number"
                                 step="1"
                                 value={group.sizes["40"]}
                                 onChange={(e) => handleUpdateGroupedLine(index, "size_40", e.target.value)}
-                                className="h-10 text-center"
+                                className="h-7 text-center text-xs"
                               />
                             </TableCell>
-                            <TableCell className="bg-primary/5 border-r p-2">
+                            <TableCell className="bg-primary/5 border-r p-1">
                               <Input
                                 type="number"
                                 step="1"
                                 value={group.sizes["41"]}
                                 onChange={(e) => handleUpdateGroupedLine(index, "size_41", e.target.value)}
-                                className="h-10 text-center"
+                                className="h-7 text-center text-xs"
                               />
                             </TableCell>
-                            <TableCell className="border-r p-2">
+                            <TableCell className="border-r p-1">
                               <Input
                                 type="number"
                                 step="1"
                                 value={group.sizes["42"]}
                                 onChange={(e) => handleUpdateGroupedLine(index, "size_42", e.target.value)}
-                                className="h-10 text-center"
+                                className="h-7 text-center text-xs"
                               />
                             </TableCell>
-                            <TableCell className="bg-primary/5 border-r p-2">
+                            <TableCell className="bg-primary/5 border-r p-1">
                               <Input
                                 type="number"
                                 step="1"
                                 value={group.sizes["43"]}
                                 onChange={(e) => handleUpdateGroupedLine(index, "size_43", e.target.value)}
-                                className="h-10 text-center"
+                                className="h-7 text-center text-xs"
                               />
                             </TableCell>
-                            <TableCell className="border-r p-2">
+                            <TableCell className="border-r p-1">
                               <Input
                                 type="number"
                                 step="1"
                                 value={group.sizes["44"]}
                                 onChange={(e) => handleUpdateGroupedLine(index, "size_44", e.target.value)}
-                                className="h-10 text-center"
+                                className="h-7 text-center text-xs"
                               />
                             </TableCell>
-                            <TableCell className="bg-primary/5 border-r p-2">
+                            <TableCell className="bg-primary/5 border-r p-1">
                               <Input
                                 type="number"
                                 step="1"
                                 value={group.sizes["45"]}
                                 onChange={(e) => handleUpdateGroupedLine(index, "size_45", e.target.value)}
-                                className="h-10 text-center"
+                                className="h-7 text-center text-xs"
                               />
                             </TableCell>
-                            <TableCell className="text-center font-semibold border-r text-lg">
+                            <TableCell className="text-center font-semibold border-r text-sm">
                               {totalPairs.toString()}
                             </TableCell>
-                            <TableCell className="border-r p-2">
+                            <TableCell className="border-r p-1">
                               <Input
                                 type="number"
                                 step="0.01"
                                 value={group.unitPrice}
                                 onChange={(e) => handleUpdateGroupedLine(index, "unitPrice", e.target.value)}
-                                className="h-10 text-right"
+                                className="h-7 text-right text-xs"
                               />
                             </TableCell>
-                            <TableCell className="text-right font-semibold border-r text-lg">
+                            <TableCell className="text-right font-semibold border-r text-sm">
                               {lineTotal.toFixed(2)}
                             </TableCell>
-                            <TableCell className="p-2">
+                            <TableCell className="p-1">
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => handleRemoveLine(index)}
+                                className="h-7 w-7"
                               >
-                                <Trash2 className="h-4 w-4 text-destructive" />
+                                <Trash2 className="h-3 w-3 text-destructive" />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -557,23 +558,23 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
 
           {/* Summary */}
           <div className="flex justify-end">
-            <div className="w-80 space-y-2 bg-muted/30 rounded-lg p-4 border-2 border-border">
-              <div className="flex justify-between text-sm">
+            <div className="w-64 space-y-1.5 bg-muted/30 rounded-lg p-3 border border-border">
+              <div className="flex justify-between text-xs">
                 <span className="font-medium">Subtotal:</span>
                 <span className="font-mono">{totals.subtotal.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
+              <div className="flex justify-between text-xs">
                 <span className="font-medium">Tax:</span>
                 <span className="font-mono">{totals.taxTotal.toFixed(2)}</span>
               </div>
               {orderData.discount > 0 && (
-                <div className="flex justify-between text-sm text-destructive">
+                <div className="flex justify-between text-xs text-destructive">
                   <span className="font-medium">Discount:</span>
                   <span className="font-mono">-{parseFloat(orderData.discount).toFixed(2)}</span>
                 </div>
               )}
-              <div className="border-t-2 border-primary pt-2 mt-2"></div>
-              <div className="flex justify-between text-lg font-bold text-primary">
+              <div className="border-t border-primary pt-1.5 mt-1.5"></div>
+              <div className="flex justify-between text-sm font-bold text-primary">
                 <span>Grand Total:</span>
                 <span className="font-mono">{totals.grandTotal.toFixed(2)}</span>
               </div>
@@ -581,32 +582,34 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
           </div>
 
           {/* Notes and Terms */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Notes</Label>
+              <Label className="text-sm">Notes</Label>
               <Textarea
                 value={orderData.notes || ""}
                 onChange={(e) => setOrderData({...orderData, notes: e.target.value})}
-                rows={4}
+                rows={3}
+                className="text-xs"
               />
             </div>
             <div>
-              <Label>Terms</Label>
+              <Label className="text-sm">Terms</Label>
               <Textarea
                 value={orderData.terms || ""}
                 onChange={(e) => setOrderData({...orderData, terms: e.target.value})}
-                rows={4}
+                rows={3}
+                className="text-xs"
               />
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+          <div className="flex justify-end gap-2 pt-2 border-t">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="h-8 text-sm">
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading ? "Saving..." : "Save Order"}
+            <Button onClick={handleSave} disabled={loading} className="h-8 text-sm">
+              {loading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>
