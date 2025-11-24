@@ -817,9 +817,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       />
                     </div>
                     <Select
-                      value={line.art_no}
+                      value={line.art_no || undefined}
                       onValueChange={(value) => {
                         updateLineItem(line.id, "art_no", value);
+                        updateLineItem(line.id, "color", ""); // Reset color when art no changes
                         // Find item and auto-fill price
                         const selectedItem = items.find(item => item.code === value);
                         if (selectedItem) {
@@ -827,26 +828,40 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         }
                       }}
                     >
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger className="h-8 text-xs w-full">
                         <SelectValue placeholder="Select Art No" />
                       </SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        {Array.from(new Set(items.map(item => item.code))).map((code) => (
-                          <SelectItem key={code} value={code}>
-                            {code}
-                          </SelectItem>
-                        ))}
+                      <SelectContent className="bg-popover border shadow-md z-[100]" position="popper">
+                        {items.length === 0 ? (
+                          <div className="px-2 py-1 text-xs text-muted-foreground">
+                            No items available
+                          </div>
+                        ) : (
+                          Array.from(new Set(items.map(item => item.code))).map((code) => (
+                            <SelectItem key={code} value={code}>
+                              {code}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <Select
-                      value={line.color}
+                      value={line.color || undefined}
                       onValueChange={(value) => updateLineItem(line.id, "color", value)}
                     >
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger className="h-8 text-xs w-full">
                         <SelectValue placeholder="Select Color" />
                       </SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        {line.art_no ? (
+                      <SelectContent className="bg-popover border shadow-md z-[100]" position="popper">
+                        {!line.art_no ? (
+                          <div className="px-2 py-1 text-xs text-muted-foreground">
+                            Select Art No first
+                          </div>
+                        ) : items.filter(item => item.code === line.art_no && item.color).length === 0 ? (
+                          <div className="px-2 py-1 text-xs text-muted-foreground">
+                            No colors available
+                          </div>
+                        ) : (
                           items
                             .filter(item => item.code === line.art_no && item.color)
                             .map((item) => (
@@ -854,10 +869,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                                 {item.color}
                               </SelectItem>
                             ))
-                        ) : (
-                          <div className="px-2 py-1 text-xs text-muted-foreground">
-                            Select Art No first
-                          </div>
                         )}
                       </SelectContent>
                     </Select>
