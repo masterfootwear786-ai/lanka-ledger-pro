@@ -846,30 +846,48 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       </SelectContent>
                     </Select>
                     <Select
-                      value={line.color || undefined}
-                      onValueChange={(value) => updateLineItem(line.id, "color", value)}
+                      value={line.color || ""}
+                      onValueChange={(value) => {
+                        console.log("Color selected:", value);
+                        updateLineItem(line.id, "color", value);
+                      }}
                     >
-                      <SelectTrigger className="h-8 text-xs w-full">
+                      <SelectTrigger className="h-8 text-xs w-full bg-background">
                         <SelectValue placeholder="Select Color" />
                       </SelectTrigger>
-                      <SelectContent className="bg-popover border shadow-md z-[100]" position="popper">
+                      <SelectContent 
+                        className="bg-popover border shadow-md max-h-[200px] overflow-y-auto" 
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                      >
                         {!line.art_no ? (
-                          <div className="px-2 py-1 text-xs text-muted-foreground">
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
                             Select Art No first
                           </div>
-                        ) : items.filter(item => item.code === line.art_no && item.color).length === 0 ? (
-                          <div className="px-2 py-1 text-xs text-muted-foreground">
-                            No colors available
-                          </div>
-                        ) : (
-                          items
-                            .filter(item => item.code === line.art_no && item.color)
-                            .map((item) => (
-                              <SelectItem key={item.id} value={item.color}>
-                                {item.color}
-                              </SelectItem>
-                            ))
-                        )}
+                        ) : (() => {
+                          const availableColors = items.filter(item => 
+                            item.code === line.art_no && item.color && item.color.trim() !== ""
+                          );
+                          
+                          if (availableColors.length === 0) {
+                            return (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                No colors available for this Art No
+                              </div>
+                            );
+                          }
+                          
+                          return availableColors.map((item) => (
+                            <SelectItem 
+                              key={item.id} 
+                              value={item.color}
+                              className="cursor-pointer"
+                            >
+                              {item.color}
+                            </SelectItem>
+                          ));
+                        })()}
                       </SelectContent>
                     </Select>
                     <Input
