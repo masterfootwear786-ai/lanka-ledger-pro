@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
+import { OrderEditDialog } from "@/components/orders/OrderEditDialog";
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -36,6 +37,7 @@ export default function Orders() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<any>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [orderLines, setOrderLines] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
 
@@ -104,8 +106,7 @@ export default function Orders() {
 
   const handleEdit = (order: any) => {
     setSelectedOrder(order);
-    setViewOnly(false);
-    setDialogOpen(true);
+    setEditDialogOpen(true);
   };
 
   const handleDelete = async () => {
@@ -268,6 +269,17 @@ export default function Orders() {
           setDialogOpen(false);
           setSelectedOrder(null);
           setViewOnly(false);
+        }}
+      />
+
+      <OrderEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        order={selectedOrder}
+        onSuccess={() => {
+          fetchOrders();
+          setEditDialogOpen(false);
+          setSelectedOrder(null);
         }}
       />
 
