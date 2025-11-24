@@ -822,41 +822,42 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       />
                     </div>
                     {/* Art No Combobox */}
-                    <Popover open={artNoOpen[line.id]} onOpenChange={(open) => setArtNoOpen({ ...artNoOpen, [line.id]: open })}>
+                    <Popover open={artNoOpen[line.id] || false} onOpenChange={(open) => setArtNoOpen({ ...artNoOpen, [line.id]: open })}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           role="combobox"
-                          aria-expanded={artNoOpen[line.id]}
-                          className="h-8 w-full justify-between text-xs px-2"
+                          aria-expanded={artNoOpen[line.id] || false}
+                          className="h-8 w-full justify-between text-xs px-2 bg-background"
                         >
-                          {line.art_no || "Select Art No"}
+                          <span className="truncate">{line.art_no || "Art No"}</span>
                           <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search or type Art No..." className="h-8" />
+                      <PopoverContent className="w-[180px] p-0 bg-popover" align="start" side="bottom">
+                        <Command shouldFilter={true}>
+                          <CommandInput placeholder="Type to search..." className="h-8 text-xs" />
                           <CommandList>
-                            <CommandEmpty>No Art No found.</CommandEmpty>
+                            <CommandEmpty className="py-2 text-xs text-center text-muted-foreground">No item found</CommandEmpty>
                             <CommandGroup>
-                              {Array.from(new Set(items.map(item => item.code))).map((code) => (
+                              {Array.from(new Set(items.map(item => item.code))).sort().map((code) => (
                                 <CommandItem
                                   key={code}
-                                  value={code}
-                                  onSelect={(currentValue) => {
-                                    updateLineItem(line.id, "art_no", currentValue);
+                                  value={code.toLowerCase()}
+                                  onSelect={() => {
+                                    updateLineItem(line.id, "art_no", code);
                                     updateLineItem(line.id, "color", "");
-                                    const selectedItem = items.find(item => item.code === currentValue);
+                                    const selectedItem = items.find(item => item.code === code);
                                     if (selectedItem) {
                                       updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
                                     }
                                     setArtNoOpen({ ...artNoOpen, [line.id]: false });
                                   }}
+                                  className="text-xs cursor-pointer"
                                 >
                                   <Check
                                     className={cn(
-                                      "mr-2 h-4 w-4",
+                                      "mr-2 h-3 w-3",
                                       line.art_no === code ? "opacity-100" : "opacity-0"
                                     )}
                                   />
@@ -870,39 +871,43 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     </Popover>
 
                     {/* Color Combobox */}
-                    <Popover open={colorOpen[line.id]} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
+                    <Popover open={colorOpen[line.id] || false} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           role="combobox"
-                          aria-expanded={colorOpen[line.id]}
-                          className="h-8 w-full justify-between text-xs px-2"
+                          aria-expanded={colorOpen[line.id] || false}
+                          className="h-8 w-full justify-between text-xs px-2 bg-background"
                           disabled={!line.art_no}
                         >
-                          {line.color || "Select Color"}
+                          <span className="truncate">{line.color || "Color"}</span>
                           <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0" align="start">
-                        <Command>
-                          <CommandInput placeholder="Search or type Color..." className="h-8" />
+                      <PopoverContent className="w-[180px] p-0 bg-popover" align="start" side="bottom">
+                        <Command shouldFilter={true}>
+                          <CommandInput placeholder="Type to search..." className="h-8 text-xs" />
                           <CommandList>
-                            <CommandEmpty>No color found.</CommandEmpty>
+                            <CommandEmpty className="py-2 text-xs text-center text-muted-foreground">
+                              {!line.art_no ? "Select Art No first" : "No color found"}
+                            </CommandEmpty>
                             <CommandGroup>
                               {line.art_no && items
                                 .filter(item => item.code === line.art_no && item.color && item.color.trim() !== "")
+                                .sort((a, b) => a.color.localeCompare(b.color))
                                 .map((item) => (
                                   <CommandItem
                                     key={item.id}
-                                    value={item.color}
-                                    onSelect={(currentValue) => {
-                                      updateLineItem(line.id, "color", currentValue);
+                                    value={item.color.toLowerCase()}
+                                    onSelect={() => {
+                                      updateLineItem(line.id, "color", item.color);
                                       setColorOpen({ ...colorOpen, [line.id]: false });
                                     }}
+                                    className="text-xs cursor-pointer"
                                   >
                                     <Check
                                       className={cn(
-                                        "mr-2 h-4 w-4",
+                                        "mr-2 h-3 w-3",
                                         line.color === item.color ? "opacity-100" : "opacity-0"
                                       )}
                                     />
