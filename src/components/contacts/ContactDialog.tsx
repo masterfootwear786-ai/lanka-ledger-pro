@@ -35,6 +35,9 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
     name: "",
     email: "",
     phone: "",
+    whatsapp: "",
+    owner_name: "",
+    owner_id: "",
     address: "",
     area: "",
     district: "",
@@ -50,6 +53,9 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
         name: contact.name || "",
         email: contact.email || "",
         phone: contact.phone || "",
+        whatsapp: contact.whatsapp || "",
+        owner_name: contact.owner_name || "",
+        owner_id: contact.owner_id || "",
         address: contact.address || "",
         area: contact.area || "",
         district: contact.district || "",
@@ -63,6 +69,9 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
         name: "",
         email: "",
         phone: "",
+        whatsapp: "",
+        owner_name: "",
+        owner_id: "",
         address: "",
         area: "",
         district: "",
@@ -189,6 +198,34 @@ export function ContactDialog({ open, onOpenChange, contact, type, onSuccess }: 
                 id="phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp">WhatsApp Number</Label>
+              <Input
+                id="whatsapp"
+                value={formData.whatsapp}
+                onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                placeholder="e.g., +94771234567"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="owner_name">Owner Name</Label>
+              <Input
+                id="owner_name"
+                value={formData.owner_name}
+                onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="owner_id">Owner ID</Label>
+              <Input
+                id="owner_id"
+                value={formData.owner_id}
+                onChange={(e) => setFormData({ ...formData, owner_id: e.target.value })}
               />
             </div>
           </div>

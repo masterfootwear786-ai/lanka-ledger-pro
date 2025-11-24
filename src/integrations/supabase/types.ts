@@ -449,11 +449,14 @@ export type Database = {
           email: string | null
           id: string
           name: string
+          owner_id: string | null
+          owner_name: string | null
           payment_terms: number | null
           phone: string | null
           tax_number: string | null
           updated_at: string | null
           updated_by: string | null
+          whatsapp: string | null
         }
         Insert: {
           active?: boolean | null
@@ -469,11 +472,14 @@ export type Database = {
           email?: string | null
           id?: string
           name: string
+          owner_id?: string | null
+          owner_name?: string | null
           payment_terms?: number | null
           phone?: string | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          whatsapp?: string | null
         }
         Update: {
           active?: boolean | null
@@ -489,11 +495,14 @@ export type Database = {
           email?: string | null
           id?: string
           name?: string
+          owner_id?: string | null
+          owner_name?: string | null
           payment_terms?: number | null
           phone?: string | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          whatsapp?: string | null
         }
         Relationships: [
           {
