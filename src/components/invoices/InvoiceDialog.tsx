@@ -816,18 +816,47 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         className="h-4 w-4"
                       />
                     </div>
-                    <Input
-                      placeholder="Art No"
+                    <Select
                       value={line.art_no}
-                      onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <Input
-                      placeholder="Color"
+                      onValueChange={(value) => {
+                        updateLineItem(line.id, "art_no", value);
+                        // Find item and auto-fill price
+                        const selectedItem = items.find(item => item.code === value);
+                        if (selectedItem) {
+                          updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select Art No" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        {Array.from(new Set(items.map(item => item.code))).map((code) => (
+                          <SelectItem key={code} value={code}>
+                            {code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select
                       value={line.color}
-                      onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
-                      className="h-8 text-xs"
-                    />
+                      onValueChange={(value) => updateLineItem(line.id, "color", value)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select Color" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        {line.art_no && items
+                          .filter(item => item.code === line.art_no)
+                          .map((item) => (
+                            <SelectItem key={item.id} value={item.color || ""}>
+                              {item.color || "-"}
+                            </SelectItem>
+                          ))
+                        }
+                        {!line.art_no && <SelectItem value="" disabled>Select Art No first</SelectItem>}
+                      </SelectContent>
+                    </Select>
                     <Input
                       type="number"
                       min="0"
