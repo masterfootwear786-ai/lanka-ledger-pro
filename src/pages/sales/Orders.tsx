@@ -664,43 +664,80 @@ export default function Orders() {
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-primary/5">
-                        <TableHead className="text-xs">Art No</TableHead>
-                        <TableHead className="text-xs">Color</TableHead>
-                        <TableHead className="text-xs text-center">39</TableHead>
-                        <TableHead className="text-xs text-center">40</TableHead>
-                        <TableHead className="text-xs text-center">41</TableHead>
-                        <TableHead className="text-xs text-center">42</TableHead>
-                        <TableHead className="text-xs text-center">43</TableHead>
-                        <TableHead className="text-xs text-center">44</TableHead>
-                        <TableHead className="text-xs text-center">45</TableHead>
-                        <TableHead className="text-xs text-center">Pairs</TableHead>
-                        <TableHead className="text-xs text-right">Price</TableHead>
-                        <TableHead className="text-xs text-right">Total</TableHead>
+                        <TableHead className="text-xs font-bold">Art No</TableHead>
+                        <TableHead className="text-xs font-bold">Description</TableHead>
+                        <TableHead className="text-xs text-center font-bold">Color</TableHead>
+                        <TableHead className="text-xs text-center font-bold bg-primary/5">39</TableHead>
+                        <TableHead className="text-xs text-center font-bold">40</TableHead>
+                        <TableHead className="text-xs text-center font-bold bg-primary/5">41</TableHead>
+                        <TableHead className="text-xs text-center font-bold">42</TableHead>
+                        <TableHead className="text-xs text-center font-bold bg-primary/5">43</TableHead>
+                        <TableHead className="text-xs text-center font-bold">44</TableHead>
+                        <TableHead className="text-xs text-center font-bold bg-primary/5">45</TableHead>
+                        <TableHead className="text-xs text-center font-bold">Pairs</TableHead>
+                        <TableHead className="text-xs text-right font-bold">Price</TableHead>
+                        <TableHead className="text-xs text-right font-bold">Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {convertOrderLines.map((line: any, idx: number) => {
-                        const parts = (line.description || "").split(" - ");
-                        const artNo = parts[0] || "-";
-                        const color = parts[1] || "-";
-                        
-                        return (
-                          <TableRow key={line.id} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                            <TableCell className="text-xs">{artNo}</TableCell>
-                            <TableCell className="text-xs">{color}</TableCell>
-                            <TableCell className="text-xs text-center">{line.size_39 || "-"}</TableCell>
-                            <TableCell className="text-xs text-center">{line.size_40 || "-"}</TableCell>
-                            <TableCell className="text-xs text-center">{line.size_41 || "-"}</TableCell>
-                            <TableCell className="text-xs text-center">{line.size_42 || "-"}</TableCell>
-                            <TableCell className="text-xs text-center">{line.size_43 || "-"}</TableCell>
-                            <TableCell className="text-xs text-center">{line.size_44 || "-"}</TableCell>
-                            <TableCell className="text-xs text-center">{line.size_45 || "-"}</TableCell>
-                            <TableCell className="text-xs text-center font-semibold">{line.quantity || 0}</TableCell>
-                            <TableCell className="text-xs text-right">{line.unit_price?.toFixed(2) || "0.00"}</TableCell>
-                            <TableCell className="text-xs text-right font-semibold">{line.line_total?.toFixed(2) || "0.00"}</TableCell>
+                      {(() => {
+                        // Group lines by Art No and Color
+                        const groupedLines = convertOrderLines.reduce((acc, line) => {
+                          const parts = (line.description || "").split(" - ");
+                          const artNo = parts[0] || "-";
+                          const color = parts[1] || "-";
+                          
+                          const key = `${artNo}|||${color}`;
+                          
+                          if (!acc[key]) {
+                            acc[key] = {
+                              artNo,
+                              color,
+                              description: line.description,
+                              size_39: 0,
+                              size_40: 0,
+                              size_41: 0,
+                              size_42: 0,
+                              size_43: 0,
+                              size_44: 0,
+                              size_45: 0,
+                              unitPrice: line.unit_price,
+                              totalPairs: 0,
+                              lineTotal: 0
+                            };
+                          }
+                          
+                          acc[key].size_39 += line.size_39 || 0;
+                          acc[key].size_40 += line.size_40 || 0;
+                          acc[key].size_41 += line.size_41 || 0;
+                          acc[key].size_42 += line.size_42 || 0;
+                          acc[key].size_43 += line.size_43 || 0;
+                          acc[key].size_44 += line.size_44 || 0;
+                          acc[key].size_45 += line.size_45 || 0;
+                          acc[key].totalPairs += line.quantity || 0;
+                          acc[key].lineTotal += line.line_total || 0;
+                          
+                          return acc;
+                        }, {} as Record<string, any>);
+
+                        return Object.values(groupedLines).map((group: any, idx: number) => (
+                          <TableRow key={`${group.artNo}-${group.color}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            <TableCell className="text-xs font-mono">{group.artNo}</TableCell>
+                            <TableCell className="text-xs">{group.description}</TableCell>
+                            <TableCell className="text-xs text-center">{group.color}</TableCell>
+                            <TableCell className="text-xs text-center bg-primary/5">{group.size_39 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{group.size_40 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center bg-primary/5">{group.size_41 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{group.size_42 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center bg-primary/5">{group.size_43 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{group.size_44 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center bg-primary/5">{group.size_45 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center font-semibold">{group.totalPairs}</TableCell>
+                            <TableCell className="text-xs text-right">{group.unitPrice?.toFixed(2) || "0.00"}</TableCell>
+                            <TableCell className="text-xs text-right font-semibold">{group.lineTotal?.toFixed(2) || "0.00"}</TableCell>
                           </TableRow>
-                        );
-                      })}
+                        ));
+                      })()}
                     </TableBody>
                   </Table>
                 </div>
