@@ -5,8 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ColorDialog } from "./ColorDialog";
 
 interface ItemDialogProps {
   open: boolean;
@@ -17,6 +20,8 @@ interface ItemDialogProps {
 
 export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [colors, setColors] = useState<any[]>([]);
+  const [colorDialogOpen, setColorDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -28,6 +33,27 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
     track_inventory: true,
     active: true,
   });
+
+  const fetchColors = async () => {
+    const { data, error } = await supabase
+      .from("colors")
+      .select("*")
+      .eq("active", true)
+      .order("name");
+    
+    if (error) {
+      console.error("Error fetching colors:", error);
+      return;
+    }
+    
+    setColors(data || []);
+  };
+
+  useEffect(() => {
+    if (open) {
+      fetchColors();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (item) {
@@ -136,11 +162,40 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
             </div>
             <div className="space-y-2">
               <Label htmlFor="color">Color</Label>
-              <Input
-                id="color"
-                value={formData.color}
-                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-              />
+              <div className="flex gap-2">
+                <Select
+                  value={formData.color}
+                  onValueChange={(value) => setFormData({ ...formData, color: value })}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select color" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {colors.map((color) => (
+                      <SelectItem key={color.id} value={color.name}>
+                        <div className="flex items-center gap-2">
+                          {color.hex_code && (
+                            <div 
+                              className="w-4 h-4 rounded border" 
+                              style={{ backgroundColor: color.hex_code }}
+                            />
+                          )}
+                          {color.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setColorDialogOpen(true)}
+                  title="Add new color"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -214,6 +269,11 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
           </DialogFooter>
         </form>
       </DialogContent>
+      <ColorDialog 
+        open={colorDialogOpen}
+        onOpenChange={setColorDialogOpen}
+        onSuccess={fetchColors}
+      />
     </Dialog>
   );
 }
