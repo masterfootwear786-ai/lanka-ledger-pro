@@ -846,15 +846,19 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         <SelectValue placeholder="Select Color" />
                       </SelectTrigger>
                       <SelectContent className="bg-background z-50">
-                        {line.art_no && items
-                          .filter(item => item.code === line.art_no)
-                          .map((item) => (
-                            <SelectItem key={item.id} value={item.color || ""}>
-                              {item.color || "-"}
-                            </SelectItem>
-                          ))
-                        }
-                        {!line.art_no && <SelectItem value="" disabled>Select Art No first</SelectItem>}
+                        {line.art_no ? (
+                          items
+                            .filter(item => item.code === line.art_no && item.color)
+                            .map((item) => (
+                              <SelectItem key={item.id} value={item.color}>
+                                {item.color}
+                              </SelectItem>
+                            ))
+                        ) : (
+                          <div className="px-2 py-1 text-xs text-muted-foreground">
+                            Select Art No first
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <Input
