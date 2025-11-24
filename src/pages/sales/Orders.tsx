@@ -23,7 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { OrderDialog } from "@/components/orders/OrderDialog";
+import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -233,11 +233,10 @@ export default function Orders() {
         </div>
       )}
 
-      <OrderDialog
+      <InvoiceDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        order={selectedOrder}
-        viewOnly={viewOnly}
+        invoice={selectedOrder}
         onSuccess={() => {
           fetchOrders();
           setDialogOpen(false);
