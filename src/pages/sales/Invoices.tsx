@@ -505,59 +505,33 @@ export default function Invoices() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {(() => {
-                        // Group lines by Art No and Color
-                        const groupedLines = invoiceLines.reduce((acc, line) => {
-                          const parts = (line.description || "").split(" - ");
-                          const artNo = parts[0] || "-";
-                          const color = parts[1] || "-";
-                          const sizeInfo = parts[2] || "";
-                          const size = sizeInfo.replace("Size ", "");
-                          
-                          const key = `${artNo}|||${color}`;
-                          
-                          if (!acc[key]) {
-                            acc[key] = {
-                              artNo,
-                              color,
-                              sizes: {},
-                              unitPrice: line.unit_price,
-                              totalPairs: 0,
-                              lineTotal: 0
-                            };
-                          }
-                          
-                          if (size) {
-                            acc[key].sizes[size] = (acc[key].sizes[size] || 0) + (line.quantity || 0);
-                          }
-                          acc[key].totalPairs += line.quantity || 0;
-                          acc[key].lineTotal += line.line_total || 0;
-                          
-                          return acc;
-                        }, {} as Record<string, any>);
-
-                        return Object.values(groupedLines).map((group: any, idx: number) => (
-                          <TableRow key={`${group.artNo}-${group.color}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                            <TableCell className="font-mono border-r">{group.artNo}</TableCell>
-                            <TableCell className="border-r">{group.artNo} - {group.color}</TableCell>
-                            <TableCell className="text-center border-r">{group.color}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.sizes["39"] || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{group.sizes["40"] || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.sizes["41"] || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{group.sizes["42"] || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.sizes["43"] || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{group.sizes["44"] || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.sizes["45"] || "-"}</TableCell>
-                            <TableCell className="text-center font-semibold border-r">{group.totalPairs}</TableCell>
+                      {invoiceLines.map((line: any, idx: number) => {
+                        const parts = (line.description || "").split(" - ");
+                        const artNo = parts[0] || "-";
+                        const color = parts[1] || "-";
+                        
+                        return (
+                          <TableRow key={line.id} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            <TableCell className="font-mono border-r">{artNo}</TableCell>
+                            <TableCell className="border-r">{line.description}</TableCell>
+                            <TableCell className="text-center border-r">{color}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{line.size_39 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{line.size_40 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{line.size_41 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{line.size_42 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{line.size_43 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{line.size_44 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{line.size_45 || "-"}</TableCell>
+                            <TableCell className="text-center font-semibold border-r">{line.quantity || 0}</TableCell>
                             <TableCell className="text-right border-r">
-                              {group.unitPrice ? group.unitPrice.toFixed(2) : "0.00"}
+                              {line.unit_price ? line.unit_price.toFixed(2) : "0.00"}
                             </TableCell>
                             <TableCell className="text-right font-semibold">
-                              {group.lineTotal ? group.lineTotal.toFixed(2) : "0.00"}
+                              {line.line_total ? line.line_total.toFixed(2) : "0.00"}
                             </TableCell>
                           </TableRow>
-                        ));
-                      })()}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
