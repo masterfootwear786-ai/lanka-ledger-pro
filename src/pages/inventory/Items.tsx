@@ -126,8 +126,9 @@ export default function Items() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Item Code</TableHead>
+                  <TableHead>Art No</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Color</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead className="text-right">Stock</TableHead>
                   <TableHead className="text-right">Sale Price</TableHead>
@@ -139,7 +140,7 @@ export default function Items() {
               <TableBody>
                 {filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center">
+                    <TableCell colSpan={9} className="text-center">
                       No items found
                     </TableCell>
                   </TableRow>
@@ -148,6 +149,7 @@ export default function Items() {
                     <TableRow key={item.id}>
                       <TableCell className="font-mono">{item.code}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.color || '-'}</TableCell>
                       <TableCell className="max-w-xs truncate">{item.description || '-'}</TableCell>
                       <TableCell className="text-right">
                         {item.stock_quantity?.toFixed(0) || '0'}
