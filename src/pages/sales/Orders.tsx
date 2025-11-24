@@ -498,8 +498,6 @@ export default function Orders() {
                               const parts = (line.description || "").split(" - ");
                               const artNo = parts[0] || "-";
                               const color = parts[1] || "-";
-                              const sizeInfo = parts[2] || "";
-                              const size = sizeInfo.replace("Size ", "");
                               
                               const key = `${artNo}|||${color}`;
                               
@@ -507,16 +505,27 @@ export default function Orders() {
                                 acc[key] = {
                                   artNo,
                                   color,
-                                  sizes: {},
+                                  description: line.description,
+                                  size_39: 0,
+                                  size_40: 0,
+                                  size_41: 0,
+                                  size_42: 0,
+                                  size_43: 0,
+                                  size_44: 0,
+                                  size_45: 0,
                                   unitPrice: line.unit_price,
                                   totalPairs: 0,
                                   lineTotal: 0
                                 };
                               }
                               
-                              if (size) {
-                                acc[key].sizes[size] = (acc[key].sizes[size] || 0) + (line.quantity || 0);
-                              }
+                              acc[key].size_39 += line.size_39 || 0;
+                              acc[key].size_40 += line.size_40 || 0;
+                              acc[key].size_41 += line.size_41 || 0;
+                              acc[key].size_42 += line.size_42 || 0;
+                              acc[key].size_43 += line.size_43 || 0;
+                              acc[key].size_44 += line.size_44 || 0;
+                              acc[key].size_45 += line.size_45 || 0;
                               acc[key].totalPairs += line.quantity || 0;
                               acc[key].lineTotal += line.line_total || 0;
                               
@@ -526,15 +535,15 @@ export default function Orders() {
                             return Object.values(groupedLines).map((group: any, idx: number) => (
                               <TableRow key={`${group.artNo}-${group.color}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
                                 <TableCell className="font-mono border-r">{group.artNo}</TableCell>
-                                <TableCell className="border-r">{group.artNo} - {group.color}</TableCell>
+                                <TableCell className="border-r">{group.description}</TableCell>
                                 <TableCell className="text-center border-r">{group.color}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.sizes["39"] || "-"}</TableCell>
-                                <TableCell className="text-center border-r">{group.sizes["40"] || "-"}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.sizes["41"] || "-"}</TableCell>
-                                <TableCell className="text-center border-r">{group.sizes["42"] || "-"}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.sizes["43"] || "-"}</TableCell>
-                                <TableCell className="text-center border-r">{group.sizes["44"] || "-"}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.sizes["45"] || "-"}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_39 || "-"}</TableCell>
+                                <TableCell className="text-center border-r">{group.size_40 || "-"}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_41 || "-"}</TableCell>
+                                <TableCell className="text-center border-r">{group.size_42 || "-"}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_43 || "-"}</TableCell>
+                                <TableCell className="text-center border-r">{group.size_44 || "-"}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_45 || "-"}</TableCell>
                                 <TableCell className="text-center font-semibold border-r">{group.totalPairs}</TableCell>
                                 <TableCell className="text-right border-r">
                                   {group.unitPrice ? group.unitPrice.toFixed(2) : "0.00"}
