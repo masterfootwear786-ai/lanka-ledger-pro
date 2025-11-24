@@ -837,9 +837,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     <div className="flex gap-0.5">
                       <Input
                         type="text"
-                        value={line.art_no}
+                        value={line.art_no || ""}
                         onChange={(e) => {
                           const value = e.target.value;
+                          console.log("Art No typed:", value);
                           updateLineItem(line.id, "art_no", value);
                           updateLineItem(line.id, "color", "");
                           // Try to find matching item and auto-fill price
@@ -848,8 +849,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                             updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
                           }
                         }}
-                        placeholder="Type or select"
-                        className="h-8 text-xs flex-1"
+                        placeholder="Art No"
+                        className="h-8 text-xs flex-1 bg-background"
                       />
                       <Popover open={artNoOpen[line.id] || false} onOpenChange={(open) => setArtNoOpen({ ...artNoOpen, [line.id]: open })}>
                         <PopoverTrigger asChild>
@@ -857,11 +858,12 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                             variant="outline"
                             size="sm"
                             className="h-8 w-8 p-0 shrink-0"
+                            type="button"
                           >
                             <ChevronsUpDown className="h-3 w-3" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[200px] p-0 bg-popover" align="start" side="bottom">
+                        <PopoverContent className="w-[200px] p-0 bg-popover border shadow-lg z-[100]" align="start" side="bottom">
                           <Command>
                             <CommandInput placeholder="Search..." className="h-8 text-xs" />
                             <CommandList>
@@ -873,6 +875,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                                     <CommandItem
                                       key={code}
                                       onSelect={() => {
+                                        console.log("Art No selected from dropdown:", code);
                                         updateLineItem(line.id, "art_no", code);
                                         updateLineItem(line.id, "color", "");
                                         const selectedItem = items.find(item => item.code === code);
@@ -903,10 +906,14 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     <div className="flex gap-0.5">
                       <Input
                         type="text"
-                        value={line.color}
-                        onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
-                        placeholder="Type or select"
-                        className="h-8 text-xs flex-1"
+                        value={line.color || ""}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          console.log("Color typed:", value);
+                          updateLineItem(line.id, "color", value);
+                        }}
+                        placeholder="Color"
+                        className="h-8 text-xs flex-1 bg-background"
                         disabled={!line.art_no}
                       />
                       <Popover open={colorOpen[line.id] || false} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
@@ -916,11 +923,12 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                             size="sm"
                             className="h-8 w-8 p-0 shrink-0"
                             disabled={!line.art_no}
+                            type="button"
                           >
                             <ChevronsUpDown className="h-3 w-3" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[200px] p-0 bg-popover" align="start" side="bottom">
+                        <PopoverContent className="w-[200px] p-0 bg-popover border shadow-lg z-[100]" align="start" side="bottom">
                           <Command>
                             <CommandInput placeholder="Search..." className="h-8 text-xs" />
                             <CommandList>
@@ -935,6 +943,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                                     <CommandItem
                                       key={item.id}
                                       onSelect={() => {
+                                        console.log("Color selected from dropdown:", item.color);
                                         updateLineItem(line.id, "color", item.color);
                                         setColorOpen({ ...colorOpen, [line.id]: false });
                                       }}
