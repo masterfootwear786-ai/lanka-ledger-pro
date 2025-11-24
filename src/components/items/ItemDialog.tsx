@@ -28,6 +28,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
     color: "",
     description: "",
     uom: "EA",
+    stock_quantity: "0",
     sale_price: "",
     purchase_price: "",
     track_inventory: true,
@@ -63,6 +64,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         color: item.color || "",
         description: item.description || "",
         uom: item.uom || "EA",
+        stock_quantity: item.stock_quantity?.toString() || "0",
         sale_price: item.sale_price?.toString() || "",
         purchase_price: item.purchase_price?.toString() || "",
         track_inventory: item.track_inventory ?? true,
@@ -75,6 +77,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         color: "",
         description: "",
         uom: "EA",
+        stock_quantity: "0",
         sale_price: "",
         purchase_price: "",
         track_inventory: true,
@@ -105,6 +108,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
       const data = {
         ...formData,
         company_id: profile.company_id,
+        stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
         sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
         purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
       };
@@ -209,13 +213,23 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="uom">Unit of Measure</Label>
               <Input
                 id="uom"
                 value={formData.uom}
                 onChange={(e) => setFormData({ ...formData, uom: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="stock_quantity">Stock</Label>
+              <Input
+                id="stock_quantity"
+                type="number"
+                step="1"
+                value={formData.stock_quantity}
+                onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
               />
             </div>
             <div className="space-y-2">

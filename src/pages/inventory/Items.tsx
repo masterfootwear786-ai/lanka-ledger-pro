@@ -129,6 +129,7 @@ export default function Items() {
                   <TableHead>Item Code</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead className="text-right">Stock</TableHead>
                   <TableHead className="text-right">Sale Price</TableHead>
                   <TableHead className="text-right">Purchase Price</TableHead>
                   <TableHead>{t('common.status')}</TableHead>
@@ -138,7 +139,7 @@ export default function Items() {
               <TableBody>
                 {filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={8} className="text-center">
                       No items found
                     </TableCell>
                   </TableRow>
@@ -148,6 +149,9 @@ export default function Items() {
                       <TableCell className="font-mono">{item.code}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell className="max-w-xs truncate">{item.description || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        {item.stock_quantity?.toFixed(0) || '0'}
+                      </TableCell>
                       <TableCell className="text-right">
                         {item.sale_price?.toLocaleString() || '-'}
                       </TableCell>
