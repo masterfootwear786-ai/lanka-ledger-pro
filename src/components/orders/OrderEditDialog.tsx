@@ -24,6 +24,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
   const [orderLines, setOrderLines] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [groupedLines, setGroupedLines] = useState<any[]>([]);
 
   useEffect(() => {
     if (open && order) {
@@ -64,6 +65,9 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
       setOrderData(orderDetails);
       setOrderLines(lines || []);
       setCompanyData(company);
+      
+      // Group lines by Art No and Color
+      groupLinesByArtNoColor(lines || []);
     } catch (error: any) {
       toast.error("Error loading order: " + error.message);
     }
@@ -92,53 +96,91 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
     }
   };
 
-  const handleUpdateLine = (index: number, field: string, value: any) => {
-    const updatedLines = [...orderLines];
-    updatedLines[index] = {
-      ...updatedLines[index],
-      [field]: value,
-    };
+  const groupLinesByArtNoColor = (lines: any[]) => {
+    const grouped = lines.reduce((acc, line) => {
+      const parts = (line.description || "").split(" - ");
+      const artNo = parts[0] || "";
+      const color = parts[1] || "";
+      const sizeInfo = parts[2] || "";
+      const size = sizeInfo.replace("Size ", "");
+      
+      const key = `${artNo}|||${color}`;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          artNo,
+          color,
+          unitPrice: line.unit_price || 0,
+          sizes: {
+            "39": 0,
+            "40": 0,
+            "41": 0,
+            "42": 0,
+            "43": 0,
+            "44": 0,
+            "45": 0
+          }
+        };
+      }
+      
+      if (size && acc[key].sizes.hasOwnProperty(size)) {
+        acc[key].sizes[size] = line.quantity || 0;
+      }
+      
+      return acc;
+    }, {} as Record<string, any>);
 
-    // Recalculate line total
-    if (field === "quantity" || field === "unit_price") {
-      const quantity = field === "quantity" ? parseFloat(value) || 0 : updatedLines[index].quantity;
-      const unitPrice = field === "unit_price" ? parseFloat(value) || 0 : updatedLines[index].unit_price;
-      updatedLines[index].line_total = quantity * unitPrice;
+    setGroupedLines(Object.values(grouped));
+  };
+
+  const handleUpdateGroupedLine = (index: number, field: string, value: any) => {
+    const updated = [...groupedLines];
+    if (field === "unitPrice") {
+      updated[index].unitPrice = parseFloat(value) || 0;
+    } else if (field.startsWith("size_")) {
+      const size = field.replace("size_", "");
+      updated[index].sizes[size] = parseFloat(value) || 0;
+    } else {
+      updated[index][field] = value;
     }
-
-    setOrderLines(updatedLines);
+    setGroupedLines(updated);
   };
 
   const handleAddLine = () => {
-    const newLine = {
-      id: `temp-${Date.now()}`,
-      order_id: order.id,
-      line_no: orderLines.length + 1,
-      description: "",
-      quantity: 0,
-      unit_price: 0,
-      line_total: 0,
-      discount: 0,
-      tax_amount: 0,
-      tax_rate: 0,
+    const newGroup = {
+      artNo: "",
+      color: "",
+      unitPrice: 0,
+      sizes: {
+        "39": 0,
+        "40": 0,
+        "41": 0,
+        "42": 0,
+        "43": 0,
+        "44": 0,
+        "45": 0
+      }
     };
-    setOrderLines([...orderLines, newLine]);
+    setGroupedLines([...groupedLines, newGroup]);
   };
 
   const handleRemoveLine = (index: number) => {
-    const updatedLines = orderLines.filter((_, i) => i !== index);
-    // Renumber lines
-    updatedLines.forEach((line, i) => {
-      line.line_no = i + 1;
-    });
-    setOrderLines(updatedLines);
+    const updated = groupedLines.filter((_, i) => i !== index);
+    setGroupedLines(updated);
   };
 
   const calculateTotals = () => {
-    const subtotal = orderLines.reduce((sum, line) => sum + (parseFloat(line.line_total) || 0), 0);
-    const taxTotal = orderLines.reduce((sum, line) => sum + (parseFloat(line.tax_amount) || 0), 0);
+    const subtotal = groupedLines.reduce((sum, group) => {
+      const totalPairs = Object.values(group.sizes).reduce((s: number, qty: any) => {
+        return s + (parseFloat(String(qty)) || 0);
+      }, 0);
+      const unitPrice = parseFloat(String(group.unitPrice)) || 0;
+      const lineTotal = Number(totalPairs) * Number(unitPrice);
+      return sum + lineTotal;
+    }, 0);
+    const taxTotal = 0; // Orders don't have tax
     const discount = parseFloat(orderData?.discount) || 0;
-    const grandTotal = subtotal + taxTotal - discount;
+    const grandTotal = subtotal - discount;
 
     return { subtotal, taxTotal, grandTotal };
   };
@@ -176,27 +218,37 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
 
       if (deleteError) throw deleteError;
 
-      // Insert updated lines
-      const linesToInsert = orderLines.map((line) => ({
-        order_id: order.id,
-        line_no: line.line_no,
-        description: line.description,
-        quantity: parseFloat(line.quantity) || 0,
-        unit_price: parseFloat(line.unit_price) || 0,
-        line_total: parseFloat(line.line_total) || 0,
-        discount: parseFloat(line.discount) || 0,
-        tax_amount: parseFloat(line.tax_amount) || 0,
-        tax_rate: parseFloat(line.tax_rate) || 0,
-        tax_code: line.tax_code,
-        item_id: line.item_id,
-        account_id: line.account_id,
-      }));
+      // Convert grouped lines back to individual lines
+      const linesToInsert: any[] = [];
+      let lineNo = 1;
 
-      const { error: insertError } = await supabase
-        .from("sales_order_lines")
-        .insert(linesToInsert);
+      groupedLines.forEach((group) => {
+        Object.entries(group.sizes).forEach(([size, quantity]) => {
+          if (quantity && parseFloat(quantity as string) > 0) {
+            const qty = parseFloat(quantity as string);
+            const unitPrice = parseFloat(group.unitPrice) || 0;
+            linesToInsert.push({
+              order_id: order.id,
+              line_no: lineNo++,
+              description: `${group.artNo} - ${group.color} - Size ${size}`,
+              quantity: qty,
+              unit_price: unitPrice,
+              line_total: qty * unitPrice,
+              discount: 0,
+              tax_amount: 0,
+              tax_rate: 0,
+            });
+          }
+        });
+      });
 
-      if (insertError) throw insertError;
+      if (linesToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from("sales_order_lines")
+          .insert(linesToInsert);
+
+        if (insertError) throw insertError;
+      }
 
       toast.success("Order updated successfully");
       onSuccess();
@@ -247,81 +299,104 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
             </div>
           </div>
 
-          {/* Editable Order Details */}
-          <div className="grid grid-cols-2 gap-6 bg-muted/30 rounded-lg p-4">
-            <div className="space-y-4">
-              <div>
-                <Label>Customer</Label>
-                <Select 
-                  value={orderData.customer_id} 
-                  onValueChange={(value) => setOrderData({...orderData, customer_id: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {/* Customer Info Section */}
+          <div className="bg-muted/30 rounded-lg p-4">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <Label>Customer</Label>
+                  <Select 
+                    value={orderData.customer_id} 
+                    onValueChange={(value) => {
+                      const customer = customers.find(c => c.id === value);
+                      setOrderData({
+                        ...orderData, 
+                        customer_id: value,
+                        customer: customer
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {orderData.customer?.area && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">City: </span>
+                    <span className="font-medium">{orderData.customer.area}</span>
+                  </div>
+                )}
+
+                {orderData.customer?.phone && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Phone: </span>
+                    <span className="font-medium">{orderData.customer.phone}</span>
+                  </div>
+                )}
+
+                <div>
+                  <Label>Order Date</Label>
+                  <Input
+                    type="date"
+                    value={orderData.order_date}
+                    onChange={(e) => setOrderData({...orderData, order_date: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <Label>Delivery Date</Label>
+                  <Input
+                    type="date"
+                    value={orderData.delivery_date || ""}
+                    onChange={(e) => setOrderData({...orderData, delivery_date: e.target.value})}
+                  />
+                </div>
               </div>
 
-              <div>
-                <Label>Order Date</Label>
-                <Input
-                  type="date"
-                  value={orderData.order_date}
-                  onChange={(e) => setOrderData({...orderData, order_date: e.target.value})}
-                />
-              </div>
+              <div className="space-y-4">
+                <div>
+                  <Label>Status</Label>
+                  <Select 
+                    value={orderData.status} 
+                    onValueChange={(value) => setOrderData({...orderData, status: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="confirmed">Confirmed</SelectItem>
+                      <SelectItem value="processing">Processing</SelectItem>
+                      <SelectItem value="ready">Ready</SelectItem>
+                      <SelectItem value="delivered">Delivered</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div>
-                <Label>Delivery Date</Label>
-                <Input
-                  type="date"
-                  value={orderData.delivery_date || ""}
-                  onChange={(e) => setOrderData({...orderData, delivery_date: e.target.value})}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <Label>Status</Label>
-                <Select 
-                  value={orderData.status} 
-                  onValueChange={(value) => setOrderData({...orderData, status: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="processing">Processing</SelectItem>
-                    <SelectItem value="ready">Ready</SelectItem>
-                    <SelectItem value="delivered">Delivered</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Discount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={orderData.discount || 0}
-                  onChange={(e) => setOrderData({...orderData, discount: e.target.value})}
-                />
+                <div>
+                  <Label>Discount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={orderData.discount || 0}
+                    onChange={(e) => setOrderData({...orderData, discount: e.target.value})}
+                  />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Editable Line Items */}
+          {/* Editable Line Items - Grouped by Art No and Color */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-semibold text-primary">ORDER ITEMS</div>
@@ -331,61 +406,141 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
               </Button>
             </div>
             
-            <div className="overflow-hidden rounded-lg border-2 border-border">
+            <div className="overflow-hidden rounded-lg border-2 border-border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary/10">
-                    <TableHead className="w-8">#</TableHead>
-                    <TableHead className="min-w-[300px]">Description</TableHead>
-                    <TableHead className="w-24 text-center">Quantity</TableHead>
-                    <TableHead className="w-32 text-right">Unit Price</TableHead>
-                    <TableHead className="w-32 text-right">Line Total</TableHead>
-                    <TableHead className="w-12"></TableHead>
+                    <TableHead className="w-32 font-bold border-r">Art No</TableHead>
+                    <TableHead className="w-32 text-center font-bold border-r">Color</TableHead>
+                    <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">39</TableHead>
+                    <TableHead className="w-20 text-center font-bold border-r">40</TableHead>
+                    <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">41</TableHead>
+                    <TableHead className="w-20 text-center font-bold border-r">42</TableHead>
+                    <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">43</TableHead>
+                    <TableHead className="w-20 text-center font-bold border-r">44</TableHead>
+                    <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">45</TableHead>
+                    <TableHead className="w-24 text-center font-bold border-r">Total Pairs</TableHead>
+                    <TableHead className="w-32 text-right font-bold border-r">Unit Price</TableHead>
+                    <TableHead className="w-32 text-right font-bold border-r">Line Total</TableHead>
+                    <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {orderLines.map((line, index) => (
-                    <TableRow key={line.id || index}>
-                      <TableCell>{line.line_no}</TableCell>
-                      <TableCell>
-                        <Input
-                          value={line.description}
-                          onChange={(e) => handleUpdateLine(index, "description", e.target.value)}
-                          placeholder="Art No - Color - Size XX"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="1"
-                          value={line.quantity}
-                          onChange={(e) => handleUpdateLine(index, "quantity", e.target.value)}
-                          className="text-center"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={line.unit_price}
-                          onChange={(e) => handleUpdateLine(index, "unit_price", e.target.value)}
-                          className="text-right"
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {line.line_total?.toFixed(2) || "0.00"}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveLine(index)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {groupedLines.map((group, index) => {
+                    const totalPairs = Object.values(group.sizes).reduce((sum: number, qty: any) => {
+                      return sum + (parseFloat(String(qty)) || 0);
+                    }, 0);
+                    const unitPrice = parseFloat(String(group.unitPrice)) || 0;
+                    const lineTotal = Number(totalPairs) * Number(unitPrice);
+                    
+                    return (
+                      <TableRow key={index} className={index % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                        <TableCell className="border-r">
+                          <Input
+                            value={group.artNo}
+                            onChange={(e) => handleUpdateGroupedLine(index, "artNo", e.target.value)}
+                            placeholder="Art No"
+                            className="h-8"
+                          />
+                        </TableCell>
+                        <TableCell className="border-r">
+                          <Input
+                            value={group.color}
+                            onChange={(e) => handleUpdateGroupedLine(index, "color", e.target.value)}
+                            placeholder="Color"
+                            className="h-8"
+                          />
+                        </TableCell>
+                        <TableCell className="bg-primary/5 border-r">
+                          <Input
+                            type="number"
+                            step="1"
+                            value={group.sizes["39"]}
+                            onChange={(e) => handleUpdateGroupedLine(index, "size_39", e.target.value)}
+                            className="h-8 text-center"
+                          />
+                        </TableCell>
+                        <TableCell className="border-r">
+                          <Input
+                            type="number"
+                            step="1"
+                            value={group.sizes["40"]}
+                            onChange={(e) => handleUpdateGroupedLine(index, "size_40", e.target.value)}
+                            className="h-8 text-center"
+                          />
+                        </TableCell>
+                        <TableCell className="bg-primary/5 border-r">
+                          <Input
+                            type="number"
+                            step="1"
+                            value={group.sizes["41"]}
+                            onChange={(e) => handleUpdateGroupedLine(index, "size_41", e.target.value)}
+                            className="h-8 text-center"
+                          />
+                        </TableCell>
+                        <TableCell className="border-r">
+                          <Input
+                            type="number"
+                            step="1"
+                            value={group.sizes["42"]}
+                            onChange={(e) => handleUpdateGroupedLine(index, "size_42", e.target.value)}
+                            className="h-8 text-center"
+                          />
+                        </TableCell>
+                        <TableCell className="bg-primary/5 border-r">
+                          <Input
+                            type="number"
+                            step="1"
+                            value={group.sizes["43"]}
+                            onChange={(e) => handleUpdateGroupedLine(index, "size_43", e.target.value)}
+                            className="h-8 text-center"
+                          />
+                        </TableCell>
+                        <TableCell className="border-r">
+                          <Input
+                            type="number"
+                            step="1"
+                            value={group.sizes["44"]}
+                            onChange={(e) => handleUpdateGroupedLine(index, "size_44", e.target.value)}
+                            className="h-8 text-center"
+                          />
+                        </TableCell>
+                        <TableCell className="bg-primary/5 border-r">
+                          <Input
+                            type="number"
+                            step="1"
+                            value={group.sizes["45"]}
+                            onChange={(e) => handleUpdateGroupedLine(index, "size_45", e.target.value)}
+                            className="h-8 text-center"
+                          />
+                        </TableCell>
+                        <TableCell className="text-center font-semibold border-r">
+                          {totalPairs.toString()}
+                        </TableCell>
+                        <TableCell className="border-r">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={group.unitPrice}
+                            onChange={(e) => handleUpdateGroupedLine(index, "unitPrice", e.target.value)}
+                            className="h-8 text-right"
+                          />
+                        </TableCell>
+                        <TableCell className="text-right font-semibold border-r">
+                          {lineTotal.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveLine(index)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
