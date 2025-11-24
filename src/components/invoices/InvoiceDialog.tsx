@@ -155,51 +155,32 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       .order('line_no', { ascending: true });
 
     if (lines && lines.length > 0) {
-      // Group lines by art_no to reconstruct the original line items with sizes
-      const groupedLines: { [key: string]: any } = {};
-      
-      lines.forEach(line => {
-        // Extract art_no, color from the description
-        const match = line.description.match(/^(.+?) - (.+?) - Size (\d+)$/);
-        const key = match ? `${match[1]}_${match[2]}` : line.description;
+      // Lines now have size columns, so we can directly map them
+      const reconstructedLines = lines.map((line: any) => {
+        // Extract art_no and color from description (format: "ART_NO - COLOR")
+        const parts = line.description.split(' - ');
+        const art_no = parts[0] || '';
+        const color = parts[1] || '';
         
-        if (!groupedLines[key]) {
-          groupedLines[key] = {
-            id: Math.random().toString(),
-            art_no: match ? match[1] : '',
-            description: '',
-            color: match ? match[2] : '',
-            size_39: 0,
-            size_40: 0,
-            size_41: 0,
-            size_42: 0,
-            size_43: 0,
-            size_44: 0,
-            size_45: 0,
-            total_pairs: 0,
-            unit_price: line.unit_price,
-            tax_rate: line.tax_rate || 0,
-            line_total: 0,
-            tax_amount: 0,
-            discount_selected: false,
-          };
-        }
-        
-        // Add quantity to appropriate size
-        if (match) {
-          const size = match[3];
-          groupedLines[key][`size_${size}`] = line.quantity;
-        }
-      });
-
-      // Convert to array and recalculate totals
-      const reconstructedLines = Object.values(groupedLines).map((item: any) => {
-        item.total_pairs = item.size_39 + item.size_40 + item.size_41 + 
-                          item.size_42 + item.size_43 + item.size_44 + item.size_45;
-        const subtotal = item.total_pairs * item.unit_price;
-        item.tax_amount = subtotal * (item.tax_rate / 100);
-        item.line_total = subtotal + item.tax_amount;
-        return item;
+        return {
+          id: Math.random().toString(),
+          art_no,
+          description: '',
+          color,
+          size_39: line.size_39 || 0,
+          size_40: line.size_40 || 0,
+          size_41: line.size_41 || 0,
+          size_42: line.size_42 || 0,
+          size_43: line.size_43 || 0,
+          size_44: line.size_44 || 0,
+          size_45: line.size_45 || 0,
+          total_pairs: line.quantity || 0,
+          unit_price: line.unit_price,
+          tax_rate: line.tax_rate || 0,
+          line_total: line.line_total || 0,
+          tax_amount: line.tax_amount || 0,
+          discount_selected: false,
+        };
       });
 
       setLineItems(reconstructedLines);
@@ -388,33 +369,35 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         if (orderError) throw orderError;
 
-        // Insert order lines
-        const lines: any[] = [];
-        lineItems.forEach((item) => {
-          const sizes = [
-            { size: '39', qty: item.size_39 },
-            { size: '40', qty: item.size_40 },
-            { size: '41', qty: item.size_41 },
-            { size: '42', qty: item.size_42 },
-            { size: '43', qty: item.size_43 },
-            { size: '44', qty: item.size_44 },
-            { size: '45', qty: item.size_45 },
-          ];
+        // Insert order lines with size columns
+        const itemsMap = new Map();
+        items.forEach(i => {
+          const key = `${i.code}-${i.color}`;
+          itemsMap.set(key, i.id);
+        });
+
+        const lines: any[] = lineItems.map((item, index) => {
+          const itemKey = `${item.art_no}-${item.color}`;
+          const itemId = itemsMap.get(itemKey);
           
-          sizes.forEach(s => {
-            if (s.qty > 0) {
-              lines.push({
-                order_id: newOrder.id,
-                line_no: lines.length + 1,
-                description: `${item.art_no} - ${item.color} - Size ${s.size}`,
-                quantity: s.qty,
-                unit_price: item.unit_price,
-                tax_rate: item.tax_rate,
-                tax_amount: (s.qty * item.unit_price) * (item.tax_rate / 100),
-                line_total: s.qty * item.unit_price + ((s.qty * item.unit_price) * (item.tax_rate / 100)),
-              });
-            }
-          });
+          return {
+            order_id: newOrder.id,
+            item_id: itemId || null,
+            line_no: index + 1,
+            description: `${item.art_no} - ${item.color}`,
+            quantity: item.total_pairs,
+            size_39: item.size_39,
+            size_40: item.size_40,
+            size_41: item.size_41,
+            size_42: item.size_42,
+            size_43: item.size_43,
+            size_44: item.size_44,
+            size_45: item.size_45,
+            unit_price: item.unit_price,
+            tax_rate: item.tax_rate,
+            tax_amount: item.tax_amount,
+            line_total: item.line_total,
+          };
         });
 
         const { error: linesError } = await supabase
@@ -493,33 +476,36 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         invoiceId = newInvoice.id;
       }
 
-      // Insert invoice lines - create separate lines for each size
-      const lines: any[] = [];
-      lineItems.forEach((item, index) => {
-        const sizes = [
-          { size: '39', qty: item.size_39 },
-          { size: '40', qty: item.size_40 },
-          { size: '41', qty: item.size_41 },
-          { size: '42', qty: item.size_42 },
-          { size: '43', qty: item.size_43 },
-          { size: '44', qty: item.size_44 },
-          { size: '45', qty: item.size_45 },
-        ];
+      // Insert invoice lines with size columns
+      // First, find the item_id for each line based on art_no and color
+      const itemsMap = new Map();
+      items.forEach(i => {
+        const key = `${i.code}-${i.color}`;
+        itemsMap.set(key, i.id);
+      });
+
+      const lines: any[] = lineItems.map((item, index) => {
+        const itemKey = `${item.art_no}-${item.color}`;
+        const itemId = itemsMap.get(itemKey);
         
-        sizes.forEach(s => {
-          if (s.qty > 0) {
-            lines.push({
-              invoice_id: invoiceId,
-              line_no: lines.length + 1,
-              description: `${item.art_no} - ${item.color} - Size ${s.size}`,
-              quantity: s.qty,
-              unit_price: item.unit_price,
-              tax_rate: item.tax_rate,
-              tax_amount: (s.qty * item.unit_price) * (item.tax_rate / 100),
-              line_total: s.qty * item.unit_price + ((s.qty * item.unit_price) * (item.tax_rate / 100)),
-            });
-          }
-        });
+        return {
+          invoice_id: invoiceId,
+          item_id: itemId || null,
+          line_no: index + 1,
+          description: `${item.art_no} - ${item.color}`,
+          quantity: item.total_pairs,
+          size_39: item.size_39,
+          size_40: item.size_40,
+          size_41: item.size_41,
+          size_42: item.size_42,
+          size_43: item.size_43,
+          size_44: item.size_44,
+          size_45: item.size_45,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+          line_total: item.line_total,
+        };
       });
 
       const { error: linesError } = await supabase
