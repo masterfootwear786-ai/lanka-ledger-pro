@@ -130,7 +130,102 @@ export default function Orders() {
   };
 
   const handleConvertToInvoice = async (order: any) => {
-    toast.info("Convert to invoice feature coming soon!");
+    try {
+      // Fetch order lines
+      const { data: orderLines, error: linesError } = await supabase
+        .from('sales_order_lines')
+        .select('*')
+        .eq('order_id', order.id)
+        .order('line_no', { ascending: true });
+
+      if (linesError) throw linesError;
+      if (!orderLines || orderLines.length === 0) {
+        toast.error("Cannot convert order with no line items");
+        return;
+      }
+
+      // Get user info
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Generate invoice number
+      const invoice_no = `INV-${Date.now()}`;
+
+      // Create invoice (initially as draft)
+      const { data: newInvoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          company_id: order.company_id,
+          customer_id: order.customer_id,
+          invoice_no,
+          invoice_date: new Date().toISOString().split('T')[0],
+          due_date: order.delivery_date,
+          notes: order.notes ? `Converted from Order ${order.order_no}\n${order.notes}` : `Converted from Order ${order.order_no}`,
+          subtotal: order.subtotal,
+          tax_total: order.tax_total,
+          discount: order.discount,
+          grand_total: order.grand_total,
+          status: 'draft',
+          posted: false,
+          terms: order.terms,
+        })
+        .select()
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Create invoice lines from order lines
+      const invoiceLines = orderLines.map((line: any) => ({
+        invoice_id: newInvoice.id,
+        item_id: line.item_id,
+        line_no: line.line_no,
+        description: line.description,
+        quantity: line.quantity,
+        size_39: line.size_39,
+        size_40: line.size_40,
+        size_41: line.size_41,
+        size_42: line.size_42,
+        size_43: line.size_43,
+        size_44: line.size_44,
+        size_45: line.size_45,
+        unit_price: line.unit_price,
+        tax_rate: line.tax_rate,
+        tax_amount: line.tax_amount,
+        line_total: line.line_total,
+        account_id: line.account_id,
+      }));
+
+      const { error: invoiceLinesError } = await supabase
+        .from('invoice_lines')
+        .insert(invoiceLines);
+
+      if (invoiceLinesError) throw invoiceLinesError;
+
+      // Post the invoice to trigger stock deduction
+      const { error: postError } = await supabase
+        .from('invoices')
+        .update({
+          posted: true,
+          posted_at: new Date().toISOString(),
+          posted_by: user.id,
+          status: 'approved',
+        })
+        .eq('id', newInvoice.id);
+
+      if (postError) throw postError;
+
+      toast.success(`Order ${order.order_no} converted to Invoice ${invoice_no}`);
+      
+      // Optionally update order status
+      await supabase
+        .from('sales_orders')
+        .update({ status: 'delivered' })
+        .eq('id', order.id);
+
+      fetchOrders();
+    } catch (error: any) {
+      toast.error("Error converting to invoice: " + error.message);
+    }
   };
 
   const getStatusBadge = (status: string) => {
