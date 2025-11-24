@@ -1,19 +1,22 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, ArrowUpCircle, ArrowDownCircle, PackagePlus, PackageMinus, Settings } from "lucide-react";
+import { Plus, Search, ArrowUpCircle, ArrowDownCircle, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { StockMovementDialog } from "@/components/inventory/StockMovementDialog";
 
 export default function Movements() {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [movements, setMovements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchMovements();
@@ -88,9 +91,15 @@ export default function Movements() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">{t('inventory.movements')}</h1>
-        <p className="text-muted-foreground mt-2">View stock movement history</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">{t('inventory.movements')}</h1>
+          <p className="text-muted-foreground mt-2">Track and manage stock movements</p>
+        </div>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Record Movement
+        </Button>
       </div>
 
       <Card>
@@ -188,6 +197,12 @@ export default function Movements() {
           )}
         </CardContent>
       </Card>
+
+      <StockMovementDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSuccess={fetchMovements}
+      />
     </div>
   );
 }
