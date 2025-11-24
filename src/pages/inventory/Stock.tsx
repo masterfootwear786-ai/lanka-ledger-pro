@@ -7,6 +7,16 @@ import { Search, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface GroupedStock {
+  code: string;
+  color: string;
+  name: string;
+  totalStock: number;
+  purchasePrice: number;
+  stockValue: number;
+  isLowStock: boolean;
+}
+
 export default function Stock() {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,12 +52,37 @@ export default function Stock() {
     item.color?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalValue = filteredItems.reduce((sum, item) => {
-    const itemValue = (item.stock_quantity || 0) * (item.purchase_price || 0);
-    return sum + itemValue;
-  }, 0);
+  // Group items by Art No (code) and Color
+  const groupedStock: GroupedStock[] = [];
+  const groupMap = new Map<string, GroupedStock>();
 
-  const lowStockItems = filteredItems.filter(item => (item.stock_quantity || 0) < 10);
+  filteredItems.forEach(item => {
+    const key = `${item.code}-${item.color || 'NO_COLOR'}`;
+    
+    if (!groupMap.has(key)) {
+      const stockQty = item.stock_quantity || 0;
+      const purchasePrice = item.purchase_price || 0;
+      
+      groupMap.set(key, {
+        code: item.code,
+        color: item.color || '-',
+        name: item.name,
+        totalStock: stockQty,
+        purchasePrice: purchasePrice,
+        stockValue: stockQty * purchasePrice,
+        isLowStock: stockQty < 10
+      });
+    }
+  });
+
+  groupedStock.push(...groupMap.values());
+  groupedStock.sort((a, b) => {
+    if (a.code !== b.code) return a.code.localeCompare(b.code);
+    return a.color.localeCompare(b.color);
+  });
+
+  const totalValue = groupedStock.reduce((sum, group) => sum + group.stockValue, 0);
+  const lowStockItems = groupedStock.filter(group => group.isLowStock);
 
   return (
     <div className="space-y-6">
@@ -98,67 +133,77 @@ export default function Stock() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Stock on Hand</CardTitle>
+          <CardTitle>Stock by Design & Color</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Loading...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Design No</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Color</TableHead>
-                  <TableHead className="text-right">Stock Qty</TableHead>
-                  <TableHead className="text-right">Purchase Price</TableHead>
-                  <TableHead className="text-right">Stock Value</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.length === 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
-                      No items found with inventory tracking enabled
-                    </TableCell>
+                    <TableHead className="w-32">Art No</TableHead>
+                    <TableHead className="w-32">Color</TableHead>
+                    <TableHead className="w-48">Name</TableHead>
+                    <TableHead className="text-center w-20">39</TableHead>
+                    <TableHead className="text-center w-20">40</TableHead>
+                    <TableHead className="text-center w-20">41</TableHead>
+                    <TableHead className="text-center w-20">42</TableHead>
+                    <TableHead className="text-center w-20">43</TableHead>
+                    <TableHead className="text-center w-20">44</TableHead>
+                    <TableHead className="text-center w-20">45</TableHead>
+                    <TableHead className="text-right w-24">Total Stock</TableHead>
+                    <TableHead className="text-right w-32">Purchase Price</TableHead>
+                    <TableHead className="text-right w-32">Stock Value</TableHead>
+                    <TableHead className="w-24"></TableHead>
                   </TableRow>
-                ) : (
-                  filteredItems.map((item) => {
-                    const stockQty = item.stock_quantity || 0;
-                    const isLowStock = stockQty < 10;
-                    const itemValue = stockQty * (item.purchase_price || 0);
-                    
-                    return (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-mono">{item.code}</TableCell>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.color || '-'}</TableCell>
+                </TableHeader>
+                <TableBody>
+                  {groupedStock.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={14} className="text-center">
+                        No items found with inventory tracking enabled
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    groupedStock.map((group, index) => (
+                      <TableRow key={`${group.code}-${group.color}-${index}`}>
+                        <TableCell className="font-mono font-semibold">{group.code}</TableCell>
+                        <TableCell className="font-medium">{group.color}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{group.name}</TableCell>
+                        <TableCell className="text-center text-muted-foreground">-</TableCell>
+                        <TableCell className="text-center text-muted-foreground">-</TableCell>
+                        <TableCell className="text-center text-muted-foreground">-</TableCell>
+                        <TableCell className="text-center text-muted-foreground">-</TableCell>
+                        <TableCell className="text-center text-muted-foreground">-</TableCell>
+                        <TableCell className="text-center text-muted-foreground">-</TableCell>
+                        <TableCell className="text-center text-muted-foreground">-</TableCell>
                         <TableCell className="text-right">
-                          <span className={isLowStock ? "text-destructive font-bold" : ""}>
-                            {stockQty.toFixed(0)}
+                          <span className={group.isLowStock ? "text-destructive font-bold" : "font-semibold"}>
+                            {group.totalStock.toFixed(0)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
-                          {item.purchase_price?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '-'}
+                        <TableCell className="text-right text-muted-foreground">
+                          {group.purchasePrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </TableCell>
-                        <TableCell className="text-right">
-                          {itemValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        <TableCell className="text-right font-medium">
+                          {group.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell>
-                          {isLowStock && (
-                            <div className="flex items-center gap-1 text-destructive">
+                          {group.isLowStock && (
+                            <div className="flex items-center gap-1 text-destructive whitespace-nowrap">
                               <AlertTriangle className="h-4 w-4" />
-                              <span className="text-xs">Low Stock</span>
+                              <span className="text-xs">Low</span>
                             </div>
                           )}
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
