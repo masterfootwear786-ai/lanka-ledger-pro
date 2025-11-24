@@ -835,35 +835,39 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[180px] p-0 bg-popover" align="start" side="bottom">
-                        <Command shouldFilter={true}>
+                        <Command shouldFilter={false}>
                           <CommandInput placeholder="Type to search..." className="h-8 text-xs" />
                           <CommandList>
                             <CommandEmpty className="py-2 text-xs text-center text-muted-foreground">No item found</CommandEmpty>
                             <CommandGroup>
-                              {Array.from(new Set(items.map(item => item.code))).sort().map((code) => (
-                                <CommandItem
-                                  key={code}
-                                  value={code.toLowerCase()}
-                                  onSelect={() => {
-                                    updateLineItem(line.id, "art_no", code);
-                                    updateLineItem(line.id, "color", "");
-                                    const selectedItem = items.find(item => item.code === code);
-                                    if (selectedItem) {
-                                      updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
-                                    }
-                                    setArtNoOpen({ ...artNoOpen, [line.id]: false });
-                                  }}
-                                  className="text-xs cursor-pointer"
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-3 w-3",
-                                      line.art_no === code ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {code}
-                                </CommandItem>
-                              ))}
+                              {Array.from(new Set(items.map(item => item.code)))
+                                .sort()
+                                .map((code) => (
+                                  <CommandItem
+                                    key={code}
+                                    value={code}
+                                    keywords={[code.toLowerCase()]}
+                                    onSelect={() => {
+                                      console.log("Art No selected:", code);
+                                      updateLineItem(line.id, "art_no", code);
+                                      updateLineItem(line.id, "color", "");
+                                      const selectedItem = items.find(item => item.code === code);
+                                      if (selectedItem) {
+                                        updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
+                                      }
+                                      setArtNoOpen({ ...artNoOpen, [line.id]: false });
+                                    }}
+                                    className="text-xs cursor-pointer"
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-3 w-3",
+                                        line.art_no === code ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {code}
+                                  </CommandItem>
+                                ))}
                             </CommandGroup>
                           </CommandList>
                         </Command>
@@ -885,7 +889,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[180px] p-0 bg-popover" align="start" side="bottom">
-                        <Command shouldFilter={true}>
+                        <Command shouldFilter={false}>
                           <CommandInput placeholder="Type to search..." className="h-8 text-xs" />
                           <CommandList>
                             <CommandEmpty className="py-2 text-xs text-center text-muted-foreground">
@@ -898,8 +902,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                                 .map((item) => (
                                   <CommandItem
                                     key={item.id}
-                                    value={item.color.toLowerCase()}
+                                    value={item.color}
+                                    keywords={[item.color.toLowerCase()]}
                                     onSelect={() => {
+                                      console.log("Color selected:", item.color);
                                       updateLineItem(line.id, "color", item.color);
                                       setColorOpen({ ...colorOpen, [line.id]: false });
                                     }}
