@@ -152,7 +152,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 required
-                disabled={!!item}
+                placeholder="e.g., DSG-001"
               />
             </div>
             <div className="space-y-2">
