@@ -307,7 +307,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="stock_quantity">Stock</Label>
+              <Label htmlFor="stock_quantity">Quantity</Label>
               <Input
                 id="stock_quantity"
                 type="number"
@@ -315,11 +315,11 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 value={formData.stock_quantity}
                 onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
                 disabled={!item}
-                placeholder={item ? "0" : "Use stock movements to add stock"}
+                placeholder={item ? "0" : "Use stock movements to add quantity"}
               />
               {!item && (
                 <p className="text-xs text-muted-foreground">
-                  Stock can only be added through stock movements after creating the item
+                  Quantity can only be added through stock movements after creating the item
                 </p>
               )}
             </div>
