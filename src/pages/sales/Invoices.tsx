@@ -44,6 +44,7 @@ export default function Invoices() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
   const [invoiceLines, setInvoiceLines] = useState<any[]>([]);
+  const [companyData, setCompanyData] = useState<any>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -118,8 +119,18 @@ export default function Invoices() {
 
       if (error) throw error;
 
+      // Fetch company data
+      const { data: company, error: companyError } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", invoice.company_id)
+        .single();
+
+      if (companyError) throw companyError;
+
       setSelectedInvoice(invoice);
       setInvoiceLines(lines || []);
+      setCompanyData(company);
       setViewDialogOpen(true);
     } catch (error: any) {
       toast({
@@ -414,18 +425,45 @@ export default function Invoices() {
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center">INVOICE</DialogTitle>
+            <DialogTitle className="sr-only">Invoice Details</DialogTitle>
           </DialogHeader>
 
           {selectedInvoice && (
             <div className="space-y-6 p-6 bg-background">
-              {/* Invoice Header */}
-              <div className="text-center pb-4 border-b-2 border-primary">
-                <div className="text-xl font-bold text-primary mb-2">Invoice #{selectedInvoice.invoice_no}</div>
-                <div className="text-sm text-muted-foreground">
-                  Date: {new Date(selectedInvoice.invoice_date).toLocaleDateString()}
+              {/* Company Header with Logo */}
+              <div className="flex items-start justify-between pb-6 border-b-2 border-primary">
+                <div className="flex items-start gap-6">
+                  {companyData?.logo_url && (
+                    <img 
+                      src={companyData.logo_url} 
+                      alt={companyData.name} 
+                      className="h-20 w-20 object-contain"
+                    />
+                  )}
+                  <div className="space-y-1">
+                    <div className="text-2xl font-bold text-primary">{companyData?.name || "Company Name"}</div>
+                    {companyData?.address && (
+                      <div className="text-sm text-muted-foreground">{companyData.address}</div>
+                    )}
+                    <div className="text-sm text-muted-foreground space-x-4">
+                      {companyData?.phone && <span>Tel: {companyData.phone}</span>}
+                      {companyData?.email && <span>Email: {companyData.email}</span>}
+                    </div>
+                    {companyData?.tax_number && (
+                      <div className="text-sm text-muted-foreground">Tax No: {companyData.tax_number}</div>
+                    )}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-primary mb-2">INVOICE</div>
+                  <div className="text-lg font-semibold">#{selectedInvoice.invoice_no}</div>
+                  <div className="text-sm text-muted-foreground mt-2">
+                    Date: {new Date(selectedInvoice.invoice_date).toLocaleDateString()}
+                  </div>
                   {selectedInvoice.due_date && (
-                    <> | Due: {new Date(selectedInvoice.due_date).toLocaleDateString()}</>
+                    <div className="text-sm text-muted-foreground">
+                      Due: {new Date(selectedInvoice.due_date).toLocaleDateString()}
+                    </div>
                   )}
                 </div>
               </div>
