@@ -1124,6 +1124,7 @@ export type Database = {
           name: string
           purchase_price: number | null
           sale_price: number | null
+          stock_quantity: number | null
           tax_code: string | null
           track_inventory: boolean | null
           uom: string | null
@@ -1143,6 +1144,7 @@ export type Database = {
           name: string
           purchase_price?: number | null
           sale_price?: number | null
+          stock_quantity?: number | null
           tax_code?: string | null
           track_inventory?: boolean | null
           uom?: string | null
@@ -1162,6 +1164,7 @@ export type Database = {
           name?: string
           purchase_price?: number | null
           sale_price?: number | null
+          stock_quantity?: number | null
           tax_code?: string | null
           track_inventory?: boolean | null
           uom?: string | null
