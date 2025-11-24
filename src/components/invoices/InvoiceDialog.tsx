@@ -396,6 +396,11 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         // Insert order lines
         const lines: any[] = [];
         lineItems.forEach((item) => {
+          // Find matching inventory item based on art_no and color
+          const inventoryItem = items.find(
+            invItem => invItem.code === item.art_no && invItem.color === item.color
+          );
+          
           const sizes = [
             { size: '39', qty: item.size_39 },
             { size: '40', qty: item.size_40 },
@@ -412,6 +417,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                 order_id: newOrder.id,
                 line_no: lines.length + 1,
                 description: `${item.art_no} - ${item.color} - Size ${s.size}`,
+                item_id: inventoryItem?.id || null, // Link to inventory item
                 quantity: s.qty,
                 unit_price: item.unit_price,
                 tax_rate: item.tax_rate,
@@ -501,6 +507,11 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       // Insert invoice lines - create separate lines for each size
       const lines: any[] = [];
       lineItems.forEach((item, index) => {
+        // Find matching inventory item based on art_no and color
+        const inventoryItem = items.find(
+          invItem => invItem.code === item.art_no && invItem.color === item.color
+        );
+        
         const sizes = [
           { size: '39', qty: item.size_39 },
           { size: '40', qty: item.size_40 },
@@ -517,6 +528,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               invoice_id: invoiceId,
               line_no: lines.length + 1,
               description: `${item.art_no} - ${item.color} - Size ${s.size}`,
+              item_id: inventoryItem?.id || null, // Link to inventory item for stock deduction
               quantity: s.qty,
               unit_price: item.unit_price,
               tax_rate: item.tax_rate,
