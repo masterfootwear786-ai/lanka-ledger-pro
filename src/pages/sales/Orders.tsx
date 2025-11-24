@@ -498,6 +498,7 @@ export default function Orders() {
                               const parts = (line.description || "").split(" - ");
                               const artNo = parts[0] || "-";
                               const color = parts[1] || "-";
+                              const sizeInfo = parts[2] || "";
                               
                               const key = `${artNo}|||${color}`;
                               
@@ -505,7 +506,7 @@ export default function Orders() {
                                 acc[key] = {
                                   artNo,
                                   color,
-                                  description: line.description,
+                                  description: `${artNo} - ${color}`,
                                   size_39: 0,
                                   size_40: 0,
                                   size_41: 0,
@@ -519,13 +520,29 @@ export default function Orders() {
                                 };
                               }
                               
-                              acc[key].size_39 += line.size_39 || 0;
-                              acc[key].size_40 += line.size_40 || 0;
-                              acc[key].size_41 += line.size_41 || 0;
-                              acc[key].size_42 += line.size_42 || 0;
-                              acc[key].size_43 += line.size_43 || 0;
-                              acc[key].size_44 += line.size_44 || 0;
-                              acc[key].size_45 += line.size_45 || 0;
+                              // Check if size columns have data (new format) or parse from description (old format)
+                              if (line.size_39 > 0 || line.size_40 > 0 || line.size_41 > 0 || 
+                                  line.size_42 > 0 || line.size_43 > 0 || line.size_44 > 0 || line.size_45 > 0) {
+                                // New format: use size columns
+                                acc[key].size_39 += line.size_39 || 0;
+                                acc[key].size_40 += line.size_40 || 0;
+                                acc[key].size_41 += line.size_41 || 0;
+                                acc[key].size_42 += line.size_42 || 0;
+                                acc[key].size_43 += line.size_43 || 0;
+                                acc[key].size_44 += line.size_44 || 0;
+                                acc[key].size_45 += line.size_45 || 0;
+                              } else if (sizeInfo) {
+                                // Old format: parse size from description
+                                const size = sizeInfo.replace("Size ", "").trim();
+                                if (size === "39") acc[key].size_39 += line.quantity || 0;
+                                else if (size === "40") acc[key].size_40 += line.quantity || 0;
+                                else if (size === "41") acc[key].size_41 += line.quantity || 0;
+                                else if (size === "42") acc[key].size_42 += line.quantity || 0;
+                                else if (size === "43") acc[key].size_43 += line.quantity || 0;
+                                else if (size === "44") acc[key].size_44 += line.quantity || 0;
+                                else if (size === "45") acc[key].size_45 += line.quantity || 0;
+                              }
+                              
                               acc[key].totalPairs += line.quantity || 0;
                               acc[key].lineTotal += line.line_total || 0;
                               
@@ -695,6 +712,7 @@ export default function Orders() {
                           const parts = (line.description || "").split(" - ");
                           const artNo = parts[0] || "-";
                           const color = parts[1] || "-";
+                          const sizeInfo = parts[2] || "";
                           
                           const key = `${artNo}|||${color}`;
                           
@@ -702,7 +720,7 @@ export default function Orders() {
                             acc[key] = {
                               artNo,
                               color,
-                              description: line.description,
+                              description: `${artNo} - ${color}`,
                               size_39: 0,
                               size_40: 0,
                               size_41: 0,
@@ -716,13 +734,29 @@ export default function Orders() {
                             };
                           }
                           
-                          acc[key].size_39 += line.size_39 || 0;
-                          acc[key].size_40 += line.size_40 || 0;
-                          acc[key].size_41 += line.size_41 || 0;
-                          acc[key].size_42 += line.size_42 || 0;
-                          acc[key].size_43 += line.size_43 || 0;
-                          acc[key].size_44 += line.size_44 || 0;
-                          acc[key].size_45 += line.size_45 || 0;
+                          // Check if size columns have data (new format) or parse from description (old format)
+                          if (line.size_39 > 0 || line.size_40 > 0 || line.size_41 > 0 || 
+                              line.size_42 > 0 || line.size_43 > 0 || line.size_44 > 0 || line.size_45 > 0) {
+                            // New format: use size columns
+                            acc[key].size_39 += line.size_39 || 0;
+                            acc[key].size_40 += line.size_40 || 0;
+                            acc[key].size_41 += line.size_41 || 0;
+                            acc[key].size_42 += line.size_42 || 0;
+                            acc[key].size_43 += line.size_43 || 0;
+                            acc[key].size_44 += line.size_44 || 0;
+                            acc[key].size_45 += line.size_45 || 0;
+                          } else if (sizeInfo) {
+                            // Old format: parse size from description
+                            const size = sizeInfo.replace("Size ", "").trim();
+                            if (size === "39") acc[key].size_39 += line.quantity || 0;
+                            else if (size === "40") acc[key].size_40 += line.quantity || 0;
+                            else if (size === "41") acc[key].size_41 += line.quantity || 0;
+                            else if (size === "42") acc[key].size_42 += line.quantity || 0;
+                            else if (size === "43") acc[key].size_43 += line.quantity || 0;
+                            else if (size === "44") acc[key].size_44 += line.quantity || 0;
+                            else if (size === "45") acc[key].size_45 += line.quantity || 0;
+                          }
+                          
                           acc[key].totalPairs += line.quantity || 0;
                           acc[key].lineTotal += line.line_total || 0;
                           
