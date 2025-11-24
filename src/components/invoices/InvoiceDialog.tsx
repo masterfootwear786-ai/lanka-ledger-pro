@@ -932,33 +932,41 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                           <Command>
                             <CommandInput placeholder="Search..." className="h-8 text-xs" />
                             <CommandList>
-                              <CommandEmpty className="py-2 text-xs text-center">
-                                {!line.art_no ? "Select Art No first" : "No color found"}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                {line.art_no && items
-                                  .filter(item => item.code === line.art_no && item.color && item.color.trim() !== "")
-                                  .sort((a, b) => a.color.localeCompare(b.color))
-                                  .map((item) => (
-                                    <CommandItem
-                                      key={item.id}
-                                      onSelect={() => {
-                                        console.log("Color selected from dropdown:", item.color);
-                                        updateLineItem(line.id, "color", item.color);
-                                        setColorOpen({ ...colorOpen, [line.id]: false });
-                                      }}
-                                      className="text-xs cursor-pointer"
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-3 w-3",
-                                          line.color === item.color ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {item.color}
-                                    </CommandItem>
-                                  ))}
-                              </CommandGroup>
+                              {!line.art_no ? (
+                                <CommandEmpty className="py-2 text-xs text-center">
+                                  Select Art No first
+                                </CommandEmpty>
+                              ) : (
+                                <>
+                                  <CommandEmpty className="py-2 text-xs text-center">
+                                    No color found
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    {items
+                                      .filter(item => item.code === line.art_no && item.color && item.color.trim() !== "")
+                                      .sort((a, b) => a.color.localeCompare(b.color))
+                                      .map((item) => (
+                                        <CommandItem
+                                          key={item.id}
+                                          onSelect={() => {
+                                            console.log("Color selected from dropdown:", item.color);
+                                            updateLineItem(line.id, "color", item.color);
+                                            setColorOpen({ ...colorOpen, [line.id]: false });
+                                          }}
+                                          className="text-xs cursor-pointer"
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-3 w-3",
+                                              line.color === item.color ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          {item.color}
+                                        </CommandItem>
+                                      ))}
+                                  </CommandGroup>
+                                </>
+                              )}
                             </CommandList>
                           </Command>
                         </PopoverContent>
