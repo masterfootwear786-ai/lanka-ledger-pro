@@ -32,6 +32,7 @@ import Suppliers from "./pages/purchasing/Suppliers";
 import DebitNotes from "./pages/purchasing/DebitNotes";
 import Payments from "./pages/purchasing/Payments";
 import Items from "./pages/inventory/Items";
+import Stock from "./pages/inventory/Stock";
 import ChartOfAccounts from "./pages/accounting/ChartOfAccounts";
 import Journals from "./pages/accounting/Journals";
 import GeneralLedger from "./pages/accounting/GeneralLedger";
@@ -93,6 +94,7 @@ const App = () => (
               <Route path="/purchasing/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
               {/* Inventory routes */}
               <Route path="/inventory/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
+              <Route path="/inventory/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
               {/* Cashbook & Bank routes - to be implemented */}
               <Route path="/cashbook" element={<ProtectedRoute><div>Cashbook - Coming Soon</div></ProtectedRoute>} />
               <Route path="/bank-reconciliation" element={<ProtectedRoute><div>Bank Reconciliation - Coming Soon</div></ProtectedRoute>} />
