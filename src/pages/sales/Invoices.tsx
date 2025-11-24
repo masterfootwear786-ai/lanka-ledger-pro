@@ -414,138 +414,126 @@ export default function Invoices() {
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Invoice Details - {selectedInvoice?.invoice_no}</DialogTitle>
+            <DialogTitle className="text-2xl font-bold text-center">INVOICE</DialogTitle>
           </DialogHeader>
 
           {selectedInvoice && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6 border-b pb-4">
-                <div>
-                  <h3 className="mb-3 font-semibold">Invoice Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="font-medium">Invoice #:</span> {selectedInvoice.invoice_no}
-                    </p>
-                    <p>
-                      <span className="font-medium">Date:</span>{" "}
-                      {new Date(selectedInvoice.invoice_date).toLocaleDateString()}
-                    </p>
-                    {selectedInvoice.due_date && (
-                      <p>
-                        <span className="font-medium">Due Date:</span>{" "}
-                        {new Date(selectedInvoice.due_date).toLocaleDateString()}
-                      </p>
-                    )}
-                    <p>
-                      <span className="font-medium">Status:</span>
-                      <Badge className={`${getStatusColor(selectedInvoice.status)} ml-2`}>
-                        {selectedInvoice.status}
-                      </Badge>
-                    </p>
-                  </div>
+            <div className="space-y-6 p-6 bg-background">
+              {/* Invoice Header */}
+              <div className="text-center pb-4 border-b-2 border-primary">
+                <div className="text-xl font-bold text-primary mb-2">Invoice #{selectedInvoice.invoice_no}</div>
+                <div className="text-sm text-muted-foreground">
+                  Date: {new Date(selectedInvoice.invoice_date).toLocaleDateString()}
+                  {selectedInvoice.due_date && (
+                    <> | Due: {new Date(selectedInvoice.due_date).toLocaleDateString()}</>
+                  )}
                 </div>
+              </div>
 
-                <div>
-                  <h3 className="mb-3 font-semibold">Customer Information</h3>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="font-medium">Name:</span> {selectedInvoice.customer?.name || "N/A"}
-                    </p>
-                    {selectedInvoice.customer?.area && (
-                      <p>
-                        <span className="font-medium">City:</span> {selectedInvoice.customer.area}
-                      </p>
-                    )}
+              {/* Bill To Section */}
+              <div className="bg-muted/30 rounded-lg p-4">
+                <div className="text-sm font-semibold text-primary mb-2">BILL TO:</div>
+                <div className="space-y-1">
+                  <div className="font-semibold text-lg">{selectedInvoice.customer?.name || "N/A"}</div>
+                  {selectedInvoice.customer?.area && (
+                    <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}</div>
+                  )}
+                  <div className="mt-2">
+                    <Badge className={getStatusColor(selectedInvoice.status)}>{selectedInvoice.status}</Badge>
                   </div>
                 </div>
               </div>
 
+              {/* Items Table */}
               <div>
-                <h3 className="mb-3 font-semibold">Items</h3>
-                <div className="overflow-hidden rounded-lg border">
+                <div className="text-sm font-semibold text-primary mb-3">INVOICE ITEMS</div>
+                <div className="overflow-hidden rounded-lg border-2 border-border">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="w-16 font-semibold">DSG. No</TableHead>
-                        <TableHead className="min-w-[200px] font-semibold">Description</TableHead>
-                        <TableHead className="w-16 text-center font-semibold">CLR</TableHead>
-                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">39</TableHead>
-                        <TableHead className="w-12 text-center font-semibold">40</TableHead>
-                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">41</TableHead>
-                        <TableHead className="w-12 text-center font-semibold">42</TableHead>
-                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">43</TableHead>
-                        <TableHead className="w-12 text-center font-semibold">44</TableHead>
-                        <TableHead className="w-12 bg-muted/30 text-center font-semibold">45</TableHead>
-                        <TableHead className="w-20 text-center font-semibold">Pairs</TableHead>
-                        <TableHead className="w-24 text-right font-semibold">Price</TableHead>
-                        <TableHead className="w-28 text-right font-semibold">Amount</TableHead>
+                      <TableRow className="bg-primary/10">
+                        <TableHead className="w-20 font-bold border-r">Art No</TableHead>
+                        <TableHead className="min-w-[200px] font-bold border-r">Description</TableHead>
+                        <TableHead className="w-20 text-center font-bold border-r">Color</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">39</TableHead>
+                        <TableHead className="w-12 text-center font-bold border-r">40</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">41</TableHead>
+                        <TableHead className="w-12 text-center font-bold border-r">42</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">43</TableHead>
+                        <TableHead className="w-12 text-center font-bold border-r">44</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">45</TableHead>
+                        <TableHead className="w-24 text-center font-bold border-r">Total Pairs</TableHead>
+                        <TableHead className="w-28 text-right font-bold border-r">Unit Price</TableHead>
+                        <TableHead className="w-32 text-right font-bold">Line Total</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {invoiceLines.map((line, index) => (
-                        <TableRow key={line.id}>
-                          <TableCell className="font-medium">{index + 1}</TableCell>
-                          <TableCell>{line.description}</TableCell>
-                          <TableCell className="text-center">-</TableCell>
-                          <TableCell className="bg-muted/10 text-center">
-                            {line.quantity > 0 ? line.quantity : "-"}
-                          </TableCell>
-                          <TableCell className="text-center">-</TableCell>
-                          <TableCell className="bg-muted/10 text-center">-</TableCell>
-                          <TableCell className="text-center">-</TableCell>
-                          <TableCell className="bg-muted/10 text-center">-</TableCell>
-                          <TableCell className="text-center">-</TableCell>
-                          <TableCell className="bg-muted/10 text-center">-</TableCell>
-                          <TableCell className="text-center font-medium">{line.quantity}</TableCell>
-                          <TableCell className="text-right">{line.unit_price.toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-medium">{line.line_total.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {invoiceLines.map((line, idx) => {
+                        const sizes = JSON.parse(line.description || "{}");
+                        const totalPairs = line.quantity || 0;
+
+                        return (
+                          <TableRow key={line.id} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            <TableCell className="font-mono border-r">{sizes.artNo || "-"}</TableCell>
+                            <TableCell className="border-r">{sizes.description || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{sizes.color || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_39 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{sizes.size_40 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_41 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{sizes.size_42 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_43 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{sizes.size_44 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_45 || "-"}</TableCell>
+                            <TableCell className="text-center font-semibold border-r">{totalPairs}</TableCell>
+                            <TableCell className="text-right border-r">
+                              {line.unit_price ? line.unit_price.toFixed(2) : "0.00"}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {line.line_total ? line.line_total.toFixed(2) : "0.00"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
               </div>
 
-              <div className="border-t pt-4">
-                <div className="flex justify-end">
-                  <div className="w-80 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal:</span>
-                      <span className="font-medium">{selectedInvoice.subtotal?.toFixed(2) || "0.00"}</span>
+              {/* Summary Section */}
+              <div className="flex justify-end">
+                <div className="w-80 space-y-2 bg-muted/30 rounded-lg p-4 border-2 border-border">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">Subtotal:</span>
+                    <span className="font-mono">{selectedInvoice.subtotal?.toFixed(2) || "0.00"}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">Tax:</span>
+                    <span className="font-mono">{selectedInvoice.tax_total?.toFixed(2) || "0.00"}</span>
+                  </div>
+                  {selectedInvoice.discount > 0 && (
+                    <div className="flex justify-between text-sm text-destructive">
+                      <span className="font-medium">Discount:</span>
+                      <span className="font-mono">-{selectedInvoice.discount?.toFixed(2) || "0.00"}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tax Total:</span>
-                      <span className="font-medium">{selectedInvoice.tax_total?.toFixed(2) || "0.00"}</span>
-                    </div>
-                    {selectedInvoice.discount > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Discount:</span>
-                        <span className="font-medium">-{selectedInvoice.discount?.toFixed(2) || "0.00"}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between border-t pt-2 text-lg font-bold">
-                      <span>Grand Total:</span>
-                      <span>{selectedInvoice.grand_total?.toFixed(2) || "0.00"}</span>
-                    </div>
+                  )}
+                  <div className="border-t-2 border-primary pt-2 mt-2"></div>
+                  <div className="flex justify-between text-lg font-bold text-primary">
+                    <span>Grand Total:</span>
+                    <span className="font-mono">{selectedInvoice.grand_total?.toFixed(2) || "0.00"}</span>
                   </div>
                 </div>
               </div>
 
+              {/* Notes Section */}
               {selectedInvoice.notes && (
-                <div className="border-t pt-4">
-                  <h3 className="mb-2 font-semibold">Notes</h3>
-                  <p className="text-sm text-muted-foreground">{selectedInvoice.notes}</p>
+                <div className="bg-muted/30 rounded-lg p-4 border">
+                  <div className="text-sm font-semibold text-primary mb-2">NOTES:</div>
+                  <p className="text-sm whitespace-pre-wrap">{selectedInvoice.notes}</p>
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 border-t pt-4">
-                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
-                  Close
-                </Button>
-                <Button onClick={() => handlePrint(selectedInvoice)}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print
-                </Button>
+              {/* Footer */}
+              <div className="text-center text-xs text-muted-foreground pt-4 border-t">
+                Thank you for your business!
               </div>
             </div>
           )}
