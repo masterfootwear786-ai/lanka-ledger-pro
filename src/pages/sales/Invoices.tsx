@@ -468,22 +468,26 @@ export default function Invoices() {
                     </TableHeader>
                     <TableBody>
                       {invoiceLines.map((line, idx) => {
-                        const sizes = JSON.parse(line.description || "{}");
-                        const totalPairs = line.quantity || 0;
-
+                        // Parse description which is in format: "ArtNo - Color - Size XX"
+                        const parts = (line.description || "").split(" - ");
+                        const artNo = parts[0] || "-";
+                        const color = parts[1] || "-";
+                        const sizeInfo = parts[2] || "";
+                        const size = sizeInfo.replace("Size ", "");
+                        
                         return (
                           <TableRow key={line.id} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                            <TableCell className="font-mono border-r">{sizes.artNo || "-"}</TableCell>
-                            <TableCell className="border-r">{sizes.description || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{sizes.color || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_39 || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{sizes.size_40 || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_41 || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{sizes.size_42 || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_43 || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{sizes.size_44 || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{sizes.size_45 || "-"}</TableCell>
-                            <TableCell className="text-center font-semibold border-r">{totalPairs}</TableCell>
+                            <TableCell className="font-mono border-r">{artNo}</TableCell>
+                            <TableCell className="border-r">{line.description}</TableCell>
+                            <TableCell className="text-center border-r">{color}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{size === "39" ? line.quantity : "-"}</TableCell>
+                            <TableCell className="text-center border-r">{size === "40" ? line.quantity : "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{size === "41" ? line.quantity : "-"}</TableCell>
+                            <TableCell className="text-center border-r">{size === "42" ? line.quantity : "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{size === "43" ? line.quantity : "-"}</TableCell>
+                            <TableCell className="text-center border-r">{size === "44" ? line.quantity : "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{size === "45" ? line.quantity : "-"}</TableCell>
+                            <TableCell className="text-center font-semibold border-r">{line.quantity || 0}</TableCell>
                             <TableCell className="text-right border-r">
                               {line.unit_price ? line.unit_price.toFixed(2) : "0.00"}
                             </TableCell>
