@@ -40,6 +40,9 @@ export default function Orders() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [orderLines, setOrderLines] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  const [orderToConvert, setOrderToConvert] = useState<any>(null);
+  const [convertOrderLines, setConvertOrderLines] = useState<any[]>([]);
 
   useEffect(() => {
     fetchOrders();
@@ -144,6 +147,28 @@ export default function Orders() {
         return;
       }
 
+      // Fetch company data for preview
+      const { data: company, error: companyError } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", order.company_id)
+        .single();
+
+      if (companyError) throw companyError;
+
+      setOrderToConvert(order);
+      setConvertOrderLines(orderLines);
+      setCompanyData(company);
+      setConvertDialogOpen(true);
+    } catch (error: any) {
+      toast.error("Error loading order: " + error.message);
+    }
+  };
+
+  const confirmConvertToInvoice = async () => {
+    if (!orderToConvert) return;
+
+    try {
       // Get user info
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -155,19 +180,19 @@ export default function Orders() {
       const { data: newInvoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
-          company_id: order.company_id,
-          customer_id: order.customer_id,
+          company_id: orderToConvert.company_id,
+          customer_id: orderToConvert.customer_id,
           invoice_no,
           invoice_date: new Date().toISOString().split('T')[0],
-          due_date: order.delivery_date,
-          notes: order.notes ? `Converted from Order ${order.order_no}\n${order.notes}` : `Converted from Order ${order.order_no}`,
-          subtotal: order.subtotal,
-          tax_total: order.tax_total,
-          discount: order.discount,
-          grand_total: order.grand_total,
+          due_date: orderToConvert.delivery_date,
+          notes: orderToConvert.notes ? `Converted from Order ${orderToConvert.order_no}\n${orderToConvert.notes}` : `Converted from Order ${orderToConvert.order_no}`,
+          subtotal: orderToConvert.subtotal,
+          tax_total: orderToConvert.tax_total,
+          discount: orderToConvert.discount,
+          grand_total: orderToConvert.grand_total,
           status: 'draft',
           posted: false,
-          terms: order.terms,
+          terms: orderToConvert.terms,
         })
         .select()
         .single();
@@ -175,7 +200,7 @@ export default function Orders() {
       if (invoiceError) throw invoiceError;
 
       // Create invoice lines from order lines
-      const invoiceLines = orderLines.map((line: any) => ({
+      const invoiceLines = convertOrderLines.map((line: any) => ({
         invoice_id: newInvoice.id,
         item_id: line.item_id,
         line_no: line.line_no,
@@ -214,14 +239,17 @@ export default function Orders() {
 
       if (postError) throw postError;
 
-      toast.success(`Order ${order.order_no} converted to Invoice ${invoice_no}`);
+      toast.success(`Order ${orderToConvert.order_no} converted to Invoice ${invoice_no}`);
       
-      // Optionally update order status
+      // Update order status
       await supabase
         .from('sales_orders')
         .update({ status: 'delivered' })
-        .eq('id', order.id);
+        .eq('id', orderToConvert.id);
 
+      setConvertDialogOpen(false);
+      setOrderToConvert(null);
+      setConvertOrderLines([]);
       fetchOrders();
     } catch (error: any) {
       toast.error("Error converting to invoice: " + error.message);
@@ -574,6 +602,161 @@ export default function Orders() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Convert to Invoice Confirmation Dialog */}
+      <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Convert Order to Invoice</DialogTitle>
+          </DialogHeader>
+
+          {orderToConvert && (
+            <div className="space-y-6">
+              {/* Warning Message */}
+              <div className="bg-primary/10 border-l-4 border-primary p-4 rounded">
+                <div className="flex items-start gap-3">
+                  <FileText className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-primary">Convert to Invoice Preview</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Order <span className="font-mono font-bold">{orderToConvert.order_no}</span> will be converted to a new invoice.
+                      Stock will be automatically deducted when the invoice is created.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Preview Section */}
+              <div className="space-y-4 p-6 bg-muted/30 rounded-lg border-2">
+                {/* Company Header */}
+                <div className="flex items-start justify-between pb-4 border-b border-border">
+                  <div className="flex items-start gap-4">
+                    {companyData?.logo_url && (
+                      <img 
+                        src={companyData.logo_url} 
+                        alt={companyData.name} 
+                        className="h-16 w-16 object-contain"
+                      />
+                    )}
+                    <div className="space-y-1">
+                      <div className="text-xl font-bold text-primary">{companyData?.name || "Company Name"}</div>
+                      {companyData?.address && (
+                        <div className="text-xs text-muted-foreground">{companyData.address}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-primary">INVOICE</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Date: {new Date().toLocaleDateString()}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Customer Section */}
+                <div className="bg-background rounded-lg p-3 border">
+                  <div className="text-xs font-semibold text-primary mb-1">BILL TO:</div>
+                  <div className="font-semibold">{orderToConvert.customer?.name || "N/A"}</div>
+                </div>
+
+                {/* Items Table */}
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-primary/5">
+                        <TableHead className="text-xs">Art No</TableHead>
+                        <TableHead className="text-xs">Color</TableHead>
+                        <TableHead className="text-xs text-center">39</TableHead>
+                        <TableHead className="text-xs text-center">40</TableHead>
+                        <TableHead className="text-xs text-center">41</TableHead>
+                        <TableHead className="text-xs text-center">42</TableHead>
+                        <TableHead className="text-xs text-center">43</TableHead>
+                        <TableHead className="text-xs text-center">44</TableHead>
+                        <TableHead className="text-xs text-center">45</TableHead>
+                        <TableHead className="text-xs text-center">Pairs</TableHead>
+                        <TableHead className="text-xs text-right">Price</TableHead>
+                        <TableHead className="text-xs text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {convertOrderLines.map((line: any, idx: number) => {
+                        const parts = (line.description || "").split(" - ");
+                        const artNo = parts[0] || "-";
+                        const color = parts[1] || "-";
+                        
+                        return (
+                          <TableRow key={line.id} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            <TableCell className="text-xs">{artNo}</TableCell>
+                            <TableCell className="text-xs">{color}</TableCell>
+                            <TableCell className="text-xs text-center">{line.size_39 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{line.size_40 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{line.size_41 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{line.size_42 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{line.size_43 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{line.size_44 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center">{line.size_45 || "-"}</TableCell>
+                            <TableCell className="text-xs text-center font-semibold">{line.quantity || 0}</TableCell>
+                            <TableCell className="text-xs text-right">{line.unit_price?.toFixed(2) || "0.00"}</TableCell>
+                            <TableCell className="text-xs text-right font-semibold">{line.line_total?.toFixed(2) || "0.00"}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Summary */}
+                <div className="flex justify-end">
+                  <div className="w-64 space-y-2 bg-background rounded-lg p-3 border">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal:</span>
+                      <span className="font-mono">{orderToConvert.subtotal?.toFixed(2) || "0.00"}</span>
+                    </div>
+                    {orderToConvert.tax_total > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span>Tax:</span>
+                        <span className="font-mono">{orderToConvert.tax_total?.toFixed(2) || "0.00"}</span>
+                      </div>
+                    )}
+                    {orderToConvert.discount > 0 && (
+                      <div className="flex justify-between text-sm text-destructive">
+                        <span>Discount:</span>
+                        <span className="font-mono">-{orderToConvert.discount?.toFixed(2) || "0.00"}</span>
+                      </div>
+                    )}
+                    <div className="border-t pt-2 mt-2"></div>
+                    <div className="flex justify-between font-bold text-primary">
+                      <span>Grand Total:</span>
+                      <span className="font-mono">{orderToConvert.grand_total?.toFixed(2) || "0.00"}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setConvertDialogOpen(false);
+                    setOrderToConvert(null);
+                    setConvertOrderLines([]);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmConvertToInvoice}
+                  className="bg-primary"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Confirm & Convert to Invoice
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
