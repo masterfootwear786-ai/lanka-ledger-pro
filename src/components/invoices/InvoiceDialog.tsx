@@ -821,110 +821,128 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         className="h-4 w-4"
                       />
                     </div>
-                    {/* Art No Combobox */}
-                    <Popover open={artNoOpen[line.id] || false} onOpenChange={(open) => setArtNoOpen({ ...artNoOpen, [line.id]: open })}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={artNoOpen[line.id] || false}
-                          className="h-8 w-full justify-between text-xs px-2 bg-background"
-                        >
-                          <span className="truncate">{line.art_no || "Art No"}</span>
-                          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[180px] p-0 bg-popover" align="start" side="bottom">
-                        <Command shouldFilter={false}>
-                          <CommandInput placeholder="Type to search..." className="h-8 text-xs" />
-                          <CommandList>
-                            <CommandEmpty className="py-2 text-xs text-center text-muted-foreground">No item found</CommandEmpty>
-                            <CommandGroup>
-                              {Array.from(new Set(items.map(item => item.code)))
-                                .sort()
-                                .map((code) => (
-                                  <CommandItem
-                                    key={code}
-                                    value={code}
-                                    keywords={[code.toLowerCase()]}
-                                    onSelect={() => {
-                                      console.log("Art No selected:", code);
-                                      updateLineItem(line.id, "art_no", code);
-                                      updateLineItem(line.id, "color", "");
-                                      const selectedItem = items.find(item => item.code === code);
-                                      if (selectedItem) {
-                                        updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
-                                      }
-                                      setArtNoOpen({ ...artNoOpen, [line.id]: false });
-                                    }}
-                                    className="text-xs cursor-pointer"
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-3 w-3",
-                                        line.art_no === code ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    {code}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    {/* Art No - Input with dropdown */}
+                    <div className="flex gap-0.5">
+                      <Input
+                        type="text"
+                        value={line.art_no}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          updateLineItem(line.id, "art_no", value);
+                          updateLineItem(line.id, "color", "");
+                          // Try to find matching item and auto-fill price
+                          const selectedItem = items.find(item => item.code === value);
+                          if (selectedItem) {
+                            updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
+                          }
+                        }}
+                        placeholder="Type or select"
+                        className="h-8 text-xs flex-1"
+                      />
+                      <Popover open={artNoOpen[line.id] || false} onOpenChange={(open) => setArtNoOpen({ ...artNoOpen, [line.id]: open })}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                          >
+                            <ChevronsUpDown className="h-3 w-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0 bg-popover" align="start" side="bottom">
+                          <Command>
+                            <CommandInput placeholder="Search..." className="h-8 text-xs" />
+                            <CommandList>
+                              <CommandEmpty className="py-2 text-xs text-center">No item found</CommandEmpty>
+                              <CommandGroup>
+                                {Array.from(new Set(items.map(item => item.code)))
+                                  .sort()
+                                  .map((code) => (
+                                    <CommandItem
+                                      key={code}
+                                      onSelect={() => {
+                                        updateLineItem(line.id, "art_no", code);
+                                        updateLineItem(line.id, "color", "");
+                                        const selectedItem = items.find(item => item.code === code);
+                                        if (selectedItem) {
+                                          updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
+                                        }
+                                        setArtNoOpen({ ...artNoOpen, [line.id]: false });
+                                      }}
+                                      className="text-xs cursor-pointer"
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-3 w-3",
+                                          line.art_no === code ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {code}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
 
-                    {/* Color Combobox */}
-                    <Popover open={colorOpen[line.id] || false} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          role="combobox"
-                          aria-expanded={colorOpen[line.id] || false}
-                          className="h-8 w-full justify-between text-xs px-2 bg-background"
-                          disabled={!line.art_no}
-                        >
-                          <span className="truncate">{line.color || "Color"}</span>
-                          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[180px] p-0 bg-popover" align="start" side="bottom">
-                        <Command shouldFilter={false}>
-                          <CommandInput placeholder="Type to search..." className="h-8 text-xs" />
-                          <CommandList>
-                            <CommandEmpty className="py-2 text-xs text-center text-muted-foreground">
-                              {!line.art_no ? "Select Art No first" : "No color found"}
-                            </CommandEmpty>
-                            <CommandGroup>
-                              {line.art_no && items
-                                .filter(item => item.code === line.art_no && item.color && item.color.trim() !== "")
-                                .sort((a, b) => a.color.localeCompare(b.color))
-                                .map((item) => (
-                                  <CommandItem
-                                    key={item.id}
-                                    value={item.color}
-                                    keywords={[item.color.toLowerCase()]}
-                                    onSelect={() => {
-                                      console.log("Color selected:", item.color);
-                                      updateLineItem(line.id, "color", item.color);
-                                      setColorOpen({ ...colorOpen, [line.id]: false });
-                                    }}
-                                    className="text-xs cursor-pointer"
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-3 w-3",
-                                        line.color === item.color ? "opacity-100" : "opacity-0"
-                                      )}
-                                    />
-                                    {item.color}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
+                    {/* Color - Input with dropdown */}
+                    <div className="flex gap-0.5">
+                      <Input
+                        type="text"
+                        value={line.color}
+                        onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
+                        placeholder="Type or select"
+                        className="h-8 text-xs flex-1"
+                        disabled={!line.art_no}
+                      />
+                      <Popover open={colorOpen[line.id] || false} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            disabled={!line.art_no}
+                          >
+                            <ChevronsUpDown className="h-3 w-3" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0 bg-popover" align="start" side="bottom">
+                          <Command>
+                            <CommandInput placeholder="Search..." className="h-8 text-xs" />
+                            <CommandList>
+                              <CommandEmpty className="py-2 text-xs text-center">
+                                {!line.art_no ? "Select Art No first" : "No color found"}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {line.art_no && items
+                                  .filter(item => item.code === line.art_no && item.color && item.color.trim() !== "")
+                                  .sort((a, b) => a.color.localeCompare(b.color))
+                                  .map((item) => (
+                                    <CommandItem
+                                      key={item.id}
+                                      onSelect={() => {
+                                        updateLineItem(line.id, "color", item.color);
+                                        setColorOpen({ ...colorOpen, [line.id]: false });
+                                      }}
+                                      className="text-xs cursor-pointer"
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-3 w-3",
+                                          line.color === item.color ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {item.color}
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
 
                     <Input
                       type="number"
