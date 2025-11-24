@@ -11,10 +11,11 @@ import { toast } from "sonner";
 interface StockMovementDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preSelectedItem?: any;
   onSuccess?: () => void;
 }
 
-export function StockMovementDialog({ open, onOpenChange, onSuccess }: StockMovementDialogProps) {
+export function StockMovementDialog({ open, onOpenChange, preSelectedItem, onSuccess }: StockMovementDialogProps) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
@@ -32,8 +33,14 @@ export function StockMovementDialog({ open, onOpenChange, onSuccess }: StockMove
     if (open) {
       fetchItems();
       fetchLocations();
+      if (preSelectedItem) {
+        setFormData(prev => ({
+          ...prev,
+          item_id: preSelectedItem.id,
+        }));
+      }
     }
-  }, [open]);
+  }, [open, preSelectedItem]);
 
   const fetchItems = async () => {
     const { data, error } = await supabase

@@ -2,16 +2,20 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, AlertTriangle } from "lucide-react";
+import { Search, AlertTriangle, Edit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { StockMovementDialog } from "@/components/inventory/StockMovementDialog";
 
 export default function Stock() {
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
 
   useEffect(() => {
     fetchItems();
@@ -48,6 +52,11 @@ export default function Stock() {
   }, 0);
 
   const lowStockItems = filteredItems.filter(item => (item.stock_quantity || 0) < 10);
+
+  const handleAdjustStock = (item: any) => {
+    setSelectedItem(item);
+    setDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -114,12 +123,13 @@ export default function Stock() {
                   <TableHead className="text-right">Purchase Price</TableHead>
                   <TableHead className="text-right">Stock Value</TableHead>
                   <TableHead></TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={8} className="text-center">
                       No items found with inventory tracking enabled
                     </TableCell>
                   </TableRow>
@@ -153,6 +163,16 @@ export default function Stock() {
                             </div>
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleAdjustStock(item)}
+                            title="Adjust stock"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -162,6 +182,16 @@ export default function Stock() {
           )}
         </CardContent>
       </Card>
+
+      <StockMovementDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedItem(null);
+        }}
+        preSelectedItem={selectedItem}
+        onSuccess={fetchItems}
+      />
     </div>
   );
 }
