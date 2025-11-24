@@ -72,6 +72,9 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   const [discountPercent, setDiscountPercent] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [useManualEntry, setUseManualEntry] = useState(false);
+  const [addToOrder, setAddToOrder] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+  const [orders, setOrders] = useState<any[]>([]);
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -103,6 +106,9 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       setCheques([]);
       setDiscountPercent(0);
       setUseManualEntry(false);
+      setAddToOrder(false);
+      setSelectedOrderId("");
+      setOrders([]);
     }
   }, [open, invoice]);
 
@@ -111,10 +117,22 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     if (customerId) {
       const customer = customers.find(c => c.id === customerId);
       setSelectedCustomer(customer);
+      // Fetch orders for this customer
+      fetchOrdersForCustomer(customerId);
     } else {
       setSelectedCustomer(null);
+      setOrders([]);
     }
   }, [form.watch("customer_id"), customers]);
+
+  const fetchOrdersForCustomer = async (customerId: string) => {
+    const { data } = await supabase
+      .from('sales_orders')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('order_date', { ascending: false });
+    if (data) setOrders(data);
+  };
 
   const fetchCustomers = async () => {
     const { data } = await supabase
@@ -457,9 +475,25 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
       if (linesError) throw linesError;
 
+      // If "Add to Order" is checked and an order is selected, update the order with invoice reference
+      if (addToOrder && selectedOrderId) {
+        const { error: orderError } = await supabase
+          .from('sales_orders')
+          .update({
+            notes: `Linked to Invoice: ${invoice_no}${data.notes ? '\n\n' + data.notes : ''}`,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', selectedOrderId);
+
+        if (orderError) {
+          console.error("Error updating order:", orderError);
+          // Don't throw - invoice was created successfully
+        }
+      }
+
       toast({
         title: "Success",
-        description: invoice ? "Invoice updated successfully" : "Invoice created successfully",
+        description: invoice ? "Invoice updated successfully" : "Invoice created successfully" + (addToOrder && selectedOrderId ? " and linked to order" : ""),
       });
 
       onSuccess();
@@ -810,6 +844,48 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                 ))}
               </div>
             </div>
+          </div>
+
+          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="add_to_order"
+                checked={addToOrder}
+                onChange={(e) => setAddToOrder(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor="add_to_order" className="cursor-pointer">
+                Add to Order Sheet? (ඔඩර් ශීට් එකකට ඇඩ් කරන්නද?)
+              </Label>
+            </div>
+
+            {addToOrder && (
+              <div className="space-y-2 pl-7">
+                <Label htmlFor="order_select">Select Order</Label>
+                <Select
+                  value={selectedOrderId}
+                  onValueChange={setSelectedOrderId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">
+                        No orders found for this customer
+                      </div>
+                    ) : (
+                      orders.map((order) => (
+                        <SelectItem key={order.id} value={order.id}>
+                          {order.order_no} - {new Date(order.order_date).toLocaleDateString()} - Rs. {order.grand_total?.toFixed(2) || '0.00'}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
