@@ -8,14 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Search, Edit, Trash2, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { LocationDialog } from "@/components/inventory/LocationDialog";
 
 export default function Locations() {
   const { t } = useTranslation();
-  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [locationToDelete, setLocationToDelete] = useState<any>(null);
 
@@ -34,14 +36,15 @@ export default function Locations() {
       if (error) throw error;
       setLocations(data || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEdit = (location: any) => {
+    setSelectedLocation(location);
+    setDialogOpen(true);
   };
 
   const handleDeleteRequest = (location: any) => {
@@ -60,18 +63,11 @@ export default function Locations() {
 
       if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Location deleted successfully",
-      });
+      toast.success("Location deleted successfully");
 
       fetchLocations();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error(error.message);
     } finally {
       setDeleteDialogOpen(false);
       setLocationToDelete(null);
@@ -90,7 +86,10 @@ export default function Locations() {
           <h1 className="text-3xl font-bold">{t('inventory.locations')}</h1>
           <p className="text-muted-foreground mt-2">Manage stock locations</p>
         </div>
-        <Button>
+        <Button onClick={() => {
+          setSelectedLocation(null);
+          setDialogOpen(true);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Add Location
         </Button>
@@ -153,7 +152,7 @@ export default function Locations() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(location)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(location)}>
@@ -168,6 +167,16 @@ export default function Locations() {
           </Table>
         </CardContent>
       </Card>
+
+      <LocationDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setSelectedLocation(null);
+        }}
+        location={selectedLocation}
+        onSuccess={fetchLocations}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
