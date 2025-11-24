@@ -130,7 +130,7 @@ export default function Items() {
                   <TableHead>Name</TableHead>
                   <TableHead>Color</TableHead>
                   <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
+                  <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="text-right">Sale Price</TableHead>
                   <TableHead className="text-right">Purchase Price</TableHead>
                   <TableHead>{t('common.status')}</TableHead>
