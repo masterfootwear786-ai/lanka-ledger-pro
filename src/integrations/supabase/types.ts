@@ -953,6 +953,13 @@ export type Database = {
           line_no: number
           line_total: number
           quantity: number
+          size_39: number | null
+          size_40: number | null
+          size_41: number | null
+          size_42: number | null
+          size_43: number | null
+          size_44: number | null
+          size_45: number | null
           tax_amount: number | null
           tax_code: string | null
           tax_inclusive: boolean | null
@@ -970,6 +977,13 @@ export type Database = {
           line_no: number
           line_total?: number
           quantity?: number
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
           tax_amount?: number | null
           tax_code?: string | null
           tax_inclusive?: boolean | null
@@ -987,6 +1001,13 @@ export type Database = {
           line_no?: number
           line_total?: number
           quantity?: number
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
           tax_amount?: number | null
           tax_code?: string | null
           tax_inclusive?: boolean | null
@@ -1733,6 +1754,13 @@ export type Database = {
           line_total: number
           order_id: string
           quantity: number
+          size_39: number | null
+          size_40: number | null
+          size_41: number | null
+          size_42: number | null
+          size_43: number | null
+          size_44: number | null
+          size_45: number | null
           tax_amount: number | null
           tax_code: string | null
           tax_inclusive: boolean | null
@@ -1750,6 +1778,13 @@ export type Database = {
           line_total?: number
           order_id: string
           quantity?: number
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
           tax_amount?: number | null
           tax_code?: string | null
           tax_inclusive?: boolean | null
@@ -1767,6 +1802,13 @@ export type Database = {
           line_total?: number
           order_id?: string
           quantity?: number
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
           tax_amount?: number | null
           tax_code?: string | null
           tax_inclusive?: boolean | null
@@ -1883,6 +1925,51 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_by_size: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          item_id: string
+          quantity: number
+          size: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          item_id: string
+          quantity?: number
+          size: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          item_id?: string
+          quantity?: number
+          size?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_by_size_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_by_size_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
         ]
