@@ -72,9 +72,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   const [discountPercent, setDiscountPercent] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [useManualEntry, setUseManualEntry] = useState(false);
-  const [addToOrder, setAddToOrder] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
-  const [orders, setOrders] = useState<any[]>([]);
+  const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -106,9 +104,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       setCheques([]);
       setDiscountPercent(0);
       setUseManualEntry(false);
-      setAddToOrder(false);
-      setSelectedOrderId("");
-      setOrders([]);
+      setDocumentType('invoice');
     }
   }, [open, invoice]);
 
@@ -117,22 +113,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     if (customerId) {
       const customer = customers.find(c => c.id === customerId);
       setSelectedCustomer(customer);
-      // Fetch orders for this customer
-      fetchOrdersForCustomer(customerId);
     } else {
       setSelectedCustomer(null);
-      setOrders([]);
     }
   }, [form.watch("customer_id"), customers]);
-
-  const fetchOrdersForCustomer = async (customerId: string) => {
-    const { data } = await supabase
-      .from('sales_orders')
-      .select('*')
-      .eq('customer_id', customerId)
-      .order('order_date', { ascending: false });
-    if (data) setOrders(data);
-  };
 
   const fetchCustomers = async () => {
     const { data } = await supabase
@@ -376,10 +360,79 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
       if (!customerId) throw new Error("Customer is required");
 
-      let invoiceId: string;
-      let invoice_no: string;
+      // Save as Order or Invoice based on selection
+      if (documentType === 'order') {
+        // Create Order
+        const order_no = `ORD-${Date.now()}`;
+        
+        const { data: newOrder, error: orderError } = await supabase
+          .from('sales_orders')
+          .insert({
+            company_id: profile.company_id,
+            customer_id: customerId,
+            order_no,
+            order_date: data.invoice_date,
+            delivery_date: data.due_date,
+            notes: data.notes,
+            subtotal,
+            tax_total,
+            discount: discount_amount,
+            grand_total,
+            status: 'pending',
+            terms: data.payment_method === 'cheque' 
+              ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+              : data.payment_method,
+          })
+          .select()
+          .single();
 
-      if (invoice) {
+        if (orderError) throw orderError;
+
+        // Insert order lines
+        const lines: any[] = [];
+        lineItems.forEach((item) => {
+          const sizes = [
+            { size: '39', qty: item.size_39 },
+            { size: '40', qty: item.size_40 },
+            { size: '41', qty: item.size_41 },
+            { size: '42', qty: item.size_42 },
+            { size: '43', qty: item.size_43 },
+            { size: '44', qty: item.size_44 },
+            { size: '45', qty: item.size_45 },
+          ];
+          
+          sizes.forEach(s => {
+            if (s.qty > 0) {
+              lines.push({
+                order_id: newOrder.id,
+                line_no: lines.length + 1,
+                description: `${item.art_no} - ${item.color} - Size ${s.size}`,
+                quantity: s.qty,
+                unit_price: item.unit_price,
+                tax_rate: item.tax_rate,
+                tax_amount: (s.qty * item.unit_price) * (item.tax_rate / 100),
+                line_total: s.qty * item.unit_price + ((s.qty * item.unit_price) * (item.tax_rate / 100)),
+              });
+            }
+          });
+        });
+
+        const { error: linesError } = await supabase
+          .from('sales_order_lines')
+          .insert(lines);
+
+        if (linesError) throw linesError;
+
+        toast({
+          title: "Success",
+          description: "Order created successfully",
+        });
+      } else {
+        // Create Invoice (existing code)
+        let invoiceId: string;
+        let invoice_no: string;
+
+        if (invoice) {
         // Update existing invoice
         invoice_no = invoice.invoice_no;
         invoiceId = invoice.id;
@@ -473,28 +526,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         .from('invoice_lines')
         .insert(lines);
 
-      if (linesError) throw linesError;
+        if (linesError) throw linesError;
 
-      // If "Add to Order" is checked and an order is selected, update the order with invoice reference
-      if (addToOrder && selectedOrderId) {
-        const { error: orderError } = await supabase
-          .from('sales_orders')
-          .update({
-            notes: `Linked to Invoice: ${invoice_no}${data.notes ? '\n\n' + data.notes : ''}`,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedOrderId);
-
-        if (orderError) {
-          console.error("Error updating order:", orderError);
-          // Don't throw - invoice was created successfully
-        }
+        toast({
+          title: "Success",
+          description: invoice ? "Invoice updated successfully" : "Invoice created successfully",
+        });
       }
-
-      toast({
-        title: "Success",
-        description: invoice ? "Invoice updated successfully" : "Invoice created successfully" + (addToOrder && selectedOrderId ? " and linked to order" : ""),
-      });
 
       onSuccess();
       onOpenChange(false);
@@ -518,10 +556,40 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{invoice ? 'Edit Invoice' : 'Create Invoice'}</DialogTitle>
+          <DialogTitle>{invoice ? 'Edit Invoice' : 'Create New Document'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {!invoice && (
+            <div className="space-y-2 p-4 border rounded-lg bg-primary/5">
+              <Label>Document Type (ලේඛන වර්ගය)</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="documentType"
+                    value="invoice"
+                    checked={documentType === 'invoice'}
+                    onChange={(e) => setDocumentType(e.target.value as 'invoice' | 'order')}
+                    className="h-4 w-4"
+                  />
+                  <span className="font-medium">Invoice (ඉන්වොයිස්)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="documentType"
+                    value="order"
+                    checked={documentType === 'order'}
+                    onChange={(e) => setDocumentType(e.target.value as 'invoice' | 'order')}
+                    className="h-4 w-4"
+                  />
+                  <span className="font-medium">Order (ඇණවුම)</span>
+                </label>
+              </div>
+            </div>
+          )}
+        
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>Customer Details</Label>
@@ -846,48 +914,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
             </div>
           </div>
 
-          <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="add_to_order"
-                checked={addToOrder}
-                onChange={(e) => setAddToOrder(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <Label htmlFor="add_to_order" className="cursor-pointer">
-                Add to Order Sheet? (ඔඩර් ශීට් එකකට ඇඩ් කරන්නද?)
-              </Label>
-            </div>
-
-            {addToOrder && (
-              <div className="space-y-2 pl-7">
-                <Label htmlFor="order_select">Select Order</Label>
-                <Select
-                  value={selectedOrderId}
-                  onValueChange={setSelectedOrderId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an order" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {orders.length === 0 ? (
-                      <div className="p-2 text-sm text-muted-foreground">
-                        No orders found for this customer
-                      </div>
-                    ) : (
-                      orders.map((order) => (
-                        <SelectItem key={order.id} value={order.id}>
-                          {order.order_no} - {new Date(order.order_date).toLocaleDateString()} - Rs. {order.grand_total?.toFixed(2) || '0.00'}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
             <Textarea
@@ -942,7 +968,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Invoice"}
+              {loading ? "Creating..." : invoice ? "Update Invoice" : documentType === 'invoice' ? "Create Invoice" : "Create Order"}
             </Button>
           </div>
         </form>
