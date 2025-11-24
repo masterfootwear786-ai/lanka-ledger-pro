@@ -126,7 +126,7 @@ export default function Items() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Art No</TableHead>
+                  <TableHead>Design No</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Color</TableHead>
                   <TableHead>Description</TableHead>
