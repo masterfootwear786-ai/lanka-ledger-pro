@@ -130,6 +130,21 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
           throw new Error("Please select at least one color");
         }
 
+        // Check for existing items with same Art No + Color combination
+        const { data: existingItems, error: checkError } = await supabase
+          .from("items")
+          .select("color")
+          .eq("code", formData.code)
+          .eq("company_id", profile.company_id)
+          .in("color", selectedColors);
+
+        if (checkError) throw checkError;
+
+        if (existingItems && existingItems.length > 0) {
+          const existingColors = existingItems.map(item => item.color).join(", ");
+          throw new Error(`Item with Art No "${formData.code}" already exists with color(s): ${existingColors}. Please unselect these colors.`);
+        }
+
         const itemsToCreate = selectedColors.map(color => ({
           code: formData.code,
           name: formData.name,
