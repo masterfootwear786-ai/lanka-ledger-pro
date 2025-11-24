@@ -8,12 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { cn } from "@/lib/utils";
 
 const invoiceSchema = z.object({
   customer_id: z.string().optional(),
@@ -76,8 +73,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [useManualEntry, setUseManualEntry] = useState(false);
   const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
-  const [artNoOpen, setArtNoOpen] = useState<{ [key: string]: boolean }>({});
-  const [colorOpen, setColorOpen] = useState<{ [key: string]: boolean }>({});
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -396,11 +391,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         // Insert order lines
         const lines: any[] = [];
         lineItems.forEach((item) => {
-          // Find matching inventory item based on art_no and color
-          const inventoryItem = items.find(
-            invItem => invItem.code === item.art_no && invItem.color === item.color
-          );
-          
           const sizes = [
             { size: '39', qty: item.size_39 },
             { size: '40', qty: item.size_40 },
@@ -417,7 +407,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                 order_id: newOrder.id,
                 line_no: lines.length + 1,
                 description: `${item.art_no} - ${item.color} - Size ${s.size}`,
-                item_id: inventoryItem?.id || null, // Link to inventory item
                 quantity: s.qty,
                 unit_price: item.unit_price,
                 tax_rate: item.tax_rate,
@@ -507,11 +496,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       // Insert invoice lines - create separate lines for each size
       const lines: any[] = [];
       lineItems.forEach((item, index) => {
-        // Find matching inventory item based on art_no and color
-        const inventoryItem = items.find(
-          invItem => invItem.code === item.art_no && invItem.color === item.color
-        );
-        
         const sizes = [
           { size: '39', qty: item.size_39 },
           { size: '40', qty: item.size_40 },
@@ -528,7 +512,6 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               invoice_id: invoiceId,
               line_no: lines.length + 1,
               description: `${item.art_no} - ${item.color} - Size ${s.size}`,
-              item_id: inventoryItem?.id || null, // Link to inventory item for stock deduction
               quantity: s.qty,
               unit_price: item.unit_price,
               tax_rate: item.tax_rate,
@@ -833,144 +816,18 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         className="h-4 w-4"
                       />
                     </div>
-                    {/* Art No - Input with dropdown */}
-                    <div className="flex gap-0.5">
-                      <Input
-                        type="text"
-                        value={line.art_no || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          console.log("Art No typed:", value);
-                          updateLineItem(line.id, "art_no", value);
-                          // Don't clear color when typing
-                          // Try to find matching item and auto-fill price if exists
-                          const selectedItem = items.find(item => item.code === value);
-                          if (selectedItem) {
-                            updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
-                          }
-                        }}
-                        placeholder="Art No"
-                        className="h-8 text-xs flex-1 bg-background"
-                      />
-                      <Popover open={artNoOpen[line.id] || false} onOpenChange={(open) => setArtNoOpen({ ...artNoOpen, [line.id]: open })}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0 shrink-0"
-                            type="button"
-                          >
-                            <ChevronsUpDown className="h-3 w-3" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[200px] p-0 bg-popover border shadow-lg z-[100]" align="start" side="bottom">
-                          <Command>
-                            <CommandInput placeholder="Search..." className="h-8 text-xs" />
-                            <CommandList>
-                              <CommandEmpty className="py-2 text-xs text-center">No item found</CommandEmpty>
-                              <CommandGroup>
-                                {Array.from(new Set(items.map(item => item.code)))
-                                  .sort()
-                                  .map((code) => (
-                                    <CommandItem
-                                      key={code}
-                                      onSelect={() => {
-                                        console.log("Art No selected from dropdown:", code);
-                                        updateLineItem(line.id, "art_no", code);
-                                        updateLineItem(line.id, "color", "");
-                                        const selectedItem = items.find(item => item.code === code);
-                                        if (selectedItem) {
-                                          updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
-                                        }
-                                        setArtNoOpen({ ...artNoOpen, [line.id]: false });
-                                      }}
-                                      className="text-xs cursor-pointer"
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-3 w-3",
-                                          line.art_no === code ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                      {code}
-                                    </CommandItem>
-                                  ))}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    {/* Color - Input with dropdown */}
-                    <div className="flex gap-0.5">
-                      <Input
-                        type="text"
-                        value={line.color || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          console.log("Color typed:", value);
-                          updateLineItem(line.id, "color", value);
-                        }}
-                        placeholder="Color"
-                        className="h-8 text-xs flex-1 bg-background"
-                      />
-                      <Popover open={colorOpen[line.id] || false} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0 shrink-0"
-                            type="button"
-                          >
-                            <ChevronsUpDown className="h-3 w-3" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[200px] p-0 bg-popover border shadow-lg z-[100]" align="start" side="bottom">
-                          <Command>
-                            <CommandInput placeholder="Search..." className="h-8 text-xs" />
-                            <CommandList>
-                              {!line.art_no ? (
-                                <CommandEmpty className="py-2 text-xs text-center">
-                                  Select Art No first
-                                </CommandEmpty>
-                              ) : (
-                                <>
-                                  <CommandEmpty className="py-2 text-xs text-center">
-                                    No color found
-                                  </CommandEmpty>
-                                  <CommandGroup>
-                                    {items
-                                      .filter(item => item.code === line.art_no && item.color && item.color.trim() !== "")
-                                      .sort((a, b) => a.color.localeCompare(b.color))
-                                      .map((item) => (
-                                        <CommandItem
-                                          key={item.id}
-                                          onSelect={() => {
-                                            console.log("Color selected from dropdown:", item.color);
-                                            updateLineItem(line.id, "color", item.color);
-                                            setColorOpen({ ...colorOpen, [line.id]: false });
-                                          }}
-                                          className="text-xs cursor-pointer"
-                                        >
-                                          <Check
-                                            className={cn(
-                                              "mr-2 h-3 w-3",
-                                              line.color === item.color ? "opacity-100" : "opacity-0"
-                                            )}
-                                          />
-                                          {item.color}
-                                        </CommandItem>
-                                      ))}
-                                  </CommandGroup>
-                                </>
-                              )}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
+                    <Input
+                      placeholder="Art No"
+                      value={line.art_no}
+                      onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <Input
+                      placeholder="Color"
+                      value={line.color}
+                      onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
+                      className="h-8 text-xs"
+                    />
                     <Input
                       type="number"
                       min="0"
