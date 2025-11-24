@@ -151,7 +151,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
           color: color,
           description: formData.description,
           uom: formData.uom,
-          stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
+          stock_quantity: 0, // Always start with 0 stock
           sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
           purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
           track_inventory: formData.track_inventory,
@@ -314,7 +314,14 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 step="1"
                 value={formData.stock_quantity}
                 onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
+                disabled={!item}
+                placeholder={item ? "0" : "Use stock movements to add stock"}
               />
+              {!item && (
+                <p className="text-xs text-muted-foreground">
+                  Stock can only be added through stock movements after creating the item
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="sale_price">Sale Price</Label>
