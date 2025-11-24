@@ -8,9 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 const invoiceSchema = z.object({
   customer_id: z.string().optional(),
@@ -73,6 +76,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [useManualEntry, setUseManualEntry] = useState(false);
   const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
+  const [artNoOpen, setArtNoOpen] = useState<{ [key: string]: boolean }>({});
+  const [colorOpen, setColorOpen] = useState<{ [key: string]: boolean }>({});
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -816,80 +821,100 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         className="h-4 w-4"
                       />
                     </div>
-                    <Select
-                      value={line.art_no || undefined}
-                      onValueChange={(value) => {
-                        updateLineItem(line.id, "art_no", value);
-                        updateLineItem(line.id, "color", ""); // Reset color when art no changes
-                        // Find item and auto-fill price
-                        const selectedItem = items.find(item => item.code === value);
-                        if (selectedItem) {
-                          updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-xs w-full">
-                        <SelectValue placeholder="Select Art No" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-popover border shadow-md z-[100]" position="popper">
-                        {items.length === 0 ? (
-                          <div className="px-2 py-1 text-xs text-muted-foreground">
-                            No items available
-                          </div>
-                        ) : (
-                          Array.from(new Set(items.map(item => item.code))).map((code) => (
-                            <SelectItem key={code} value={code}>
-                              {code}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Select
-                      value={line.color || ""}
-                      onValueChange={(value) => {
-                        console.log("Color selected:", value);
-                        updateLineItem(line.id, "color", value);
-                      }}
-                    >
-                      <SelectTrigger className="h-8 text-xs w-full bg-background">
-                        <SelectValue placeholder="Select Color" />
-                      </SelectTrigger>
-                      <SelectContent 
-                        className="bg-popover border shadow-md max-h-[200px] overflow-y-auto" 
-                        position="popper"
-                        side="bottom"
-                        align="start"
-                      >
-                        {!line.art_no ? (
-                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                            Select Art No first
-                          </div>
-                        ) : (() => {
-                          const availableColors = items.filter(item => 
-                            item.code === line.art_no && item.color && item.color.trim() !== ""
-                          );
-                          
-                          if (availableColors.length === 0) {
-                            return (
-                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                                No colors available for this Art No
-                              </div>
-                            );
-                          }
-                          
-                          return availableColors.map((item) => (
-                            <SelectItem 
-                              key={item.id} 
-                              value={item.color}
-                              className="cursor-pointer"
-                            >
-                              {item.color}
-                            </SelectItem>
-                          ));
-                        })()}
-                      </SelectContent>
-                    </Select>
+                    {/* Art No Combobox */}
+                    <Popover open={artNoOpen[line.id]} onOpenChange={(open) => setArtNoOpen({ ...artNoOpen, [line.id]: open })}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={artNoOpen[line.id]}
+                          className="h-8 w-full justify-between text-xs px-2"
+                        >
+                          {line.art_no || "Select Art No"}
+                          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search or type Art No..." className="h-8" />
+                          <CommandList>
+                            <CommandEmpty>No Art No found.</CommandEmpty>
+                            <CommandGroup>
+                              {Array.from(new Set(items.map(item => item.code))).map((code) => (
+                                <CommandItem
+                                  key={code}
+                                  value={code}
+                                  onSelect={(currentValue) => {
+                                    updateLineItem(line.id, "art_no", currentValue);
+                                    updateLineItem(line.id, "color", "");
+                                    const selectedItem = items.find(item => item.code === currentValue);
+                                    if (selectedItem) {
+                                      updateLineItem(line.id, "unit_price", selectedItem.sale_price || 0);
+                                    }
+                                    setArtNoOpen({ ...artNoOpen, [line.id]: false });
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      line.art_no === code ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {code}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Color Combobox */}
+                    <Popover open={colorOpen[line.id]} onOpenChange={(open) => setColorOpen({ ...colorOpen, [line.id]: open })}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={colorOpen[line.id]}
+                          className="h-8 w-full justify-between text-xs px-2"
+                          disabled={!line.art_no}
+                        >
+                          {line.color || "Select Color"}
+                          <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[200px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search or type Color..." className="h-8" />
+                          <CommandList>
+                            <CommandEmpty>No color found.</CommandEmpty>
+                            <CommandGroup>
+                              {line.art_no && items
+                                .filter(item => item.code === line.art_no && item.color && item.color.trim() !== "")
+                                .map((item) => (
+                                  <CommandItem
+                                    key={item.id}
+                                    value={item.color}
+                                    onSelect={(currentValue) => {
+                                      updateLineItem(line.id, "color", currentValue);
+                                      setColorOpen({ ...colorOpen, [line.id]: false });
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        line.color === item.color ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {item.color}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+
                     <Input
                       type="number"
                       min="0"
