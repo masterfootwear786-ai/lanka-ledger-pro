@@ -66,6 +66,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
+  const [stockData, setStockData] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [cheques, setCheques] = useState<Cheque[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,6 +87,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     if (open) {
       fetchCustomers();
       fetchItems();
+      fetchStockData();
       
       if (invoice) {
         // Load existing invoice data
@@ -133,6 +135,38 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       .select('*')
       .eq('active', true);
     if (data) setItems(data);
+  };
+
+  const fetchStockData = async () => {
+    // Fetch all stock by size records
+    const { data: stockBySizeData, error } = await supabase
+      .from("stock_by_size")
+      .select("*");
+    
+    if (error) {
+      toast({
+        title: "Error fetching stock",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Group stock by item_id and size
+    const stockMap = new Map<string, any>();
+    
+    stockBySizeData?.forEach(stock => {
+      const key = stock.item_id;
+      if (!stockMap.has(key)) {
+        stockMap.set(key, {
+          item_id: stock.item_id,
+          sizes: {}
+        });
+      }
+      stockMap.get(key)!.sizes[stock.size] = stock.quantity || 0;
+    });
+
+    setStockData(Array.from(stockMap.values()));
   };
 
   const loadInvoiceData = async () => {
@@ -258,6 +292,16 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     setLineItems(lineItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
+        
+        // If art_no or color changed, update from selected item
+        if (field === "art_no" || field === "color") {
+          const selectedItem = items.find(i => i.code === updated.art_no && i.color === updated.color);
+          if (selectedItem) {
+            updated.unit_price = selectedItem.sale_price || 0;
+            // Don't auto-populate quantities, let user enter them
+          }
+        }
+        
         // Calculate total pairs
         updated.total_pairs = 
           updated.size_39 + updated.size_40 + updated.size_41 + 
@@ -270,6 +314,17 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       }
       return item;
     }));
+  };
+
+  const getAvailableStock = (art_no: string, color: string) => {
+    const item = items.find(i => i.code === art_no && i.color === color);
+    if (!item) return null;
+    
+    const stock = stockData.find(s => s.item_id === item.id);
+    if (!stock) return { sizes: {}, total: 0 };
+    
+    const total = Object.values(stock.sizes).reduce((sum: number, qty: any) => sum + (qty || 0), 0);
+    return { sizes: stock.sizes, total };
   };
 
   const calculateTotals = () => {
@@ -464,7 +519,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
             tax_total,
             discount: discount_amount,
             grand_total,
-            status: 'draft',
+            status: 'approved',
+            posted: true,  // Auto-post invoice to deduct stock immediately
+            posted_at: new Date().toISOString(),
+            posted_by: user.id,
             terms: data.payment_method === 'cheque' 
               ? JSON.stringify({ payment_method: 'cheque', cheques }) 
               : data.payment_method,
@@ -794,7 +852,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                 {/* Line Items */}
                 {lineItems.map((line) => (
                   <div key={line.id} className="grid grid-cols-[40px_100px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 items-center p-2 border rounded-lg mb-2 bg-background">
-                    <div className="flex items-center justify-center">
+                     <div className="flex items-center justify-center">
                       <input
                         type="checkbox"
                         checked={line.discount_selected}
@@ -802,18 +860,45 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         className="h-4 w-4"
                       />
                     </div>
-                    <Input
-                      placeholder="Art No"
-                      value={line.art_no}
-                      onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <Input
-                      placeholder="Color"
-                      value={line.color}
-                      onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
-                      className="h-8 text-xs"
-                    />
+                    <div className="space-y-1">
+                      <select
+                        value={line.art_no}
+                        onChange={(e) => updateLineItem(line.id, "art_no", e.target.value)}
+                        className="h-8 text-xs w-full border rounded px-2"
+                      >
+                        <option value="">Select Art No</option>
+                        {Array.from(new Set(items.map(i => i.code))).map(code => (
+                          <option key={code} value={code}>{code}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <select
+                        value={line.color}
+                        onChange={(e) => updateLineItem(line.id, "color", e.target.value)}
+                        className="h-8 text-xs w-full border rounded px-2"
+                        disabled={!line.art_no}
+                      >
+                        <option value="">Select Color</option>
+                        {items
+                          .filter(i => i.code === line.art_no)
+                          .map(i => (
+                            <option key={i.id} value={i.color}>{i.color}</option>
+                          ))}
+                      </select>
+                      {line.art_no && line.color && (() => {
+                        const stock = getAvailableStock(line.art_no, line.color);
+                        return stock && (stock.total as number) > 0 ? (
+                          <div className="text-[10px] text-muted-foreground">
+                            Stock: {stock.total as number}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-destructive">
+                            No stock
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <Input
                       type="number"
                       min="0"
