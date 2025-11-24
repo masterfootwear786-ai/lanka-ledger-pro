@@ -31,6 +31,7 @@ export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [viewOnly, setViewOnly] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<any>(null);
 
@@ -69,8 +70,15 @@ export default function Orders() {
     }
   };
 
+  const handleView = (order: any) => {
+    setSelectedOrder(order);
+    setViewOnly(true);
+    setDialogOpen(true);
+  };
+
   const handleEdit = (order: any) => {
     setSelectedOrder(order);
+    setViewOnly(false);
     setDialogOpen(true);
   };
 
@@ -126,6 +134,7 @@ export default function Orders() {
         <h1 className="text-3xl font-bold">Sales Orders</h1>
         <Button onClick={() => {
           setSelectedOrder(null);
+          setViewOnly(false);
           setDialogOpen(true);
         }}>
           <Plus className="h-4 w-4 mr-2" />
@@ -185,7 +194,7 @@ export default function Orders() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleEdit(order)}
+                          onClick={() => handleView(order)}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -228,10 +237,12 @@ export default function Orders() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         order={selectedOrder}
+        viewOnly={viewOnly}
         onSuccess={() => {
           fetchOrders();
           setDialogOpen(false);
           setSelectedOrder(null);
+          setViewOnly(false);
         }}
       />
 

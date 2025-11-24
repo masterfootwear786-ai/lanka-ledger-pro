@@ -38,10 +38,11 @@ interface OrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   order?: any;
+  viewOnly?: boolean;
   onSuccess: () => void;
 }
 
-export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialogProps) {
+export function OrderDialog({ open, onOpenChange, order, viewOnly = false, onSuccess }: OrderDialogProps) {
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -441,11 +442,11 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{order ? 'Edit Order' : 'New Order'}</DialogTitle>
+          <DialogTitle>{viewOnly ? 'View Order' : (order ? 'Edit Order' : 'New Order')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!order && templates.length > 0 && (
+          {!order && !viewOnly && templates.length > 0 && (
             <div className="p-4 bg-muted rounded-lg">
               <Label className="mb-2 block">Load from Template</Label>
               <div className="flex gap-2">
@@ -474,6 +475,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               <Select
                 value={formData.customer_id}
                 onValueChange={(value) => setFormData({ ...formData, customer_id: value })}
+                disabled={viewOnly}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select customer" />
@@ -495,6 +497,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                 value={formData.order_no}
                 onChange={(e) => setFormData({ ...formData, order_no: e.target.value })}
                 required
+                disabled={viewOnly}
               />
             </div>
 
@@ -503,6 +506,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
               <Select
                 value={formData.status}
                 onValueChange={(value) => setFormData({ ...formData, status: value })}
+                disabled={viewOnly}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -528,6 +532,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                 value={formData.order_date}
                 onChange={(e) => setFormData({ ...formData, order_date: e.target.value })}
                 required
+                disabled={viewOnly}
               />
             </div>
 
@@ -538,6 +543,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                 type="date"
                 value={formData.delivery_date}
                 onChange={(e) => setFormData({ ...formData, delivery_date: e.target.value })}
+                disabled={viewOnly}
               />
             </div>
           </div>
@@ -545,10 +551,12 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <Label>Order Lines</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addNewLine}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Line
-              </Button>
+              {!viewOnly && (
+                <Button type="button" variant="outline" size="sm" onClick={addNewLine}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Line
+                </Button>
+              )}
             </div>
 
             <div className="border rounded-lg overflow-x-auto">
@@ -579,6 +587,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'art_no', e.target.value)}
                           placeholder="Art No"
                           className="h-8"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -587,6 +596,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'color', e.target.value)}
                           placeholder="Color"
                           className="h-8"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -596,6 +606,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'size_39', e.target.value)}
                           min="0"
                           className="h-8 w-16"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -605,6 +616,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'size_40', e.target.value)}
                           min="0"
                           className="h-8 w-16"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -614,6 +626,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'size_41', e.target.value)}
                           min="0"
                           className="h-8 w-16"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -623,6 +636,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'size_42', e.target.value)}
                           min="0"
                           className="h-8 w-16"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -632,6 +646,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'size_43', e.target.value)}
                           min="0"
                           className="h-8 w-16"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -641,6 +656,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'size_44', e.target.value)}
                           min="0"
                           className="h-8 w-16"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell>
@@ -650,6 +666,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           onChange={(e) => updateLine(line.id, 'size_45', e.target.value)}
                           min="0"
                           className="h-8 w-16"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
@@ -663,21 +680,24 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                           min="0"
                           step="0.01"
                           className="h-8"
+                          disabled={viewOnly}
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {line.line_total.toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeLine(line.id)}
-                          className="h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {!viewOnly && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeLine(line.id)}
+                            className="h-8 w-8"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -703,6 +723,7 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
+                disabled={viewOnly}
               />
             </div>
 
@@ -713,17 +734,20 @@ export function OrderDialog({ open, onOpenChange, order, onSuccess }: OrderDialo
                 value={formData.terms}
                 onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
                 rows={3}
+                disabled={viewOnly}
               />
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {viewOnly ? 'Close' : 'Cancel'}
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : order ? "Update Order" : "Create Order"}
-            </Button>
+            {!viewOnly && (
+              <Button type="submit" disabled={loading}>
+                {loading ? "Saving..." : order ? "Update Order" : "Create Order"}
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>
