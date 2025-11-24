@@ -22,6 +22,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
   const [loading, setLoading] = useState(false);
   const [colors, setColors] = useState<any[]>([]);
   const [colorDialogOpen, setColorDialogOpen] = useState(false);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -70,6 +71,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         track_inventory: item.track_inventory ?? true,
         active: item.active ?? true,
       });
+      setSelectedColors([]);
     } else {
       setFormData({
         code: "",
@@ -83,6 +85,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         track_inventory: true,
         active: true,
       });
+      setSelectedColors([]);
     }
   }, [item]);
 
@@ -105,15 +108,16 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
       if (!profile) throw new Error("User profile not found");
       if (!profile.company_id) throw new Error("No company assigned to user");
 
-      const data = {
-        ...formData,
-        company_id: profile.company_id,
-        stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
-        sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
-        purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
-      };
-
       if (item) {
+        // Edit mode - update single item
+        const data = {
+          ...formData,
+          company_id: profile.company_id,
+          stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
+          sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
+          purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
+        };
+        
         const { error } = await supabase
           .from("items")
           .update(data)
@@ -121,11 +125,30 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         if (error) throw error;
         toast.success("Item updated successfully");
       } else {
+        // Create mode - create items for each selected color
+        if (selectedColors.length === 0) {
+          throw new Error("Please select at least one color");
+        }
+
+        const itemsToCreate = selectedColors.map(color => ({
+          code: formData.code,
+          name: formData.name,
+          color: color,
+          description: formData.description,
+          uom: formData.uom,
+          stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
+          sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
+          purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
+          track_inventory: formData.track_inventory,
+          active: formData.active,
+          company_id: profile.company_id,
+        }));
+
         const { error } = await supabase
           .from("items")
-          .insert([data]);
+          .insert(itemsToCreate);
         if (error) throw error;
-        toast.success("Item created successfully");
+        toast.success(`${itemsToCreate.length} item(s) created successfully`);
       }
 
       onSuccess?.();
@@ -165,31 +188,77 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="color">Color</Label>
+              <Label htmlFor="color">{item ? "Color" : "Colors *"}</Label>
               <div className="flex gap-2">
-                <Select
-                  value={formData.color}
-                  onValueChange={(value) => setFormData({ ...formData, color: value })}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select color" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    {colors.map((color) => (
-                      <SelectItem key={color.id} value={color.name}>
-                        <div className="flex items-center gap-2">
-                          {color.hex_code && (
-                            <div 
-                              className="w-4 h-4 rounded border" 
-                              style={{ backgroundColor: color.hex_code }}
-                            />
-                          )}
-                          {color.name}
+                {item ? (
+                  // Edit mode - single color select
+                  <Select
+                    value={formData.color}
+                    onValueChange={(value) => setFormData({ ...formData, color: value })}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select color" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {colors.map((color) => (
+                        <SelectItem key={color.id} value={color.name}>
+                          <div className="flex items-center gap-2">
+                            {color.hex_code && (
+                              <div 
+                                className="w-4 h-4 rounded border" 
+                                style={{ backgroundColor: color.hex_code }}
+                              />
+                            )}
+                            {color.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  // Create mode - multi-select colors
+                  <div className="flex-1 space-y-2">
+                    <div className="border rounded-md p-3 max-h-40 overflow-y-auto">
+                      {colors.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No colors available. Add colors first.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {colors.map((color) => (
+                            <label
+                              key={color.id}
+                              className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedColors.includes(color.name)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedColors([...selectedColors, color.name]);
+                                  } else {
+                                    setSelectedColors(selectedColors.filter(c => c !== color.name));
+                                  }
+                                }}
+                                className="h-4 w-4"
+                              />
+                              {color.hex_code && (
+                                <div 
+                                  className="w-4 h-4 rounded border" 
+                                  style={{ backgroundColor: color.hex_code }}
+                                />
+                              )}
+                              <span className="text-sm">{color.name}</span>
+                            </label>
+                          ))}
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      )}
+                    </div>
+                    {selectedColors.length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {selectedColors.length} color(s) selected
+                      </p>
+                    )}
+                  </div>
+                )}
                 <Button
                   type="button"
                   variant="outline"
