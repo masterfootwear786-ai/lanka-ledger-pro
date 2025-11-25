@@ -10,10 +10,6 @@ interface TransactionViewDialogProps {
 export default function TransactionViewDialog({ open, onOpenChange, transaction }: TransactionViewDialogProps) {
   if (!transaction) return null;
 
-  const formatTransactionType = (type: string) => {
-    return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -34,8 +30,8 @@ export default function TransactionViewDialog({ open, onOpenChange, transaction 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-muted-foreground">Expense Type</Label>
-              <p className="font-medium">{formatTransactionType(transaction.transaction_type)}</p>
+              <Label className="text-muted-foreground">Category</Label>
+              <p className="font-medium">{transaction.transaction_type}</p>
             </div>
             <div>
               <Label className="text-muted-foreground">Amount</Label>
@@ -47,13 +43,6 @@ export default function TransactionViewDialog({ open, onOpenChange, transaction 
               </p>
             </div>
           </div>
-
-          {transaction.account_name && (
-            <div>
-              <Label className="text-muted-foreground">Account</Label>
-              <p className="font-medium">{transaction.account_name}</p>
-            </div>
-          )}
 
           <div>
             <Label className="text-muted-foreground">Description</Label>
