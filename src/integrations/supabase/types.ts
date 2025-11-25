@@ -2143,6 +2143,7 @@ export type Database = {
           account_id: string | null
           amount: number
           company_id: string
+          contact_id: string | null
           created_at: string | null
           created_by: string | null
           description: string
@@ -2158,6 +2159,7 @@ export type Database = {
           account_id?: string | null
           amount?: number
           company_id: string
+          contact_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description: string
@@ -2173,6 +2175,7 @@ export type Database = {
           account_id?: string | null
           amount?: number
           company_id?: string
+          contact_id?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string
@@ -2197,6 +2200,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]

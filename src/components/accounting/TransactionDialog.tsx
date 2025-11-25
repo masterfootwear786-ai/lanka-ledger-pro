@@ -8,6 +8,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface Contact {
+  id: string;
+  name: string;
+  code: string;
+  contact_type: string;
+}
+
 interface TransactionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -17,14 +24,50 @@ interface TransactionDialogProps {
 
 export default function TransactionDialog({ open, onOpenChange, transaction, onSuccess }: TransactionDialogProps) {
   const [loading, setLoading] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
   const [formData, setFormData] = useState({
     transaction_date: new Date().toISOString().split("T")[0],
     transaction_type: "Salary",
     amount: "",
     description: "",
     reference: "",
+    contact_id: "",
   });
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchContacts = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("company_id")
+          .eq("id", user.id)
+          .single();
+
+        if (!profile?.company_id) return;
+
+        const { data, error } = await supabase
+          .from("contacts")
+          .select("id, name, code, contact_type")
+          .eq("company_id", profile.company_id)
+          .eq("active", true)
+          .order("name");
+
+        if (!error && data) {
+          setContacts(data);
+        }
+      } catch (error) {
+        console.error("Error fetching contacts:", error);
+      }
+    };
+
+    if (open) {
+      fetchContacts();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (transaction) {
@@ -34,6 +77,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         amount: transaction.amount.toString(),
         description: transaction.description,
         reference: transaction.reference || "",
+        contact_id: transaction.contact_id || "",
       });
     } else {
       setFormData({
@@ -42,6 +86,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         amount: "",
         description: "",
         reference: "",
+        contact_id: "",
       });
     }
   }, [transaction, open]);
@@ -89,6 +134,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         amount: parseFloat(formData.amount),
         description: formData.description,
         reference: formData.reference || null,
+        contact_id: formData.contact_id || null,
         created_by: user.id,
       };
 
@@ -205,6 +251,26 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
               value={formData.reference}
               onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="contact_id">Creditor / Debtor (Optional)</Label>
+            <Select
+              value={formData.contact_id}
+              onValueChange={(value) => setFormData({ ...formData, contact_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select contact..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {contacts.map((contact) => (
+                  <SelectItem key={contact.id} value={contact.id}>
+                    {contact.name} ({contact.code}) - {contact.contact_type === 'customer' ? 'Customer' : contact.contact_type === 'supplier' ? 'Supplier' : 'Both'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <DialogFooter>

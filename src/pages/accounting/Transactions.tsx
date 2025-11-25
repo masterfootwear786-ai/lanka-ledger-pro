@@ -24,6 +24,11 @@ interface Transaction {
   description: string;
   amount: number;
   reference?: string;
+  contact_id?: string;
+  contacts?: {
+    name: string;
+    code: string;
+  };
 }
 
 export default function Expenses() {
@@ -53,7 +58,13 @@ export default function Expenses() {
 
       const { data, error } = await supabase
         .from("transactions")
-        .select("*")
+        .select(`
+          *,
+          contacts (
+            name,
+            code
+          )
+        `)
         .eq("company_id", profile.company_id)
         .order("transaction_date", { ascending: false })
         .order("transaction_no", { ascending: false });
@@ -123,7 +134,8 @@ export default function Expenses() {
   const filteredTransactions = transactions.filter((t) =>
     t.transaction_no.toLowerCase().includes(search.toLowerCase()) ||
     t.transaction_type.toLowerCase().includes(search.toLowerCase()) ||
-    t.description?.toLowerCase().includes(search.toLowerCase())
+    t.description?.toLowerCase().includes(search.toLowerCase()) ||
+    t.contacts?.name?.toLowerCase().includes(search.toLowerCase())
   );
 
   const formatTransactionType = (type: string) => {
@@ -152,7 +164,7 @@ export default function Expenses() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by expense no, category, or description..."
+            placeholder="Search by expense no, category, description, or contact..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -168,6 +180,7 @@ export default function Expenses() {
               <TableHead>Expense No</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Description</TableHead>
+              <TableHead>Contact</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Reference</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -176,13 +189,13 @@ export default function Expenses() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filteredTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No expenses found
                 </TableCell>
               </TableRow>
@@ -193,6 +206,13 @@ export default function Expenses() {
                   <TableCell className="font-medium">{transaction.transaction_no}</TableCell>
                   <TableCell className="font-medium">{transaction.transaction_type}</TableCell>
                   <TableCell>{transaction.description}</TableCell>
+                  <TableCell>
+                    {transaction.contacts ? (
+                      <span>{transaction.contacts.name} ({transaction.contacts.code})</span>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right font-medium">
                     {transaction.amount.toLocaleString("en-US", {
                       minimumFractionDigits: 2,
