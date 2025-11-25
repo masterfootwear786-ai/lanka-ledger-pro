@@ -13,9 +13,12 @@ import { useToast } from "@/hooks/use-toast";
 
 const receiptSchema = z.object({
   customer_id: z.string().min(1, "Customer is required"),
+  invoice_id: z.string().optional(),
   receipt_date: z.string(),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
-  payment_method: z.string().optional(),
+  payment_method: z.enum(["Cash", "Cheque", "Credit"]),
+  cheque_no: z.string().optional(),
+  cheque_date: z.string().optional(),
   reference: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -32,13 +35,16 @@ interface ReceiptDialogProps {
 export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: ReceiptDialogProps) {
   const { toast } = useToast();
   const [customers, setCustomers] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("Cash");
 
   const form = useForm<ReceiptFormData>({
     resolver: zodResolver(receiptSchema),
     defaultValues: {
       receipt_date: new Date().toISOString().split('T')[0],
       amount: 0,
+      payment_method: "Cash",
     },
   });
 
@@ -48,19 +54,25 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
       
       if (receipt) {
         // Load existing receipt data
+        const paymentMethod = receipt.reference?.includes("CHQ") ? "Cheque" : 
+                              receipt.reference?.includes("CREDIT") ? "Credit" : "Cash";
+        setSelectedPaymentMethod(paymentMethod);
+        
         form.reset({
           customer_id: receipt.customer_id,
           receipt_date: receipt.receipt_date,
           amount: receipt.amount,
-          payment_method: receipt.reference || "",
+          payment_method: paymentMethod as any,
           reference: receipt.reference || "",
           notes: receipt.notes || "",
         });
       } else {
         // New receipt
+        setSelectedPaymentMethod("Cash");
         form.reset({
           receipt_date: new Date().toISOString().split('T')[0],
           amount: 0,
+          payment_method: "Cash",
         });
       }
     }
@@ -83,6 +95,41 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const fetchInvoices = async (customerId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_no, invoice_date, grand_total')
+        .eq('customer_id', customerId)
+        .eq('posted', true)
+        .order('invoice_date', { ascending: false });
+
+      if (error) throw error;
+      setInvoices(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCustomerChange = (customerId: string) => {
+    form.setValue("customer_id", customerId);
+    form.setValue("invoice_id", undefined);
+    form.setValue("amount", 0);
+    fetchInvoices(customerId);
+  };
+
+  const handleInvoiceSelect = (invoiceId: string) => {
+    form.setValue("invoice_id", invoiceId);
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (invoice) {
+      form.setValue("amount", invoice.grand_total);
     }
   };
 
@@ -119,6 +166,19 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
 
       if (!profile?.company_id) throw new Error("Company not found");
 
+      // Build reference string based on payment method
+      let referenceStr: string = "";
+      if (data.payment_method === "Cheque" && data.cheque_no) {
+        referenceStr = `Cheque No: ${data.cheque_no}`;
+        if (data.cheque_date) {
+          referenceStr += ` | Date: ${data.cheque_date}`;
+        }
+      } else if (data.reference) {
+        referenceStr = data.reference;
+      } else {
+        referenceStr = data.payment_method;
+      }
+
       if (receipt) {
         // Update existing receipt
         const { error } = await supabase
@@ -127,7 +187,7 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
             customer_id: data.customer_id,
             receipt_date: data.receipt_date,
             amount: data.amount,
-            reference: data.reference || null,
+            reference: referenceStr,
             notes: data.notes || null,
             updated_at: new Date().toISOString(),
             updated_by: user.id,
@@ -135,6 +195,17 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
           .eq('id', receipt.id);
 
         if (error) throw error;
+
+        // Update receipt allocation if invoice was selected
+        if (data.invoice_id) {
+          await supabase
+            .from('receipt_allocations')
+            .upsert({
+              receipt_id: receipt.id,
+              invoice_id: data.invoice_id,
+              amount: data.amount,
+            });
+        }
 
         toast({
           title: "Success",
@@ -144,7 +215,7 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
         // Create new receipt
         const receiptNo = await generateReceiptNo();
 
-        const { error } = await supabase
+        const { data: newReceipt, error } = await supabase
           .from('receipts')
           .insert({
             receipt_no: receiptNo,
@@ -152,13 +223,26 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
             customer_id: data.customer_id,
             receipt_date: data.receipt_date,
             amount: data.amount,
-            reference: data.reference || null,
+            reference: referenceStr,
             notes: data.notes || null,
             posted: false,
             created_by: user.id,
-          });
+          })
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Create receipt allocation if invoice was selected
+        if (data.invoice_id && newReceipt) {
+          await supabase
+            .from('receipt_allocations')
+            .insert({
+              receipt_id: newReceipt.id,
+              invoice_id: data.invoice_id,
+              amount: data.amount,
+            });
+        }
 
         toast({
           title: "Success",
@@ -192,7 +276,7 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
               <Label>Customer *</Label>
               <Select
                 value={form.watch("customer_id")}
-                onValueChange={(value) => form.setValue("customer_id", value)}
+                onValueChange={handleCustomerChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select customer" />
@@ -211,12 +295,81 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
             </div>
 
             <div className="space-y-2">
+              <Label>Invoice Number (Optional)</Label>
+              <Select
+                value={form.watch("invoice_id") || ""}
+                onValueChange={handleInvoiceSelect}
+                disabled={!form.watch("customer_id") || invoices.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={invoices.length === 0 ? "No invoices available" : "Select invoice"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {invoices.map((invoice) => (
+                    <SelectItem key={invoice.id} value={invoice.id}>
+                      {invoice.invoice_no} - {new Date(invoice.invoice_date).toLocaleDateString()} - Rs. {invoice.grand_total.toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label>Receipt Date *</Label>
               <Input
                 type="date"
                 {...form.register("receipt_date")}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label>Payment Method *</Label>
+              <Select
+                value={form.watch("payment_method")}
+                onValueChange={(value) => {
+                  form.setValue("payment_method", value as any);
+                  setSelectedPaymentMethod(value);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Cash">Cash</SelectItem>
+                  <SelectItem value="Cheque">Cheque</SelectItem>
+                  <SelectItem value="Credit">Credit</SelectItem>
+                </SelectContent>
+              </Select>
+              {form.formState.errors.payment_method && (
+                <p className="text-sm text-destructive">{form.formState.errors.payment_method.message}</p>
+              )}
+            </div>
+
+            {selectedPaymentMethod === "Cheque" && (
+              <>
+                <div className="space-y-2">
+                  <Label>Cheque Number *</Label>
+                  <Input
+                    {...form.register("cheque_no")}
+                    placeholder="Enter cheque number"
+                  />
+                  {form.formState.errors.cheque_no && (
+                    <p className="text-sm text-destructive">{form.formState.errors.cheque_no.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Cheque Date *</Label>
+                  <Input
+                    type="date"
+                    {...form.register("cheque_date")}
+                  />
+                  {form.formState.errors.cheque_date && (
+                    <p className="text-sm text-destructive">{form.formState.errors.cheque_date.message}</p>
+                  )}
+                </div>
+              </>
+            )}
 
             <div className="space-y-2">
               <Label>Amount *</Label>
@@ -230,21 +383,15 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>Payment Method</Label>
-              <Input
-                {...form.register("payment_method")}
-                placeholder="e.g., Cash, Bank Transfer, Cheque"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Reference</Label>
-              <Input
-                {...form.register("reference")}
-                placeholder="e.g., Cheque #, Transfer ID"
-              />
-            </div>
+            {selectedPaymentMethod !== "Cheque" && (
+              <div className="space-y-2">
+                <Label>Reference</Label>
+                <Input
+                  {...form.register("reference")}
+                  placeholder="Enter reference"
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
