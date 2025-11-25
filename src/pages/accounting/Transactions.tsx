@@ -27,7 +27,7 @@ interface Transaction {
   reference?: string;
 }
 
-export default function Transactions() {
+export default function Expenses() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -103,7 +103,7 @@ export default function Transactions() {
 
       toast({
         title: "Success",
-        description: "Transaction deleted successfully",
+        description: "Expense deleted successfully",
       });
 
       fetchTransactions();
@@ -163,9 +163,9 @@ export default function Transactions() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Transactions</h1>
+          <h1 className="text-3xl font-bold">Expenses</h1>
           <p className="text-muted-foreground mt-2">
-            Record and manage financial transactions
+            Record and manage expenses
           </p>
         </div>
         <Button onClick={() => {
@@ -173,7 +173,7 @@ export default function Transactions() {
           setIsDialogOpen(true);
         }}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Transaction
+          Add Expense
         </Button>
       </div>
 
@@ -181,7 +181,7 @@ export default function Transactions() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by transaction no, type, description, or account..."
+            placeholder="Search by expense no, type, description, or account..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -213,7 +213,7 @@ export default function Transactions() {
             ) : filteredTransactions.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                  No transactions found
+                  No expenses found
                 </TableCell>
               </TableRow>
             ) : (
@@ -283,9 +283,9 @@ export default function Transactions() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
+            <AlertDialogTitle>Delete Expense</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete transaction {transactionToDelete?.transaction_no}? This action cannot be undone.
+              Are you sure you want to delete expense {transactionToDelete?.transaction_no}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
