@@ -358,35 +358,43 @@ export default function SupplierCheques() {
                       {getStatusBadge(cheque.status)}
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            variant={cheque.status === 'returned' ? 'ghost' : 'outline'} 
-                            size="sm"
-                            disabled={cheque.status === 'returned'}
-                            className={cheque.status === 'returned' ? 'cursor-not-allowed' : ''}
-                          >
-                            {cheque.status === 'returned' ? 'Returned' : 'Update Status'}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => updateChequeStatus(cheque.payment_id, cheque.cheque_no, 'passed')}
-                            disabled={cheque.status === 'passed'}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
-                            Mark as Passed
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => updateChequeStatus(cheque.payment_id, cheque.cheque_no, 'returned')}
-                            disabled={cheque.status === 'returned'}
-                            className="text-red-600"
-                          >
-                            <XCircle className="h-4 w-4 mr-2 text-red-500" />
-                            Mark as Returned
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {cheque.status === 'returned' ? (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          disabled
+                          className="cursor-not-allowed opacity-50"
+                        >
+                          Returned
+                        </Button>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                            >
+                              Update Status
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => updateChequeStatus(cheque.payment_id, cheque.cheque_no, 'passed')}
+                              disabled={cheque.status === 'passed'}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                              Mark as Passed
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => updateChequeStatus(cheque.payment_id, cheque.cheque_no, 'returned')}
+                              className="text-red-600"
+                            >
+                              <XCircle className="h-4 w-4 mr-2 text-red-500" />
+                              Mark as Returned
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
