@@ -78,8 +78,7 @@ export default function Items() {
 
   const filteredItems = items.filter(item =>
     item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -129,8 +128,6 @@ export default function Items() {
                   <TableHead>Design No</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Color</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
                   <TableHead className="text-right">Sale Price</TableHead>
                   <TableHead className="text-right">Purchase Price</TableHead>
                   <TableHead>{t('common.status')}</TableHead>
@@ -140,7 +137,7 @@ export default function Items() {
               <TableBody>
                 {filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center">
+                    <TableCell colSpan={7} className="text-center">
                       No items found
                     </TableCell>
                   </TableRow>
@@ -150,10 +147,6 @@ export default function Items() {
                       <TableCell className="font-mono">{item.code}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.color || '-'}</TableCell>
-                      <TableCell className="max-w-xs truncate">{item.description || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        {item.stock_quantity?.toFixed(0) || '0'}
-                      </TableCell>
                       <TableCell className="text-right">
                         {item.sale_price?.toLocaleString() || '-'}
                       </TableCell>
