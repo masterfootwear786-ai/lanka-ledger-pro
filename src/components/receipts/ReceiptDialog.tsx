@@ -19,6 +19,9 @@ const receiptSchema = z.object({
   payment_method: z.enum(["Cash", "Cheque", "Credit"]),
   cheque_no: z.string().optional(),
   cheque_date: z.string().optional(),
+  cheque_bank: z.string().optional(),
+  cheque_branch: z.string().optional(),
+  cheque_holder: z.string().optional(),
   reference: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -172,6 +175,15 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
         referenceStr = `Cheque No: ${data.cheque_no}`;
         if (data.cheque_date) {
           referenceStr += ` | Date: ${data.cheque_date}`;
+        }
+        if (data.cheque_bank) {
+          referenceStr += ` | Bank: ${data.cheque_bank}`;
+        }
+        if (data.cheque_branch) {
+          referenceStr += ` | Branch: ${data.cheque_branch}`;
+        }
+        if (data.cheque_holder) {
+          referenceStr += ` | Holder: ${data.cheque_holder}`;
         }
       } else if (data.reference) {
         referenceStr = data.reference;
@@ -367,6 +379,30 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
                   {form.formState.errors.cheque_date && (
                     <p className="text-sm text-destructive">{form.formState.errors.cheque_date.message}</p>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Bank Name</Label>
+                  <Input
+                    {...form.register("cheque_bank")}
+                    placeholder="Enter bank name"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Branch</Label>
+                  <Input
+                    {...form.register("cheque_branch")}
+                    placeholder="Enter branch name"
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label>Account Holder Name</Label>
+                  <Input
+                    {...form.register("cheque_holder")}
+                    placeholder="Enter account holder name"
+                  />
                 </div>
               </>
             )}
