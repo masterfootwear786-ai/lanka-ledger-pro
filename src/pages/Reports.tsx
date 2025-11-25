@@ -17,13 +17,6 @@ export default function Reports() {
       color: "text-blue-500"
     },
     {
-      title: t("reports.balanceSheet"),
-      description: "Balance sheet report",
-      icon: FileSpreadsheet,
-      path: "/reports/balance-sheet",
-      color: "text-green-500"
-    },
-    {
       title: t("reports.cashFlow"),
       description: "Cash flow statement",
       icon: DollarSign,
