@@ -38,22 +38,22 @@ export default function Reports() {
       color: "text-orange-500"
     },
     {
-      title: t("reports.profitLoss"),
-      description: "Profit and loss statement",
+      title: "Profit & Loss",
+      description: "Comprehensive profit and loss statement",
       icon: FileText,
       path: "/reports/profit-loss",
       color: "text-pink-500"
     },
     {
-      title: t("reports.arAging"),
-      description: "Accounts receivable aging analysis",
+      title: "AR Aging",
+      description: "Accounts receivable aging analysis by customer",
       icon: FileText,
       path: "/reports/ar-aging",
       color: "text-indigo-500"
     },
     {
-      title: t("reports.apAging"),
-      description: "Accounts payable aging analysis",
+      title: "AP Aging",
+      description: "Accounts payable aging analysis by supplier",
       icon: FileText,
       path: "/reports/ap-aging",
       color: "text-red-500"
