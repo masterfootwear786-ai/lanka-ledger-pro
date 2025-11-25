@@ -56,38 +56,6 @@ export default function ChartOfAccounts() {
     if (!accountToDelete) return;
 
     try {
-      // Check if account is being used in any transactions
-      const [
-        { count: journalCount },
-        { count: billLinesCount },
-        { count: invoiceLinesCount },
-        { count: bankStatementsCount },
-        { count: billPaymentsCount },
-        { count: receiptsCount }
-      ] = await Promise.all([
-        supabase.from('journal_lines').select('*', { count: 'exact', head: true }).eq('account_id', accountToDelete.id),
-        supabase.from('bill_lines').select('*', { count: 'exact', head: true }).eq('account_id', accountToDelete.id),
-        supabase.from('invoice_lines').select('*', { count: 'exact', head: true }).eq('account_id', accountToDelete.id),
-        supabase.from('bank_statements').select('*', { count: 'exact', head: true }).eq('bank_account_id', accountToDelete.id),
-        supabase.from('bill_payments').select('*', { count: 'exact', head: true }).eq('bank_account_id', accountToDelete.id),
-        supabase.from('receipts').select('*', { count: 'exact', head: true }).eq('bank_account_id', accountToDelete.id)
-      ]);
-
-      const totalUsage = (journalCount || 0) + (billLinesCount || 0) + (invoiceLinesCount || 0) + 
-                         (bankStatementsCount || 0) + (billPaymentsCount || 0) + (receiptsCount || 0);
-
-      if (totalUsage > 0) {
-        toast({
-          title: "Cannot Delete Account",
-          description: "This account is being used in transactions and cannot be deleted. You can deactivate it instead.",
-          variant: "destructive",
-        });
-        setDeleteDialogOpen(false);
-        setAccountToDelete(null);
-        return;
-      }
-
-      // If no usage found, proceed with deletion
       const { error } = await supabase
         .from('chart_of_accounts')
         .delete()
