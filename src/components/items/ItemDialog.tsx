@@ -32,6 +32,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
     stock_quantity: "0",
     sale_price: "",
     purchase_price: "",
+    low_stock_threshold: "10",
     track_inventory: true,
     active: true,
   });
@@ -68,6 +69,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         stock_quantity: item.stock_quantity?.toString() || "0",
         sale_price: item.sale_price?.toString() || "",
         purchase_price: item.purchase_price?.toString() || "",
+        low_stock_threshold: item.low_stock_threshold?.toString() || "10",
         track_inventory: item.track_inventory ?? true,
         active: item.active ?? true,
       });
@@ -82,6 +84,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         stock_quantity: "0",
         sale_price: "",
         purchase_price: "",
+        low_stock_threshold: "10",
         track_inventory: true,
         active: true,
       });
@@ -116,6 +119,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
           stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
           sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
           purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
+          low_stock_threshold: formData.low_stock_threshold ? parseFloat(formData.low_stock_threshold) : 10,
         };
         
         const { error } = await supabase
@@ -154,6 +158,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
           stock_quantity: 0, // Always start with 0 stock
           sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
           purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
+          low_stock_threshold: formData.low_stock_threshold ? parseFloat(formData.low_stock_threshold) : 10,
           track_inventory: formData.track_inventory,
           active: formData.active,
           company_id: profile.company_id,
@@ -336,6 +341,17 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 step="0.01"
                 value={formData.purchase_price}
                 onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="low_stock_threshold">Low Stock Warning Limit</Label>
+              <Input
+                id="low_stock_threshold"
+                type="number"
+                step="1"
+                value={formData.low_stock_threshold}
+                onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })}
+                placeholder="10"
               />
             </div>
           </div>

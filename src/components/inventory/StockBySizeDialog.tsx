@@ -54,7 +54,7 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
   const fetchItems = async () => {
     const { data, error } = await supabase
       .from("items")
-      .select("*")
+      .select("id, code, color, name, low_stock_threshold")
       .eq("track_inventory", true)
       .eq("active", true)
       .order("code");
@@ -167,6 +167,13 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
             <p className="text-sm text-muted-foreground mb-4">
               Enter positive numbers to add stock, negative numbers to reduce stock
             </p>
+            {selectedItem && selectedItem.low_stock_threshold && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <p className="text-sm text-amber-800">
+                  ⚠️ <strong>Low Stock Warning:</strong> Items below {selectedItem.low_stock_threshold} pieces will be highlighted in red
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-4 gap-4">
               {(['39', '40', '41', '42', '43', '44', '45'] as const).map((size) => (
                 <div key={size} className="space-y-2">

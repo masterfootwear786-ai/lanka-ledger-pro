@@ -1142,6 +1142,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          low_stock_threshold: number | null
           name: string
           purchase_price: number | null
           sale_price: number | null
@@ -1162,6 +1163,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          low_stock_threshold?: number | null
           name: string
           purchase_price?: number | null
           sale_price?: number | null
@@ -1182,6 +1184,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           id?: string
+          low_stock_threshold?: number | null
           name?: string
           purchase_price?: number | null
           sale_price?: number | null
