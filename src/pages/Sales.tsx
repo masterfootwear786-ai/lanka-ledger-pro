@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Users, Receipt } from "lucide-react";
+import { FileText, Users, Receipt, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -29,6 +29,13 @@ export default function Sales() {
       icon: Receipt,
       path: "/sales/receipts",
       color: "text-purple-500"
+    },
+    {
+      title: "Cheques",
+      description: "View and manage cheque payments",
+      icon: CreditCard,
+      path: "/sales/cheques",
+      color: "text-orange-500"
     }
   ];
 
