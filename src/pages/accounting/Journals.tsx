@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Search, Eye, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { JournalDialog } from "@/components/accounting/JournalDialog";
 
 export default function Journals() {
   const { t } = useTranslation();
@@ -18,6 +19,8 @@ export default function Journals() {
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [journalToDelete, setJournalToDelete] = useState<any>(null);
+  const [journalDialogOpen, setJournalDialogOpen] = useState(false);
+  const [selectedJournal, setSelectedJournal] = useState<any>(null);
 
   useEffect(() => {
     fetchJournals();
@@ -90,7 +93,10 @@ export default function Journals() {
           <h1 className="text-3xl font-bold">{t('accounting.journals')}</h1>
           <p className="text-muted-foreground mt-2">Manage journal entries</p>
         </div>
-        <Button>
+        <Button onClick={() => {
+          setSelectedJournal(null);
+          setJournalDialogOpen(true);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Create Journal Entry
         </Button>
@@ -153,7 +159,10 @@ export default function Journals() {
                         <Button variant="ghost" size="sm">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setSelectedJournal(journal);
+                          setJournalDialogOpen(true);
+                        }}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(journal)}>
@@ -183,6 +192,13 @@ export default function Journals() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <JournalDialog
+        open={journalDialogOpen}
+        onOpenChange={setJournalDialogOpen}
+        journal={selectedJournal}
+        onSuccess={fetchJournals}
+      />
     </div>
   );
 }
