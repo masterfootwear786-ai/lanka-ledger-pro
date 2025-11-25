@@ -2,10 +2,17 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, CreditCard } from "lucide-react";
+import { Search, CreditCard, CheckCircle, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ChequeDetail {
   cheque_no: string;
@@ -14,6 +21,7 @@ interface ChequeDetail {
   cheque_bank: string;
   cheque_branch: string;
   cheque_holder: string;
+  status?: 'pending' | 'passed' | 'returned';
 }
 
 interface ReceiptWithCheques {
@@ -103,11 +111,74 @@ export default function Cheques() {
   const allCheques = filteredCheques.flatMap(receipt => 
     receipt.cheques.map(cheque => ({
       ...cheque,
+      receipt_id: receipt.id,
       receipt_no: receipt.receipt_no,
       receipt_date: receipt.receipt_date,
       customer_name: receipt.customer?.name
     }))
   );
+
+  const updateChequeStatus = async (receiptId: string, chequeNo: string, status: 'passed' | 'returned') => {
+    try {
+      // Find the receipt
+      const receipt = receiptsWithCheques.find(r => r.id === receiptId);
+      if (!receipt) return;
+
+      // Update cheque status in the array
+      const updatedCheques = receipt.cheques.map(cheque => 
+        cheque.cheque_no === chequeNo 
+          ? { ...cheque, status }
+          : cheque
+      );
+
+      // Update receipt reference field
+      const { error } = await supabase
+        .from('receipts')
+        .update({ reference: JSON.stringify(updatedCheques) })
+        .eq('id', receiptId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `Cheque ${chequeNo} marked as ${status}`,
+      });
+
+      fetchCheques();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'passed':
+        return (
+          <Badge className="bg-green-500 hover:bg-green-600">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Passed
+          </Badge>
+        );
+      case 'returned':
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            Returned
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        );
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -151,6 +222,8 @@ export default function Cheques() {
                 <TableHead>Branch</TableHead>
                 <TableHead>Holder</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -179,6 +252,32 @@ export default function Cheques() {
                     <TableCell>{cheque.cheque_holder || '-'}</TableCell>
                     <TableCell className="text-right font-medium">
                       {Number(cheque.amount).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(cheque.status)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            Update Status
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={() => updateChequeStatus(cheque.receipt_id, cheque.cheque_no, 'passed')}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                            Mark as Passed
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => updateChequeStatus(cheque.receipt_id, cheque.cheque_no, 'returned')}
+                          >
+                            <XCircle className="h-4 w-4 mr-2 text-red-500" />
+                            Mark as Returned
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
