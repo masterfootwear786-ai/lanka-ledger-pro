@@ -162,8 +162,7 @@ export default function SupplierCheques() {
       const { error: updateError } = await supabase
         .from('bill_payments')
         .update({ 
-          reference: JSON.stringify(updatedCheques),
-          updated_at: new Date().toISOString()
+          reference: JSON.stringify(updatedCheques)
         })
         .eq('id', paymentId);
 
