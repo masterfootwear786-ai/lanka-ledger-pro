@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
@@ -356,6 +357,7 @@ export default function Invoices() {
                 <TableHead>{t("common.date")}</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>City</TableHead>
+                <TableHead>Payment Type</TableHead>
                 <TableHead className="text-right">{t("common.amount")}</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
                 <TableHead className="text-right">{t("common.actions")}</TableHead>
@@ -364,13 +366,13 @@ export default function Invoices() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : filteredInvoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     No invoices found
                   </TableCell>
                 </TableRow>
@@ -381,6 +383,58 @@ export default function Invoices() {
                     <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
                     <TableCell>{invoice.customer?.name || "N/A"}</TableCell>
                     <TableCell>{invoice.customer?.area || "-"}</TableCell>
+                    <TableCell>
+                      <Select
+                        value={(() => {
+                          try {
+                            const terms = invoice.terms;
+                            if (!terms) return "cash";
+                            const parsed = typeof terms === 'string' && terms.startsWith('{') 
+                              ? JSON.parse(terms) 
+                              : null;
+                            return parsed?.payment_method || terms;
+                          } catch {
+                            return invoice.terms || "cash";
+                          }
+                        })()}
+                        onValueChange={async (value) => {
+                          try {
+                            const { error } = await supabase
+                              .from('invoices')
+                              .update({ 
+                                terms: value === 'cheque' 
+                                  ? JSON.stringify({ payment_method: 'cheque', cheques: [] })
+                                  : value 
+                              })
+                              .eq('id', invoice.id);
+                            
+                            if (error) throw error;
+                            
+                            toast({
+                              title: "Success",
+                              description: "Payment type updated successfully.",
+                            });
+                            
+                            fetchInvoices();
+                          } catch (error: any) {
+                            toast({
+                              title: "Error",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[120px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="credit">Credit</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell className="text-right">{invoice.grand_total?.toLocaleString() || "0"}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(invoice.status)}>{t(`status.${invoice.status}`)}</Badge>
