@@ -143,7 +143,6 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
             <Select
               value={formData.item_id}
               onValueChange={(value) => setFormData({ ...formData, item_id: value })}
-              disabled={!!preSelectedItem}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select item" />
