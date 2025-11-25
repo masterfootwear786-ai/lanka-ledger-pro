@@ -15,7 +15,6 @@ interface CustomerData {
 interface StatsData {
   totalInvoiced: number;
   totalPaid: number;
-  totalCredited: number;
   outstanding: number;
 }
 
@@ -32,7 +31,6 @@ export interface StatementOptions {
   dateTo?: Date;
   includeInvoices?: boolean;
   includeReceipts?: boolean;
-  includeCreditNotes?: boolean;
   showRunningBalance?: boolean;
   includeAccountSummary?: boolean;
   notes?: string;
@@ -61,9 +59,6 @@ export const generateCustomerStatement = (
   }
   if (options?.includeReceipts === false) {
     filteredTransactions = filteredTransactions.filter(txn => txn.type !== "Receipt");
-  }
-  if (options?.includeCreditNotes === false) {
-    filteredTransactions = filteredTransactions.filter(txn => txn.type !== "Credit Note");
   }
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -121,7 +116,6 @@ export const generateCustomerStatement = (
       body: [
         ["Total Invoiced", stats.totalInvoiced.toLocaleString("en-US", { minimumFractionDigits: 2 })],
         ["Total Paid", stats.totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })],
-        ["Total Credited", stats.totalCredited.toLocaleString("en-US", { minimumFractionDigits: 2 })],
         ["Outstanding Balance", stats.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ],
       theme: "striped",

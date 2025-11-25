@@ -27,7 +27,6 @@ interface CustomerData {
 interface StatsData {
   totalInvoiced: number;
   totalPaid: number;
-  totalCredited: number;
   outstanding: number;
 }
 
@@ -71,9 +70,6 @@ export default function StatementPreviewDialog({
   }
   if (options.includeReceipts === false) {
     filteredTransactions = filteredTransactions.filter(txn => txn.type !== "Receipt");
-  }
-  if (options.includeCreditNotes === false) {
-    filteredTransactions = filteredTransactions.filter(txn => txn.type !== "Credit Note");
   }
 
   let runningBalance = 0;
@@ -181,12 +177,6 @@ export default function StatementPreviewDialog({
                       <TableCell>Total Paid</TableCell>
                       <TableCell className="text-right font-medium">
                         {stats.totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>Total Credited</TableCell>
-                      <TableCell className="text-right font-medium">
-                        {stats.totalCredited.toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
                     <TableRow className="bg-muted">

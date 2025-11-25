@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileX, FileEdit } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileEdit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -23,11 +23,9 @@ export default function CustomerDetails() {
   const [customer, setCustomer] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [receipts, setReceipts] = useState<any[]>([]);
-  const [creditNotes, setCreditNotes] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalInvoiced: 0,
     totalPaid: 0,
-    totalCredited: 0,
     outstanding: 0,
   });
   const [showStatementDialog, setShowStatementDialog] = useState(false);
@@ -47,35 +45,29 @@ export default function CustomerDetails() {
       const [
         { data: customerData, error: customerError },
         { data: invoicesData, error: invoicesError },
-        { data: receiptsData, error: receiptsError },
-        { data: creditNotesData, error: creditNotesError }
+        { data: receiptsData, error: receiptsError }
       ] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", id).single(),
         supabase.from("invoices").select("*").eq("customer_id", id).order("invoice_date", { ascending: false }),
-        supabase.from("receipts").select("*").eq("customer_id", id).order("receipt_date", { ascending: false }),
-        supabase.from("credit_notes").select("*").eq("customer_id", id).order("credit_date", { ascending: false })
+        supabase.from("receipts").select("*").eq("customer_id", id).order("receipt_date", { ascending: false })
       ]);
 
       if (customerError) throw customerError;
       if (invoicesError) throw invoicesError;
       if (receiptsError) throw receiptsError;
-      if (creditNotesError) throw creditNotesError;
 
       setCustomer(customerData);
       setInvoices(invoicesData || []);
       setReceipts(receiptsData || []);
-      setCreditNotes(creditNotesData || []);
 
       // Calculate statistics
       const totalInvoiced = invoicesData?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
       const totalPaid = receiptsData?.reduce((sum, rec) => sum + (rec.amount || 0), 0) || 0;
-      const totalCredited = creditNotesData?.reduce((sum, cn) => sum + (cn.grand_total || 0), 0) || 0;
-      const outstanding = totalInvoiced - totalPaid - totalCredited;
+      const outstanding = totalInvoiced - totalPaid;
 
       setStats({
         totalInvoiced,
         totalPaid,
-        totalCredited,
         outstanding,
       });
     } catch (error: any) {
@@ -112,13 +104,6 @@ export default function CustomerDetails() {
         reference: rec.receipt_no,
         debit: 0,
         credit: rec.amount || 0,
-      })),
-      ...creditNotes.map((cn) => ({
-        date: cn.credit_date,
-        type: "Credit Note",
-        reference: cn.credit_note_no,
-        debit: 0,
-        credit: cn.grand_total || 0,
       })),
     ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
@@ -276,7 +261,7 @@ export default function CustomerDetails() {
       </div>
 
       {/* Customer Info Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Invoiced</CardTitle>
@@ -294,16 +279,6 @@ export default function CustomerDetails() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalPaid.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Credited</CardTitle>
-            <FileX className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalCredited.toLocaleString()}</div>
           </CardContent>
         </Card>
 
@@ -373,9 +348,6 @@ export default function CustomerDetails() {
           </TabsTrigger>
           <TabsTrigger value="receipts">
             Receipts ({receipts.length})
-          </TabsTrigger>
-          <TabsTrigger value="credit-notes">
-            Credit Notes ({creditNotes.length})
           </TabsTrigger>
           <TabsTrigger value="history">
             Complete History
@@ -466,46 +438,6 @@ export default function CustomerDetails() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="credit-notes" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Credit Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Credit Note No</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {creditNotes.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center">No credit notes found</TableCell>
-                    </TableRow>
-                  ) : (
-                    creditNotes.map((note) => (
-                      <TableRow key={note.id}>
-                        <TableCell className="font-mono">{note.credit_note_no}</TableCell>
-                        <TableCell>{format(new Date(note.credit_date), "PPP")}</TableCell>
-                        <TableCell className="text-sm">{note.reason || "-"}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {note.grand_total?.toLocaleString()}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(note.status)}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardHeader>
@@ -539,13 +471,6 @@ export default function CustomerDetails() {
                         reference: rec.receipt_no,
                         debit: 0,
                         credit: rec.amount,
-                      })),
-                      ...creditNotes.map((cn) => ({
-                        date: cn.credit_date,
-                        type: "Credit Note",
-                        reference: cn.credit_note_no,
-                        debit: 0,
-                        credit: cn.grand_total,
                       })),
                     ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
