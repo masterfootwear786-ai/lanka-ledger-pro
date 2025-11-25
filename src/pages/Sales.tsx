@@ -17,13 +17,6 @@ export default function Sales() {
       color: "text-blue-500"
     },
     {
-      title: t("sales.customers"),
-      description: "Manage customer information",
-      icon: Users,
-      path: "/sales/customers",
-      color: "text-green-500"
-    },
-    {
       title: t("sales.receipts"),
       description: "Record customer payments",
       icon: Receipt,
@@ -36,6 +29,13 @@ export default function Sales() {
       icon: CreditCard,
       path: "/sales/cheques",
       color: "text-orange-500"
+    },
+    {
+      title: t("sales.customers"),
+      description: "Manage customer information",
+      icon: Users,
+      path: "/sales/customers",
+      color: "text-green-500"
     }
   ];
 
