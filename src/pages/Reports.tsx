@@ -31,13 +31,6 @@ export default function Reports() {
       color: "text-purple-500"
     },
     {
-      title: t("reports.trialBalance"),
-      description: "Trial balance report",
-      icon: BarChart3,
-      path: "/reports/trial-balance",
-      color: "text-orange-500"
-    },
-    {
       title: "Aged Receivables",
       description: "Customer outstanding report",
       icon: FileText,
