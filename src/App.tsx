@@ -35,6 +35,7 @@ import SupplierCheques from "./pages/purchasing/SupplierCheques";
 import Items from "./pages/inventory/Items";
 import Stock from "./pages/inventory/Stock";
 import ChartOfAccounts from "./pages/accounting/ChartOfAccounts";
+import Transactions from "./pages/accounting/Transactions";
 import GeneralLedger from "./pages/accounting/GeneralLedger";
 import Settings from "./pages/Settings";
 import Company from "./pages/settings/Company";
@@ -98,6 +99,7 @@ const App = () => (
               <Route path="/inventory/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
               {/* Accounting routes */}
               <Route path="/accounting/coa" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
+              <Route path="/accounting/transactions" element={<ProtectedRoute><Transactions /></ProtectedRoute>} />
               <Route path="/accounting/general-ledger" element={<ProtectedRoute><GeneralLedger /></ProtectedRoute>} />
               {/* Reports routes */}
               <Route path="/reports/trial-balance" element={<ProtectedRoute><TrialBalance /></ProtectedRoute>} />

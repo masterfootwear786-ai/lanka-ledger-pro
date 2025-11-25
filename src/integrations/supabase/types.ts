@@ -2138,6 +2138,69 @@ export type Database = {
           },
         ]
       }
+      transactions: {
+        Row: {
+          account_id: string | null
+          amount: number
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string
+          id: string
+          reference: string | null
+          transaction_date: string
+          transaction_no: string
+          transaction_type: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          amount?: number
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description: string
+          id?: string
+          reference?: string | null
+          transaction_date?: string
+          transaction_no: string
+          transaction_type: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string
+          id?: string
+          reference?: string | null
+          transaction_date?: string
+          transaction_no?: string
+          transaction_type?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           company_id: string

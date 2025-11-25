@@ -59,6 +59,7 @@ export function AppSidebar() {
 
   const accountingItems = [
     { title: t('accounting.chartOfAccounts'), url: '/accounting/coa' },
+    { title: 'Transactions', url: '/accounting/transactions' },
     { title: t('accounting.generalLedger'), url: '/accounting/general-ledger' },
   ];
 
