@@ -37,13 +37,34 @@ export default function Items() {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: itemsData, error: itemsError } = await supabase
         .from("items")
         .select("*")
         .order("code");
       
-      if (error) throw error;
-      setItems(data || []);
+      if (itemsError) throw itemsError;
+
+      // Fetch stock data
+      const { data: stockData, error: stockError } = await supabase
+        .from("stock_by_size")
+        .select("*");
+      
+      if (stockError) throw stockError;
+
+      // Calculate total stock for each item
+      const stockMap = new Map<string, number>();
+      stockData?.forEach(stock => {
+        const currentTotal = stockMap.get(stock.item_id) || 0;
+        stockMap.set(stock.item_id, currentTotal + (stock.quantity || 0));
+      });
+
+      // Add total stock to items
+      const itemsWithStock = itemsData?.map(item => ({
+        ...item,
+        totalStock: stockMap.get(item.id) || 0
+      })) || [];
+
+      setItems(itemsWithStock);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -128,6 +149,7 @@ export default function Items() {
                   <TableHead>Design No</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Color</TableHead>
+                  <TableHead className="text-right">Total Stock</TableHead>
                   <TableHead className="text-right">Sale Price</TableHead>
                   <TableHead className="text-right">Purchase Price</TableHead>
                   <TableHead>{t('common.status')}</TableHead>
@@ -137,7 +159,7 @@ export default function Items() {
               <TableBody>
                 {filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={8} className="text-center">
                       No items found
                     </TableCell>
                   </TableRow>
@@ -147,6 +169,9 @@ export default function Items() {
                       <TableCell className="font-mono">{item.code}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>{item.color || '-'}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {item.totalStock || 0}
+                      </TableCell>
                       <TableCell className="text-right">
                         {item.sale_price?.toLocaleString() || '-'}
                       </TableCell>
