@@ -122,22 +122,49 @@ export default function SupplierCheques() {
     try {
       // Find the payment
       const payment = paymentsWithCheques.find(p => p.id === paymentId);
-      if (!payment) return;
+      if (!payment) {
+        toast({
+          title: "Error",
+          description: "Payment not found",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const cheque = payment.cheques.find(c => c.cheque_no === chequeNo);
-      if (!cheque) return;
+      if (!cheque) {
+        toast({
+          title: "Error",
+          description: "Cheque not found",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prevent changing from returned back to other statuses
+      if (cheque.status === 'returned' && status !== 'returned') {
+        toast({
+          title: "Cannot Update",
+          description: "Cannot change status of a returned cheque. Please create a new payment instead.",
+          variant: "destructive",
+        });
+        return;
+      }
 
       // Update cheque status in the array
-      const updatedCheques = payment.cheques.map(cheque => 
-        cheque.cheque_no === chequeNo 
-          ? { ...cheque, status }
-          : cheque
+      const updatedCheques = payment.cheques.map(c => 
+        c.cheque_no === chequeNo 
+          ? { ...c, status }
+          : c
       );
 
-      // Update payment reference field
+      // Update payment reference field with new status
       const { error: updateError } = await supabase
         .from('bill_payments')
-        .update({ reference: JSON.stringify(updatedCheques) })
+        .update({ 
+          reference: JSON.stringify(updatedCheques),
+          updated_at: new Date().toISOString()
+        })
         .eq('id', paymentId);
 
       if (updateError) throw updateError;
@@ -147,17 +174,15 @@ export default function SupplierCheques() {
         // Get payment allocations for this payment
         const { data: allocations, error: allocError } = await supabase
           .from('payment_allocations')
-          .select('id, amount')
+          .select('id, amount, bill_id')
           .eq('payment_id', paymentId);
 
         if (allocError) throw allocError;
 
         if (allocations && allocations.length > 0) {
-          // Calculate proportional amount to reverse based on cheque amount
-          const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
           let remainingToReverse = cheque.amount;
 
-          // Delete allocations proportionally
+          // Delete or reduce allocations proportionally
           for (const allocation of allocations) {
             if (remainingToReverse <= 0) break;
             
@@ -183,17 +208,26 @@ export default function SupplierCheques() {
             
             remainingToReverse -= amountToReverse;
           }
+
+          toast({
+            title: "Success",
+            description: `Cheque ${chequeNo} marked as returned. Supplier outstanding balance has been increased by ${cheque.amount.toLocaleString()}`,
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: `Cheque ${chequeNo} marked as returned`,
+          });
         }
+      } else {
+        toast({
+          title: "Success",
+          description: `Cheque ${chequeNo} marked as ${status}`,
+        });
       }
 
-      toast({
-        title: "Success",
-        description: status === 'returned' 
-          ? `Cheque ${chequeNo} marked as returned and outstanding balance updated`
-          : `Cheque ${chequeNo} marked as ${status}`,
-      });
-
-      fetchCheques();
+      // Refresh the list to show updated status
+      await fetchCheques();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -308,19 +342,26 @@ export default function SupplierCheques() {
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            Update Status
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            disabled={cheque.status === 'returned'}
+                          >
+                            {cheque.status === 'returned' ? 'Returned' : 'Update Status'}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onClick={() => updateChequeStatus(cheque.payment_id, cheque.cheque_no, 'passed')}
+                            disabled={cheque.status === 'passed'}
                           >
                             <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
                             Mark as Passed
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => updateChequeStatus(cheque.payment_id, cheque.cheque_no, 'returned')}
+                            disabled={cheque.status === 'returned'}
+                            className="text-red-600"
                           >
                             <XCircle className="h-4 w-4 mr-2 text-red-500" />
                             Mark as Returned
