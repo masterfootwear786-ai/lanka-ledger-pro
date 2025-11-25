@@ -343,9 +343,10 @@ export default function SupplierCheques() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button 
-                            variant="ghost" 
+                            variant={cheque.status === 'returned' ? 'ghost' : 'outline'} 
                             size="sm"
                             disabled={cheque.status === 'returned'}
+                            className={cheque.status === 'returned' ? 'cursor-not-allowed' : ''}
                           >
                             {cheque.status === 'returned' ? 'Returned' : 'Update Status'}
                           </Button>
