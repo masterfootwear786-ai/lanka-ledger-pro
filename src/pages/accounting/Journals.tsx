@@ -58,39 +58,43 @@ export default function Journals() {
   const handleDelete = async () => {
     if (!journalToDelete) return;
 
-    setLoading(true);
-
+    const deletedJournalId = journalToDelete.id;
+    
     try {
+      // Optimistically remove from UI
+      setJournals(journals.filter(j => j.id !== deletedJournalId));
+      
+      // Close dialog immediately for better UX
+      setDeleteDialogOpen(false);
+      setJournalToDelete(null);
+
       // First delete journal lines
       const { error: linesError } = await supabase
         .from('journal_lines')
         .delete()
-        .eq('journal_id', journalToDelete.id);
+        .eq('journal_id', deletedJournalId);
 
       if (linesError) {
         console.error('Delete lines error:', linesError);
+        // Revert optimistic update
+        await fetchJournals();
         throw linesError;
       }
 
       // Then delete the journal
-      const { error } = await supabase
+      const { error: journalError } = await supabase
         .from('journals')
         .delete()
-        .eq('id', journalToDelete.id);
+        .eq('id', deletedJournalId);
 
-      if (error) {
-        console.error('Delete journal error:', error);
-        throw error;
+      if (journalError) {
+        console.error('Delete journal error:', journalError);
+        // Revert optimistic update
+        await fetchJournals();
+        throw journalError;
       }
 
-      // Close dialog and reset state
-      setDeleteDialogOpen(false);
-      setJournalToDelete(null);
-
-      // Refresh the list
-      await fetchJournals();
-
-      // Show success message after refresh
+      // Show success message
       toast({
         title: "Success",
         description: "Journal entry deleted successfully",
@@ -102,10 +106,6 @@ export default function Journals() {
         description: error.message || "Failed to delete journal entry",
         variant: "destructive",
       });
-      setDeleteDialogOpen(false);
-      setJournalToDelete(null);
-    } finally {
-      setLoading(false);
     }
   };
 
