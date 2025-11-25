@@ -49,6 +49,7 @@ export function AppSidebar() {
     { title: t('purchasing.bills'), url: '/purchasing/bills' },
     { title: t('purchasing.debitNotes'), url: '/purchasing/debit-notes' },
     { title: t('purchasing.payments'), url: '/purchasing/payments' },
+    { title: 'Supplier Cheques', url: '/purchasing/cheques' },
     { title: t('purchasing.suppliers'), url: '/purchasing/suppliers' },
   ];
 
