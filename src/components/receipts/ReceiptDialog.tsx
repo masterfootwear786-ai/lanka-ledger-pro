@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Plus, Trash2 } from "lucide-react";
 
 const receiptSchema = z.object({
   customer_id: z.string().min(1, "Customer is required"),
@@ -17,14 +18,18 @@ const receiptSchema = z.object({
   receipt_date: z.string(),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
   payment_method: z.enum(["Cash", "Cheque", "Credit"]),
-  cheque_no: z.string().optional(),
-  cheque_date: z.string().optional(),
-  cheque_bank: z.string().optional(),
-  cheque_branch: z.string().optional(),
-  cheque_holder: z.string().optional(),
   reference: z.string().optional(),
   notes: z.string().optional(),
 });
+
+interface ChequeDetails {
+  cheque_no: string;
+  cheque_date: string;
+  cheque_bank: string;
+  cheque_branch: string;
+  cheque_holder: string;
+  amount: number;
+}
 
 type ReceiptFormData = z.infer<typeof receiptSchema>;
 
@@ -41,6 +46,15 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("Cash");
+  const [cheques, setCheques] = useState<ChequeDetails[]>([]);
+  const [currentCheque, setCurrentCheque] = useState<ChequeDetails>({
+    cheque_no: "",
+    cheque_date: new Date().toISOString().split('T')[0],
+    cheque_bank: "",
+    cheque_branch: "",
+    cheque_holder: "",
+    amount: 0,
+  });
 
   const form = useForm<ReceiptFormData>({
     resolver: zodResolver(receiptSchema),
@@ -57,21 +71,44 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
       
       if (receipt) {
         // Load existing receipt data
-        const paymentMethod = receipt.reference?.includes("CHQ") ? "Cheque" : 
+        const paymentMethod = receipt.reference?.includes("CHQ") || receipt.reference?.includes("Cheque") ? "Cheque" : 
                               receipt.reference?.includes("CREDIT") ? "Credit" : "Cash";
         setSelectedPaymentMethod(paymentMethod);
+        
+        // Parse cheques from reference if payment method is Cheque
+        if (paymentMethod === "Cheque" && receipt.reference) {
+          try {
+            const parsed = JSON.parse(receipt.reference);
+            if (Array.isArray(parsed)) {
+              setCheques(parsed);
+            }
+          } catch {
+            setCheques([]);
+          }
+        } else {
+          setCheques([]);
+        }
         
         form.reset({
           customer_id: receipt.customer_id,
           receipt_date: receipt.receipt_date,
           amount: receipt.amount,
           payment_method: paymentMethod as any,
-          reference: receipt.reference || "",
+          reference: paymentMethod !== "Cheque" ? (receipt.reference || "") : "",
           notes: receipt.notes || "",
         });
       } else {
         // New receipt
         setSelectedPaymentMethod("Cash");
+        setCheques([]);
+        setCurrentCheque({
+          cheque_no: "",
+          cheque_date: new Date().toISOString().split('T')[0],
+          cheque_bank: "",
+          cheque_branch: "",
+          cheque_holder: "",
+          amount: 0,
+        });
         form.reset({
           receipt_date: new Date().toISOString().split('T')[0],
           amount: 0,
@@ -131,9 +168,46 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
   const handleInvoiceSelect = (invoiceId: string) => {
     form.setValue("invoice_id", invoiceId);
     const invoice = invoices.find(inv => inv.id === invoiceId);
-    if (invoice) {
+    if (invoice && selectedPaymentMethod !== "Cheque") {
       form.setValue("amount", invoice.grand_total);
     }
+  };
+
+  const addCheque = () => {
+    if (!currentCheque.cheque_no || !currentCheque.cheque_date || currentCheque.amount <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter cheque number, date, and amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newCheques = [...cheques, currentCheque];
+    setCheques(newCheques);
+    
+    // Calculate total amount from all cheques
+    const totalAmount = newCheques.reduce((sum, chq) => sum + chq.amount, 0);
+    form.setValue("amount", totalAmount);
+
+    // Reset current cheque form
+    setCurrentCheque({
+      cheque_no: "",
+      cheque_date: new Date().toISOString().split('T')[0],
+      cheque_bank: "",
+      cheque_branch: "",
+      cheque_holder: "",
+      amount: 0,
+    });
+  };
+
+  const removeCheque = (index: number) => {
+    const newCheques = cheques.filter((_, i) => i !== index);
+    setCheques(newCheques);
+    
+    // Recalculate total amount
+    const totalAmount = newCheques.reduce((sum, chq) => sum + chq.amount, 0);
+    form.setValue("amount", totalAmount);
   };
 
   const generateReceiptNo = async () => {
@@ -171,19 +245,18 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
 
       // Build reference string based on payment method
       let referenceStr: string = "";
-      if (data.payment_method === "Cheque" && data.cheque_no) {
-        referenceStr = `Cheque No: ${data.cheque_no}`;
-        if (data.cheque_date) {
-          referenceStr += ` | Date: ${data.cheque_date}`;
-        }
-        if (data.cheque_bank) {
-          referenceStr += ` | Bank: ${data.cheque_bank}`;
-        }
-        if (data.cheque_branch) {
-          referenceStr += ` | Branch: ${data.cheque_branch}`;
-        }
-        if (data.cheque_holder) {
-          referenceStr += ` | Holder: ${data.cheque_holder}`;
+      if (data.payment_method === "Cheque") {
+        if (cheques.length > 0) {
+          // Store cheques as JSON
+          referenceStr = JSON.stringify(cheques);
+        } else {
+          toast({
+            title: "Validation Error",
+            description: "Please add at least one cheque",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
         }
       } else if (data.reference) {
         referenceStr = data.reference;
@@ -359,51 +432,117 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
 
             {selectedPaymentMethod === "Cheque" && (
               <>
-                <div className="space-y-2">
-                  <Label>Cheque Number *</Label>
-                  <Input
-                    {...form.register("cheque_no")}
-                    placeholder="Enter cheque number"
-                  />
-                  {form.formState.errors.cheque_no && (
-                    <p className="text-sm text-destructive">{form.formState.errors.cheque_no.message}</p>
-                  )}
+                <div className="col-span-2 border rounded-lg p-4 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">Add Cheque Details</h3>
+                    <Button type="button" onClick={addCheque} size="sm">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Cheque
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Cheque Number *</Label>
+                      <Input
+                        value={currentCheque.cheque_no}
+                        onChange={(e) => setCurrentCheque({ ...currentCheque, cheque_no: e.target.value })}
+                        placeholder="Enter cheque number"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cheque Date *</Label>
+                      <Input
+                        type="date"
+                        value={currentCheque.cheque_date}
+                        onChange={(e) => setCurrentCheque({ ...currentCheque, cheque_date: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Bank Name</Label>
+                      <Input
+                        value={currentCheque.cheque_bank}
+                        onChange={(e) => setCurrentCheque({ ...currentCheque, cheque_bank: e.target.value })}
+                        placeholder="Enter bank name"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Branch</Label>
+                      <Input
+                        value={currentCheque.cheque_branch}
+                        onChange={(e) => setCurrentCheque({ ...currentCheque, cheque_branch: e.target.value })}
+                        placeholder="Enter branch name"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Account Holder Name</Label>
+                      <Input
+                        value={currentCheque.cheque_holder}
+                        onChange={(e) => setCurrentCheque({ ...currentCheque, cheque_holder: e.target.value })}
+                        placeholder="Enter account holder name"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Cheque Amount *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={currentCheque.amount || ""}
+                        onChange={(e) => setCurrentCheque({ ...currentCheque, amount: parseFloat(e.target.value) || 0 })}
+                        placeholder="Enter amount"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label>Cheque Date *</Label>
-                  <Input
-                    type="date"
-                    {...form.register("cheque_date")}
-                  />
-                  {form.formState.errors.cheque_date && (
-                    <p className="text-sm text-destructive">{form.formState.errors.cheque_date.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Bank Name</Label>
-                  <Input
-                    {...form.register("cheque_bank")}
-                    placeholder="Enter bank name"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Branch</Label>
-                  <Input
-                    {...form.register("cheque_branch")}
-                    placeholder="Enter branch name"
-                  />
-                </div>
-
-                <div className="space-y-2 col-span-2">
-                  <Label>Account Holder Name</Label>
-                  <Input
-                    {...form.register("cheque_holder")}
-                    placeholder="Enter account holder name"
-                  />
-                </div>
+                {cheques.length > 0 && (
+                  <div className="col-span-2 space-y-2">
+                    <Label>Added Cheques ({cheques.length})</Label>
+                    <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                      {cheques.map((cheque, index) => (
+                        <div key={index} className="p-3 flex justify-between items-start hover:bg-muted/50">
+                          <div className="space-y-1 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-medium">{cheque.cheque_no}</span>
+                              <span className="text-sm text-muted-foreground">
+                                {new Date(cheque.cheque_date).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {cheque.cheque_bank && `${cheque.cheque_bank}`}
+                              {cheque.cheque_branch && ` - ${cheque.cheque_branch}`}
+                            </div>
+                            {cheque.cheque_holder && (
+                              <div className="text-sm text-muted-foreground">
+                                Holder: {cheque.cheque_holder}
+                              </div>
+                            )}
+                            <div className="font-semibold text-primary">
+                              Rs. {cheque.amount.toLocaleString()}
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCheque(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-right font-semibold text-lg pt-2">
+                      Total: Rs. {cheques.reduce((sum, chq) => sum + chq.amount, 0).toLocaleString()}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -413,9 +552,16 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
                 type="number"
                 step="0.01"
                 {...form.register("amount", { valueAsNumber: true })}
+                readOnly={selectedPaymentMethod === "Cheque"}
+                className={selectedPaymentMethod === "Cheque" ? "bg-muted" : ""}
               />
               {form.formState.errors.amount && (
                 <p className="text-sm text-destructive">{form.formState.errors.amount.message}</p>
+              )}
+              {selectedPaymentMethod === "Cheque" && (
+                <p className="text-xs text-muted-foreground">
+                  Amount is auto-calculated from cheques
+                </p>
               )}
             </div>
 
