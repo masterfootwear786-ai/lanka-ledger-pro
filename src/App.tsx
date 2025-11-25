@@ -15,10 +15,8 @@ import Inventory from "./pages/Inventory";
 import Accounting from "./pages/Accounting";
 import Reports from "./pages/Reports";
 import ProfitLoss from "./pages/reports/ProfitLoss";
-import BalanceSheet from "./pages/reports/BalanceSheet";
 import ARAging from "./pages/reports/ARAging";
 import APAging from "./pages/reports/APAging";
-import TaxSummary from "./pages/reports/TaxSummary";
 import Invoices from "./pages/sales/Invoices";
 import Customers from "./pages/sales/Customers";
 import CustomerDetails from "./pages/sales/CustomerDetails";
@@ -100,10 +98,8 @@ const App = () => (
               <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><CreditorsDebtors /></ProtectedRoute>} />
               {/* Reports routes */}
               <Route path="/reports/profit-loss" element={<ProtectedRoute><ProfitLoss /></ProtectedRoute>} />
-              <Route path="/reports/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
               <Route path="/reports/ar-aging" element={<ProtectedRoute><ARAging /></ProtectedRoute>} />
               <Route path="/reports/ap-aging" element={<ProtectedRoute><APAging /></ProtectedRoute>} />
-              <Route path="/reports/tax-summary" element={<ProtectedRoute><TaxSummary /></ProtectedRoute>} />
               {/* Settings */}
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/settings/company" element={<ProtectedRoute><Company /></ProtectedRoute>} />
