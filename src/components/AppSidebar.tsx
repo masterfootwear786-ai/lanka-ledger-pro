@@ -58,7 +58,7 @@ export function AppSidebar() {
   ];
 
   const accountingItems = [
-    { title: 'Expenses', url: '/accounting/expenses' },
+    { title: 'Expenses and Other', url: '/accounting/expenses' },
   ];
 
   const reportItems = [
@@ -181,7 +181,7 @@ export function AppSidebar() {
               <CollapsibleTrigger className="flex w-full items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4" />
-                  {!collapsed && <span>{t('app.accounting')}</span>}
+                  {!collapsed && <span>Expenses and Other</span>}
                 </div>
                 {!collapsed && <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
               </CollapsibleTrigger>
