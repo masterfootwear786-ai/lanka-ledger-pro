@@ -24,6 +24,7 @@ interface StockBySize {
   totalStock: number;
   purchasePrice: number;
   stockValue: number;
+  lowStockThreshold: number;
 }
 
 export default function Stock() {
@@ -88,6 +89,7 @@ export default function Stock() {
         
         const totalStock = size_39 + size_40 + size_41 + size_42 + size_43 + size_44 + size_45;
         const purchasePrice = item.purchase_price || 0;
+        const lowStockThreshold = item.low_stock_threshold || 10;
         
         groupedData.push({
           item_id: item.id,
@@ -103,7 +105,8 @@ export default function Stock() {
           size_45,
           totalStock,
           purchasePrice,
-          stockValue: totalStock * purchasePrice
+          stockValue: totalStock * purchasePrice,
+          lowStockThreshold
         });
       });
 
@@ -122,7 +125,15 @@ export default function Stock() {
   );
 
   const totalValue = filteredStock.reduce((sum, stock) => sum + stock.stockValue, 0);
-  const lowStockItems = filteredStock.filter(stock => stock.totalStock < 10);
+  const lowStockItems = filteredStock.filter(stock => 
+    stock.size_39 < stock.lowStockThreshold ||
+    stock.size_40 < stock.lowStockThreshold ||
+    stock.size_41 < stock.lowStockThreshold ||
+    stock.size_42 < stock.lowStockThreshold ||
+    stock.size_43 < stock.lowStockThreshold ||
+    stock.size_44 < stock.lowStockThreshold ||
+    stock.size_45 < stock.lowStockThreshold
+  );
 
   const handleAddStock = (stock: StockBySize) => {
     setSelectedItem({
@@ -219,7 +230,7 @@ export default function Stock() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStock.length === 0 ? (
+                   {filteredStock.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={14} className="text-center">
                         No items found with inventory tracking enabled
@@ -227,22 +238,50 @@ export default function Stock() {
                     </TableRow>
                   ) : (
                     filteredStock.map((stock, index) => {
-                      const isLowStock = stock.totalStock < 10;
+                      const hasLowStock = 
+                        stock.size_39 < stock.lowStockThreshold ||
+                        stock.size_40 < stock.lowStockThreshold ||
+                        stock.size_41 < stock.lowStockThreshold ||
+                        stock.size_42 < stock.lowStockThreshold ||
+                        stock.size_43 < stock.lowStockThreshold ||
+                        stock.size_44 < stock.lowStockThreshold ||
+                        stock.size_45 < stock.lowStockThreshold;
                       
                       return (
                         <TableRow key={`${stock.code}-${stock.color}-${index}`}>
                           <TableCell className="font-mono font-semibold">{stock.code}</TableCell>
                           <TableCell className="font-medium">{stock.color}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{stock.name}</TableCell>
-                          <TableCell className="text-center">{stock.size_39 > 0 ? stock.size_39 : '-'}</TableCell>
-                          <TableCell className="text-center">{stock.size_40 > 0 ? stock.size_40 : '-'}</TableCell>
-                          <TableCell className="text-center">{stock.size_41 > 0 ? stock.size_41 : '-'}</TableCell>
-                          <TableCell className="text-center">{stock.size_42 > 0 ? stock.size_42 : '-'}</TableCell>
-                          <TableCell className="text-center">{stock.size_43 > 0 ? stock.size_43 : '-'}</TableCell>
-                          <TableCell className="text-center">{stock.size_44 > 0 ? stock.size_44 : '-'}</TableCell>
-                          <TableCell className="text-center">{stock.size_45 > 0 ? stock.size_45 : '-'}</TableCell>
+                          <TableCell className={`text-center ${stock.size_39 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
+                            {stock.size_39 > 0 ? stock.size_39 : '-'}
+                            {stock.size_39 > 0 && stock.size_39 < stock.lowStockThreshold && ' ⚠️'}
+                          </TableCell>
+                          <TableCell className={`text-center ${stock.size_40 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
+                            {stock.size_40 > 0 ? stock.size_40 : '-'}
+                            {stock.size_40 > 0 && stock.size_40 < stock.lowStockThreshold && ' ⚠️'}
+                          </TableCell>
+                          <TableCell className={`text-center ${stock.size_41 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
+                            {stock.size_41 > 0 ? stock.size_41 : '-'}
+                            {stock.size_41 > 0 && stock.size_41 < stock.lowStockThreshold && ' ⚠️'}
+                          </TableCell>
+                          <TableCell className={`text-center ${stock.size_42 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
+                            {stock.size_42 > 0 ? stock.size_42 : '-'}
+                            {stock.size_42 > 0 && stock.size_42 < stock.lowStockThreshold && ' ⚠️'}
+                          </TableCell>
+                          <TableCell className={`text-center ${stock.size_43 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
+                            {stock.size_43 > 0 ? stock.size_43 : '-'}
+                            {stock.size_43 > 0 && stock.size_43 < stock.lowStockThreshold && ' ⚠️'}
+                          </TableCell>
+                          <TableCell className={`text-center ${stock.size_44 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
+                            {stock.size_44 > 0 ? stock.size_44 : '-'}
+                            {stock.size_44 > 0 && stock.size_44 < stock.lowStockThreshold && ' ⚠️'}
+                          </TableCell>
+                          <TableCell className={`text-center ${stock.size_45 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
+                            {stock.size_45 > 0 ? stock.size_45 : '-'}
+                            {stock.size_45 > 0 && stock.size_45 < stock.lowStockThreshold && ' ⚠️'}
+                          </TableCell>
                           <TableCell className="text-right">
-                            <span className={isLowStock ? "text-destructive font-bold" : "font-semibold"}>
+                            <span className={hasLowStock ? "text-destructive font-bold" : "font-semibold"}>
                               {stock.totalStock.toFixed(0)}
                             </span>
                           </TableCell>
@@ -250,7 +289,7 @@ export default function Stock() {
                             {stock.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell>
-                            {isLowStock && (
+                            {hasLowStock && (
                               <div className="flex items-center gap-1 text-destructive whitespace-nowrap">
                                 <AlertTriangle className="h-4 w-4" />
                                 <span className="text-xs">Low</span>
