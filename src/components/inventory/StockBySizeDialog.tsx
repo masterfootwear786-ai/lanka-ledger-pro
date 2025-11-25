@@ -17,6 +17,7 @@ interface StockBySizeDialogProps {
 export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSuccess }: StockBySizeDialogProps) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<any[]>([]);
+  const [currentStock, setCurrentStock] = useState<any>({});
   const [formData, setFormData] = useState({
     item_id: "",
     size_39: 0,
@@ -36,6 +37,7 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
           ...prev,
           item_id: preSelectedItem.id,
         }));
+        fetchCurrentStock(preSelectedItem.id);
       } else {
         setFormData({
           item_id: "",
@@ -47,6 +49,7 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
           size_44: 0,
           size_45: 0,
         });
+        setCurrentStock({});
       }
     }
   }, [open, preSelectedItem]);
@@ -63,6 +66,23 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
       toast.error(error.message);
     } else {
       setItems(data || []);
+    }
+  };
+
+  const fetchCurrentStock = async (itemId: string) => {
+    const { data, error } = await supabase
+      .from("stock_by_size")
+      .select("*")
+      .eq("item_id", itemId);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      const stockMap: any = {};
+      data?.forEach(stock => {
+        stockMap[`size_${stock.size}`] = stock.quantity || 0;
+      });
+      setCurrentStock(stockMap);
     }
   };
 
@@ -142,7 +162,10 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
             <Label>Item</Label>
             <Select
               value={formData.item_id}
-              onValueChange={(value) => setFormData({ ...formData, item_id: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, item_id: value });
+                fetchCurrentStock(value);
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select item" />
@@ -175,20 +198,36 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
               </div>
             )}
             <div className="grid grid-cols-4 gap-4">
-              {(['39', '40', '41', '42', '43', '44', '45'] as const).map((size) => (
-                <div key={size} className="space-y-2">
-                  <Label>Size {size}</Label>
-                  <Input
-                    type="number"
-                    value={formData[`size_${size}` as keyof typeof formData]}
-                    onChange={(e) => setFormData({
-                      ...formData,
-                      [`size_${size}`]: parseFloat(e.target.value) || 0
-                    })}
-                    placeholder="0"
-                  />
-                </div>
-              ))}
+              {(['39', '40', '41', '42', '43', '44', '45'] as const).map((size) => {
+                const currentQty = currentStock[`size_${size}`] || 0;
+                const addingQty = formData[`size_${size}` as keyof typeof formData] as number;
+                const newTotal = currentQty + addingQty;
+                
+                return (
+                  <div key={size} className="space-y-2">
+                    <Label>Size {size}</Label>
+                    {currentQty > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        Current: {currentQty}
+                      </div>
+                    )}
+                    <Input
+                      type="number"
+                      value={formData[`size_${size}` as keyof typeof formData]}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        [`size_${size}`]: parseFloat(e.target.value) || 0
+                      })}
+                      placeholder="0"
+                    />
+                    {addingQty !== 0 && (
+                      <div className="text-xs font-semibold text-primary">
+                        New Total: {newTotal}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
