@@ -4,12 +4,27 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Mail, Shield } from "lucide-react";
+import { Users as UsersIcon, Mail, Shield, Edit, Trash2 } from "lucide-react";
+import { UserDialog } from "@/components/settings/UserDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Users() {
   const { toast } = useToast();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<any>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -79,6 +94,54 @@ export default function Users() {
     }
   };
 
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setUserDialogOpen(true);
+  };
+
+  const handleDeleteClick = (user: any) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+
+    try {
+      // Delete user roles first
+      const { error: rolesError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userToDelete.id);
+
+      if (rolesError) throw rolesError;
+
+      // Deactivate the profile instead of deleting
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ active: false })
+        .eq("id", userToDelete.id);
+
+      if (profileError) throw profileError;
+
+      toast({
+        title: "Success",
+        description: "User has been deactivated",
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-[400px]">Loading...</div>;
   }
@@ -140,10 +203,55 @@ export default function Users() {
               <div className="text-xs text-muted-foreground">
                 Language: {user.language || "en"}
               </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleEditUser(user)}
+                  className="flex-1"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDeleteClick(user)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <UserDialog
+        open={userDialogOpen}
+        onOpenChange={setUserDialogOpen}
+        user={editingUser}
+        onSuccess={fetchUsers}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will deactivate the user account for {userToDelete?.full_name || userToDelete?.email}.
+              The user will no longer be able to access the system.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {users.length === 0 && (
         <Card>
