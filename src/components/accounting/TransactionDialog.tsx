@@ -134,7 +134,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         amount: parseFloat(formData.amount),
         description: formData.description,
         reference: formData.reference || null,
-        contact_id: formData.contact_id || null,
+        contact_id: formData.contact_id && formData.contact_id !== "none" ? formData.contact_id : null,
         created_by: user.id,
       };
 
@@ -263,7 +263,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
                 <SelectValue placeholder="Select contact..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {contacts.map((contact) => (
                   <SelectItem key={contact.id} value={contact.id}>
                     {contact.name} ({contact.code}) - {contact.contact_type === 'customer' ? 'Customer' : contact.contact_type === 'supplier' ? 'Supplier' : 'Both'}
