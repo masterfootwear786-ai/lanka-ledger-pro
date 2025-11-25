@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Percent, DollarSign, Plus } from "lucide-react";
+import { Percent, DollarSign, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +15,13 @@ export default function Accounting() {
       icon: Plus,
       path: "/accounting/expenses",
       color: "text-green-500"
+    },
+    {
+      title: "Creditors & Debtors",
+      description: "Manage creditors and debtors with amounts owed",
+      icon: Users,
+      path: "/accounting/creditors-debtors",
+      color: "text-blue-500"
     },
     {
       title: t("accounting.taxRates"),
