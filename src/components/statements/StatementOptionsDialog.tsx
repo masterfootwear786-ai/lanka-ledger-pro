@@ -26,7 +26,6 @@ export interface StatementOptions {
   dateTo?: Date;
   includeInvoices: boolean;
   includeReceipts: boolean;
-  includeCreditNotes: boolean;
   showRunningBalance: boolean;
   includeAccountSummary: boolean;
   notes?: string;
@@ -46,7 +45,6 @@ export default function StatementOptionsDialog({
   const [dateTo, setDateTo] = useState<Date>();
   const [includeInvoices, setIncludeInvoices] = useState(true);
   const [includeReceipts, setIncludeReceipts] = useState(true);
-  const [includeCreditNotes, setIncludeCreditNotes] = useState(true);
   const [showRunningBalance, setShowRunningBalance] = useState(true);
   const [includeAccountSummary, setIncludeAccountSummary] = useState(true);
   const [notes, setNotes] = useState("");
@@ -56,7 +54,6 @@ export default function StatementOptionsDialog({
     dateTo,
     includeInvoices,
     includeReceipts,
-    includeCreditNotes,
     showRunningBalance,
     includeAccountSummary,
     notes,
@@ -150,16 +147,6 @@ export default function StatementOptionsDialog({
                 />
                 <Label htmlFor="receipts" className="cursor-pointer">
                   Receipts
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="creditNotes"
-                  checked={includeCreditNotes}
-                  onCheckedChange={(checked) => setIncludeCreditNotes(checked as boolean)}
-                />
-                <Label htmlFor="creditNotes" className="cursor-pointer">
-                  Credit Notes
                 </Label>
               </div>
             </div>
