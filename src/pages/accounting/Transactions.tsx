@@ -21,7 +21,6 @@ interface Transaction {
   transaction_date: string;
   transaction_no: string;
   transaction_type: string;
-  account_name?: string;
   description: string;
   amount: number;
   reference?: string;
@@ -54,22 +53,14 @@ export default function Expenses() {
 
       const { data, error } = await supabase
         .from("transactions")
-        .select(`
-          *,
-          chart_of_accounts!transactions_account_id_fkey (name)
-        `)
+        .select("*")
         .eq("company_id", profile.company_id)
         .order("transaction_date", { ascending: false })
         .order("transaction_no", { ascending: false });
 
       if (error) throw error;
 
-      const formattedData = data?.map((t: any) => ({
-        ...t,
-        account_name: t.chart_of_accounts?.name
-      })) || [];
-
-      setTransactions(formattedData);
+      setTransactions(data || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -132,28 +123,8 @@ export default function Expenses() {
   const filteredTransactions = transactions.filter((t) =>
     t.transaction_no.toLowerCase().includes(search.toLowerCase()) ||
     t.transaction_type.toLowerCase().includes(search.toLowerCase()) ||
-    t.description?.toLowerCase().includes(search.toLowerCase()) ||
-    t.account_name?.toLowerCase().includes(search.toLowerCase())
+    t.description?.toLowerCase().includes(search.toLowerCase())
   );
-
-  const getTransactionTypeColor = (type: string) => {
-    switch (type) {
-      case "expense":
-        return "text-red-600";
-      case "cash_in":
-        return "text-green-600";
-      case "cash_out":
-        return "text-orange-600";
-      case "withdrawal":
-        return "text-purple-600";
-      case "credit":
-        return "text-blue-600";
-      case "debit":
-        return "text-yellow-600";
-      default:
-        return "text-foreground";
-    }
-  };
 
   const formatTransactionType = (type: string) => {
     return type.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -181,7 +152,7 @@ export default function Expenses() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="Search by expense no, type, description, or account..."
+            placeholder="Search by expense no, category, or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -194,9 +165,8 @@ export default function Expenses() {
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
-              <TableHead>Transaction No</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Account</TableHead>
+              <TableHead>Expense No</TableHead>
+              <TableHead>Category</TableHead>
               <TableHead>Description</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Reference</TableHead>
@@ -206,13 +176,13 @@ export default function Expenses() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={7} className="text-center py-8">
                   Loading...
                 </TableCell>
               </TableRow>
             ) : filteredTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No expenses found
                 </TableCell>
               </TableRow>
@@ -221,12 +191,7 @@ export default function Expenses() {
                 <TableRow key={transaction.id}>
                   <TableCell>{new Date(transaction.transaction_date).toLocaleDateString()}</TableCell>
                   <TableCell className="font-medium">{transaction.transaction_no}</TableCell>
-                  <TableCell>
-                    <span className={getTransactionTypeColor(transaction.transaction_type)}>
-                      {formatTransactionType(transaction.transaction_type)}
-                    </span>
-                  </TableCell>
-                  <TableCell>{transaction.account_name || "-"}</TableCell>
+                  <TableCell className="font-medium">{transaction.transaction_type}</TableCell>
                   <TableCell>{transaction.description}</TableCell>
                   <TableCell className="text-right font-medium">
                     {transaction.amount.toLocaleString("en-US", {

@@ -17,11 +17,9 @@ interface TransactionDialogProps {
 
 export default function TransactionDialog({ open, onOpenChange, transaction, onSuccess }: TransactionDialogProps) {
   const [loading, setLoading] = useState(false);
-  const [accounts, setAccounts] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     transaction_date: new Date().toISOString().split("T")[0],
-    transaction_type: "expense",
-    account_id: "",
+    transaction_type: "Salary",
     amount: "",
     description: "",
     reference: "",
@@ -33,7 +31,6 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
       setFormData({
         transaction_date: transaction.transaction_date,
         transaction_type: transaction.transaction_type,
-        account_id: transaction.account_id || "",
         amount: transaction.amount.toString(),
         description: transaction.description,
         reference: transaction.reference || "",
@@ -41,47 +38,13 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
     } else {
       setFormData({
         transaction_date: new Date().toISOString().split("T")[0],
-        transaction_type: "expense",
-        account_id: "",
+        transaction_type: "Salary",
         amount: "",
         description: "",
         reference: "",
       });
     }
   }, [transaction, open]);
-
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("company_id")
-          .eq("id", user.id)
-          .single();
-
-        if (!profile?.company_id) return;
-
-        const { data, error } = await supabase
-          .from("chart_of_accounts")
-          .select("*")
-          .eq("company_id", profile.company_id)
-          .eq("active", true)
-          .order("code");
-
-        if (error) throw error;
-        setAccounts(data || []);
-      } catch (error: any) {
-        console.error("Error fetching accounts:", error);
-      }
-    };
-
-    if (open) {
-      fetchAccounts();
-    }
-  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,7 +86,6 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         transaction_date: formData.transaction_date,
         transaction_no: transactionNo,
         transaction_type: formData.transaction_type,
-        account_id: formData.account_id || null,
         amount: parseFloat(formData.amount),
         description: formData.description,
         reference: formData.reference || null,
@@ -187,7 +149,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="transaction_type">Expense Type</Label>
+              <Label htmlFor="transaction_type">Category</Label>
               <Select
                 value={formData.transaction_type}
                 onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}
@@ -196,34 +158,22 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="expense">Expense</SelectItem>
-                  <SelectItem value="cash_in">Cash In</SelectItem>
-                  <SelectItem value="cash_out">Cash Out</SelectItem>
-                  <SelectItem value="withdrawal">Withdrawal</SelectItem>
-                  <SelectItem value="credit">Credit</SelectItem>
-                  <SelectItem value="debit">Debit</SelectItem>
+                  <SelectItem value="Salary">Salary</SelectItem>
+                  <SelectItem value="Rent">Rent</SelectItem>
+                  <SelectItem value="Fuel">Fuel</SelectItem>
+                  <SelectItem value="Food">Food</SelectItem>
+                  <SelectItem value="Accommodation">Accommodation</SelectItem>
+                  <SelectItem value="Utilities">Utilities</SelectItem>
+                  <SelectItem value="Transport">Transport</SelectItem>
+                  <SelectItem value="Office Supplies">Office Supplies</SelectItem>
+                  <SelectItem value="Marketing">Marketing</SelectItem>
+                  <SelectItem value="Maintenance">Maintenance</SelectItem>
+                  <SelectItem value="Insurance">Insurance</SelectItem>
+                  <SelectItem value="Professional Fees">Professional Fees</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="account_id">Account (Optional)</Label>
-            <Select
-              value={formData.account_id}
-              onValueChange={(value) => setFormData({ ...formData, account_id: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {accounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.code} - {account.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="space-y-2">
