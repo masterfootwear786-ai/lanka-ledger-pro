@@ -468,15 +468,64 @@ export default function Invoices() {
               </div>
 
               {/* Bill To Section */}
-              <div className="bg-muted/30 rounded-lg p-4">
-                <div className="text-sm font-semibold text-primary mb-2">BILL TO:</div>
-                <div className="space-y-1">
-                  <div className="font-semibold text-lg">{selectedInvoice.customer?.name || "N/A"}</div>
-                  {selectedInvoice.customer?.area && (
-                    <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}</div>
-                  )}
-                  <div className="mt-2">
-                    <Badge className={getStatusColor(selectedInvoice.status)}>{selectedInvoice.status}</Badge>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-primary mb-2">BILL TO:</div>
+                  <div className="space-y-1">
+                    <div className="font-semibold text-lg">{selectedInvoice.customer?.name || "N/A"}</div>
+                    {selectedInvoice.customer?.area && (
+                      <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}</div>
+                    )}
+                    <div className="mt-2">
+                      <Badge className={getStatusColor(selectedInvoice.status)}>{selectedInvoice.status}</Badge>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-primary mb-2">PAYMENT INFORMATION:</div>
+                  <div className="space-y-1">
+                    {(() => {
+                      try {
+                        const terms = selectedInvoice.terms;
+                        if (!terms) return <div className="text-sm">Payment Method: Not specified</div>;
+                        
+                        // Try to parse as JSON (for cheque payments)
+                        const parsed = typeof terms === 'string' && terms.startsWith('{') 
+                          ? JSON.parse(terms) 
+                          : null;
+                        
+                        if (parsed?.payment_method === 'cheque') {
+                          return (
+                            <div className="space-y-2">
+                              <div className="font-semibold">Payment Method: Cheque</div>
+                              {parsed.cheques && parsed.cheques.length > 0 && (
+                                <div className="space-y-1 text-sm">
+                                  <div className="font-medium">Cheque Details:</div>
+                                  {parsed.cheques.map((cheque: any, idx: number) => (
+                                    <div key={idx} className="pl-2 border-l-2 border-primary/30">
+                                      <div>Cheque No: {cheque.cheque_no}</div>
+                                      <div>Date: {new Date(cheque.cheque_date).toLocaleDateString()}</div>
+                                      <div>Amount: {Number(cheque.cheque_amount).toLocaleString()}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+                        
+                        // Simple payment method (cash/credit)
+                        const method = parsed?.payment_method || terms;
+                        return (
+                          <div className="font-semibold">
+                            Payment Method: {method.charAt(0).toUpperCase() + method.slice(1)}
+                          </div>
+                        );
+                      } catch (e) {
+                        return <div className="text-sm">Payment Method: {selectedInvoice.terms}</div>;
+                      }
+                    })()}
                   </div>
                 </div>
               </div>
