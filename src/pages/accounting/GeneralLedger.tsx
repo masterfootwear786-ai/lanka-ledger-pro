@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,18 +6,69 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, Printer } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export default function GeneralLedger() {
   const { t } = useTranslation();
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const transactions = [
-    { date: "2024-01-15", reference: "INV-001", description: "Sales Invoice", debit: 125000, credit: 0, balance: 125000 },
-    { date: "2024-01-16", reference: "REC-001", description: "Customer Receipt", debit: 0, credit: 120000, balance: 5000 },
-    { date: "2024-01-18", reference: "BILL-001", description: "Supplier Bill", debit: 0, credit: 75000, balance: -70000 },
-    { date: "2024-01-20", reference: "PAY-001", description: "Supplier Payment", debit: 72000, credit: 0, balance: 2000 },
-  ];
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
+
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      const { data: journalsData, error: journalsError } = await supabase
+        .from('journals')
+        .select(`
+          *,
+          journal_lines (
+            *,
+            chart_of_accounts (code, name)
+          )
+        `)
+        .order('journal_date', { ascending: false });
+
+      if (journalsError) throw journalsError;
+
+      // Transform journal entries into general ledger format
+      const ledgerEntries: any[] = [];
+      let runningBalance = 0;
+
+      journalsData?.forEach(journal => {
+        journal.journal_lines?.forEach((line: any) => {
+          const debit = line.debit || 0;
+          const credit = line.credit || 0;
+          runningBalance += debit - credit;
+
+          ledgerEntries.push({
+            date: journal.journal_date,
+            reference: journal.journal_no,
+            description: line.description || journal.description,
+            account: line.chart_of_accounts?.name,
+            debit,
+            credit,
+            balance: runningBalance
+          });
+        });
+      });
+
+      setTransactions(ledgerEntries);
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateReport = () => {
+    fetchTransactions();
+  };
 
   return (
     <div className="space-y-6">
@@ -51,7 +102,9 @@ export default function GeneralLedger() {
               />
             </div>
             <div className="flex items-end">
-              <Button className="w-full">Generate Report</Button>
+              <Button className="w-full" onClick={handleGenerateReport} disabled={loading}>
+                {loading ? "Loading..." : "Generate Report"}
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -77,6 +130,7 @@ export default function GeneralLedger() {
               <TableRow>
                 <TableHead>{t('common.date')}</TableHead>
                 <TableHead>{t('common.reference')}</TableHead>
+                <TableHead>Account</TableHead>
                 <TableHead>{t('common.description')}</TableHead>
                 <TableHead className="text-right">Debit</TableHead>
                 <TableHead className="text-right">Credit</TableHead>
@@ -84,22 +138,35 @@ export default function GeneralLedger() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{transaction.date}</TableCell>
-                  <TableCell className="font-mono">{transaction.reference}</TableCell>
-                  <TableCell>{transaction.description}</TableCell>
-                  <TableCell className="text-right">
-                    {transaction.debit > 0 ? transaction.debit.toLocaleString() : "-"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {transaction.credit > 0 ? transaction.credit.toLocaleString() : "-"}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {transaction.balance.toLocaleString()}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                </TableRow>
+              ) : transactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">
+                    No transactions found. Journal entries will appear here.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                transactions.map((transaction, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-mono">{transaction.reference}</TableCell>
+                    <TableCell className="text-sm">{transaction.account}</TableCell>
+                    <TableCell>{transaction.description}</TableCell>
+                    <TableCell className="text-right">
+                      {transaction.debit > 0 ? transaction.debit.toLocaleString() : "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {transaction.credit > 0 ? transaction.credit.toLocaleString() : "-"}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {transaction.balance.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
