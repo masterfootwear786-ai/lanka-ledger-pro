@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Download, Printer, FileSpreadsheet } from "lucide-react";
+import { exportToCSV, exportToExcel } from "@/lib/export";
+import { toast } from "sonner";
 
 export default function APAging() {
   const { t } = useTranslation();
@@ -30,6 +32,61 @@ export default function APAging() {
   );
 
   const grandTotal = totals.current + totals.days30 + totals.days60 + totals.days90 + totals.over90;
+
+  const handleExportCSV = () => {
+    const data = suppliers.map(supplier => ({
+      Supplier: supplier.name,
+      Current: supplier.current,
+      '1-30 Days': supplier.days30,
+      '31-60 Days': supplier.days60,
+      '61-90 Days': supplier.days90,
+      'Over 90 Days': supplier.over90,
+      Total: supplier.current + supplier.days30 + supplier.days60 + supplier.days90 + supplier.over90
+    }));
+    
+    data.push({
+      Supplier: 'TOTAL',
+      Current: totals.current,
+      '1-30 Days': totals.days30,
+      '31-60 Days': totals.days60,
+      '61-90 Days': totals.days90,
+      'Over 90 Days': totals.over90,
+      Total: grandTotal
+    });
+
+    exportToCSV('AP_Aging_Report', data);
+    toast.success('Report exported to CSV successfully');
+  };
+
+  const handleExportExcel = () => {
+    const data = suppliers.map(supplier => ({
+      Supplier: supplier.name,
+      Current: supplier.current,
+      '1-30 Days': supplier.days30,
+      '31-60 Days': supplier.days60,
+      '61-90 Days': supplier.days90,
+      'Over 90 Days': supplier.over90,
+      Total: supplier.current + supplier.days30 + supplier.days60 + supplier.days90 + supplier.over90
+    }));
+    
+    data.push({
+      Supplier: 'TOTAL',
+      Current: totals.current,
+      '1-30 Days': totals.days30,
+      '31-60 Days': totals.days60,
+      '61-90 Days': totals.days90,
+      'Over 90 Days': totals.over90,
+      Total: grandTotal
+    });
+
+    exportToExcel('AP_Aging_Report', data);
+    toast.success('Report exported to Excel successfully');
+  };
+
+  const handlePrint = () => {
+    window.print();
+    toast.success('Print dialog opened');
+  };
 
   return (
     <div className="space-y-6">
@@ -66,15 +123,15 @@ export default function APAging() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>AP Aging Report</CardTitle>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-2" />
               {t('common.exportCSV')}
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleExportExcel}>
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               {t('common.exportExcel')}
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="h-4 w-4 mr-2" />
               {t('common.print')}
             </Button>
