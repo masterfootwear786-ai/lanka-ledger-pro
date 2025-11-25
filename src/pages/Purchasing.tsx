@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Users, CreditCard, Receipt } from "lucide-react";
+import { FileText, Users, CreditCard, Receipt, Banknote } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -29,6 +29,13 @@ export default function Purchasing() {
       icon: CreditCard,
       path: "/purchasing/payments",
       color: "text-blue-500"
+    },
+    {
+      title: "Supplier Cheques",
+      description: "Track and manage supplier cheque payments",
+      icon: Banknote,
+      path: "/purchasing/cheques",
+      color: "text-purple-500"
     },
     {
       title: t("purchasing.debitNotes"),
