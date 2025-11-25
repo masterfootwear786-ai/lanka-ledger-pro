@@ -273,7 +273,7 @@ export default function UnifiedInventory() {
                         <TableHead className="w-32">Color</TableHead>
                         <TableHead className="w-48">Name</TableHead>
                         <TableHead className="w-64">Description</TableHead>
-                        <TableHead className="text-right w-24">Total Stock</TableHead>
+                        <TableHead className="text-right w-24">Quantity</TableHead>
                         <TableHead className="text-right w-32">Value</TableHead>
                         <TableHead className="w-24">Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
