@@ -3,7 +3,6 @@ import {
   ShoppingCart,
   ShoppingBag,
   Package,
-  Wallet,
   Building2,
   BookOpen,
   FileText,
@@ -177,31 +176,6 @@ export function AppSidebar() {
             </CollapsibleContent>
           </SidebarGroup>
         </Collapsible>
-
-        <SidebarGroup>
-          <SidebarGroupLabel className="flex items-center gap-2">
-            <Wallet className="h-4 w-4" />
-            {!collapsed && <span>{t('app.cashbook')}</span>}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink to="/cashbook" className={({ isActive }) => isActive ? 'bg-accent' : ''}>
-                    {!collapsed && <span>{t('app.cashbook')}</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink to="/bank-reconciliation" className={({ isActive }) => isActive ? 'bg-accent' : ''}>
-                    {!collapsed && <span>{t('app.bankReco')}</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
 
         <Collapsible defaultOpen className="group/collapsible">
           <SidebarGroup>
