@@ -25,7 +25,6 @@ import Invoices from "./pages/sales/Invoices";
 import Customers from "./pages/sales/Customers";
 import CustomerDetails from "./pages/sales/CustomerDetails";
 import Orders from "./pages/sales/Orders";
-import CreditNotes from "./pages/sales/CreditNotes";
 import Receipts from "./pages/sales/Receipts";
 import Bills from "./pages/purchasing/Bills";
 import Suppliers from "./pages/purchasing/Suppliers";
@@ -83,7 +82,6 @@ const App = () => (
               {/* Sales routes */}
               <Route path="/sales/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
               <Route path="/sales/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-              <Route path="/sales/credit-notes" element={<ProtectedRoute><CreditNotes /></ProtectedRoute>} />
               <Route path="/sales/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
               <Route path="/sales/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
               <Route path="/sales/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
