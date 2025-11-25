@@ -12,20 +12,8 @@ export default function ProfitLoss() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const revenue = [
-    { name: "Sales Revenue", amount: 150000 },
-    { name: "Service Income", amount: 25000 },
-    { name: "Other Income", amount: 5000 },
-  ];
-
-  const expenses = [
-    { name: "Cost of Goods Sold", amount: 50000 },
-    { name: "Salaries & Wages", amount: 30000 },
-    { name: "Rent Expense", amount: 10000 },
-    { name: "Utilities", amount: 5000 },
-    { name: "Marketing", amount: 8000 },
-    { name: "Insurance", amount: 3000 },
-  ];
+  const revenue: { name: string; amount: number }[] = [];
+  const expenses: { name: string; amount: number }[] = [];
 
   const totalRevenue = revenue.reduce((sum, item) => sum + item.amount, 0);
   const totalExpenses = expenses.reduce((sum, item) => sum + item.amount, 0);
