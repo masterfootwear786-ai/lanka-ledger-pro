@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AccountDialog } from "@/components/accounting/AccountDialog";
 
 export default function ChartOfAccounts() {
   const { t } = useTranslation();
@@ -18,6 +19,8 @@ export default function ChartOfAccounts() {
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [accountToDelete, setAccountToDelete] = useState<any>(null);
+  const [accountDialogOpen, setAccountDialogOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<any>(null);
 
   useEffect(() => {
     fetchAccounts();
@@ -90,7 +93,10 @@ export default function ChartOfAccounts() {
           <h1 className="text-3xl font-bold">{t('accounting.chartOfAccounts')}</h1>
           <p className="text-muted-foreground mt-2">Manage chart of accounts</p>
         </div>
-        <Button>
+        <Button onClick={() => {
+          setSelectedAccount(null);
+          setAccountDialogOpen(true);
+        }}>
           <Plus className="h-4 w-4 mr-2" />
           Add Account
         </Button>
@@ -152,7 +158,10 @@ export default function ChartOfAccounts() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setSelectedAccount(account);
+                          setAccountDialogOpen(true);
+                        }}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(account)}>
@@ -182,6 +191,13 @@ export default function ChartOfAccounts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AccountDialog
+        open={accountDialogOpen}
+        onOpenChange={setAccountDialogOpen}
+        account={selectedAccount}
+        onSuccess={fetchAccounts}
+      />
     </div>
   );
 }
