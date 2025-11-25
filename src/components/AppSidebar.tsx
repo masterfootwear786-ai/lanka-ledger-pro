@@ -41,6 +41,7 @@ export function AppSidebar() {
     { title: 'Orders', url: '/sales/orders' },
     { title: t('sales.invoices'), url: '/sales/invoices' },
     { title: t('sales.receipts'), url: '/sales/receipts' },
+    { title: 'Cheques', url: '/sales/cheques' },
     { title: t('sales.customers'), url: '/sales/customers' },
   ];
 
