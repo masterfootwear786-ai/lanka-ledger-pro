@@ -58,6 +58,8 @@ export default function Journals() {
   const handleDelete = async () => {
     if (!journalToDelete) return;
 
+    setLoading(true);
+
     try {
       // First delete journal lines
       const { error: linesError } = await supabase
@@ -81,14 +83,18 @@ export default function Journals() {
         throw error;
       }
 
+      // Close dialog and reset state
+      setDeleteDialogOpen(false);
+      setJournalToDelete(null);
+
+      // Refresh the list
+      await fetchJournals();
+
+      // Show success message after refresh
       toast({
         title: "Success",
         description: "Journal entry deleted successfully",
       });
-
-      setDeleteDialogOpen(false);
-      setJournalToDelete(null);
-      fetchJournals();
     } catch (error: any) {
       console.error('Delete failed:', error);
       toast({
@@ -98,6 +104,8 @@ export default function Journals() {
       });
       setDeleteDialogOpen(false);
       setJournalToDelete(null);
+    } finally {
+      setLoading(false);
     }
   };
 
