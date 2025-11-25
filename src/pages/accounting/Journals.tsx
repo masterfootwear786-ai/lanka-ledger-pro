@@ -10,6 +10,7 @@ import { Plus, Search, Eye, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { JournalDialog } from "@/components/accounting/JournalDialog";
+import { JournalViewDialog } from "@/components/accounting/JournalViewDialog";
 
 export default function Journals() {
   const { t } = useTranslation();
@@ -21,6 +22,8 @@ export default function Journals() {
   const [journalToDelete, setJournalToDelete] = useState<any>(null);
   const [journalDialogOpen, setJournalDialogOpen] = useState(false);
   const [selectedJournal, setSelectedJournal] = useState<any>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [viewJournal, setViewJournal] = useState<any>(null);
 
   useEffect(() => {
     fetchJournals();
@@ -173,7 +176,10 @@ export default function Journals() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setViewJournal(journal);
+                          setViewDialogOpen(true);
+                        }}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => {
@@ -215,6 +221,12 @@ export default function Journals() {
         onOpenChange={setJournalDialogOpen}
         journal={selectedJournal}
         onSuccess={fetchJournals}
+      />
+
+      <JournalViewDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        journal={viewJournal}
       />
     </div>
   );
