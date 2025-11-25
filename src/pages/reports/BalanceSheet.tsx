@@ -12,31 +12,16 @@ export default function BalanceSheet() {
   const [asOfDate, setAsOfDate] = useState("");
 
   const assets = {
-    current: [
-      { name: "Cash and Bank", amount: 50000 },
-      { name: "Accounts Receivable", amount: 75000 },
-      { name: "Inventory", amount: 100000 },
-    ],
-    fixed: [
-      { name: "Property & Equipment", amount: 200000 },
-      { name: "Less: Accumulated Depreciation", amount: -50000 },
-    ],
+    current: [] as { name: string; amount: number }[],
+    fixed: [] as { name: string; amount: number }[],
   };
 
   const liabilities = {
-    current: [
-      { name: "Accounts Payable", amount: 45000 },
-      { name: "Short-term Loans", amount: 25000 },
-    ],
-    longTerm: [
-      { name: "Long-term Debt", amount: 100000 },
-    ],
+    current: [] as { name: string; amount: number }[],
+    longTerm: [] as { name: string; amount: number }[],
   };
 
-  const equity = [
-    { name: "Share Capital", amount: 100000 },
-    { name: "Retained Earnings", amount: 105000 },
-  ];
+  const equity: { name: string; amount: number }[] = [];
 
   const totalCurrentAssets = assets.current.reduce((sum, item) => sum + item.amount, 0);
   const totalFixedAssets = assets.fixed.reduce((sum, item) => sum + item.amount, 0);
