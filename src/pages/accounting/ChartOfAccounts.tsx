@@ -61,21 +61,26 @@ export default function ChartOfAccounts() {
         .delete()
         .eq('id', accountToDelete.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Delete error:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
         description: "Account deleted successfully",
       });
 
+      setDeleteDialogOpen(false);
+      setAccountToDelete(null);
       fetchAccounts();
     } catch (error: any) {
+      console.error('Delete failed:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete account. You may not have permission to delete accounts.",
         variant: "destructive",
       });
-    } finally {
       setDeleteDialogOpen(false);
       setAccountToDelete(null);
     }
