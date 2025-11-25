@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReceiptDialog } from "@/components/receipts/ReceiptDialog";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 
 export default function Receipts() {
   const { t } = useTranslation();
@@ -20,6 +22,8 @@ export default function Receipts() {
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [receiptToDelete, setReceiptToDelete] = useState<any>(null);
+  const [chequeDetailsOpen, setChequeDetailsOpen] = useState(false);
+  const [selectedCheques, setSelectedCheques] = useState<any[]>([]);
 
   useEffect(() => {
     fetchReceipts();
@@ -86,6 +90,51 @@ export default function Receipts() {
       setDeleteDialogOpen(false);
       setReceiptToDelete(null);
     }
+  };
+
+  const parseChequeReference = (reference: string | null) => {
+    if (!reference) return null;
+    try {
+      const cheques = JSON.parse(reference);
+      if (Array.isArray(cheques) && cheques.length > 0) {
+        return cheques;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+
+  const handleChequeClick = (reference: string | null) => {
+    const cheques = parseChequeReference(reference);
+    if (cheques) {
+      setSelectedCheques(cheques);
+      setChequeDetailsOpen(true);
+    }
+  };
+
+  const renderReference = (receipt: any) => {
+    const cheques = parseChequeReference(receipt.reference);
+    
+    if (cheques) {
+      return (
+        <div className="flex flex-wrap gap-1">
+          {cheques.map((cheque: any, index: number) => (
+            <Badge
+              key={index}
+              variant="outline"
+              className="cursor-pointer hover:bg-accent"
+              onClick={() => handleChequeClick(receipt.reference)}
+            >
+              <CreditCard className="h-3 w-3 mr-1" />
+              {cheque.cheque_no}
+            </Badge>
+          ))}
+        </div>
+      );
+    }
+    
+    return receipt.reference || '-';
   };
 
   return (
@@ -159,7 +208,7 @@ export default function Receipts() {
                     <TableCell className="font-mono font-medium">{receipt.receipt_no}</TableCell>
                     <TableCell>{new Date(receipt.receipt_date).toLocaleDateString()}</TableCell>
                     <TableCell>{receipt.customer?.name || 'N/A'}</TableCell>
-                    <TableCell>{receipt.reference || '-'}</TableCell>
+                    <TableCell>{renderReference(receipt)}</TableCell>
                     <TableCell className="text-right">{receipt.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
@@ -203,6 +252,48 @@ export default function Receipts() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={chequeDetailsOpen} onOpenChange={setChequeDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Cheque Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedCheques.map((cheque, index) => (
+              <Card key={index}>
+                <CardContent className="pt-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Cheque Number</p>
+                      <p className="font-medium">{cheque.cheque_no}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Amount</p>
+                      <p className="font-medium">{Number(cheque.amount).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Date</p>
+                      <p className="font-medium">{new Date(cheque.cheque_date).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Bank</p>
+                      <p className="font-medium">{cheque.cheque_bank || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Branch</p>
+                      <p className="font-medium">{cheque.cheque_branch || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Account Holder</p>
+                      <p className="font-medium">{cheque.cheque_holder || '-'}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
