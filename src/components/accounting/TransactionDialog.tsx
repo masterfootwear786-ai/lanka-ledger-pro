@@ -31,7 +31,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
     amount: "",
     description: "",
     reference: "",
-    contact_id: "none",
+    contact_id: "",
   });
   const { toast } = useToast();
 
@@ -77,7 +77,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         amount: transaction.amount.toString(),
         description: transaction.description,
         reference: transaction.reference || "",
-        contact_id: transaction.contact_id || "none",
+        contact_id: transaction.contact_id || "",
       });
     } else {
       setFormData({
@@ -86,7 +86,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         amount: "",
         description: "",
         reference: "",
-        contact_id: "none",
+        contact_id: "",
       });
     }
   }, [transaction, open]);
@@ -134,7 +134,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
         amount: parseFloat(formData.amount),
         description: formData.description,
         reference: formData.reference || null,
-        contact_id: formData.contact_id === "none" ? null : formData.contact_id,
+        contact_id: formData.contact_id || null,
         created_by: user.id,
       };
 
@@ -263,7 +263,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
                 <SelectValue placeholder="Select contact..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="">None</SelectItem>
                 {contacts.map((contact) => (
                   <SelectItem key={contact.id} value={contact.id}>
                     {contact.name} ({contact.code}) - {contact.contact_type === 'customer' ? 'Customer' : contact.contact_type === 'supplier' ? 'Supplier' : 'Both'}
