@@ -124,6 +124,9 @@ export default function Cheques() {
       const receipt = receiptsWithCheques.find(r => r.id === receiptId);
       if (!receipt) return;
 
+      const cheque = receipt.cheques.find(c => c.cheque_no === chequeNo);
+      if (!cheque) return;
+
       // Update cheque status in the array
       const updatedCheques = receipt.cheques.map(cheque => 
         cheque.cheque_no === chequeNo 
@@ -132,16 +135,62 @@ export default function Cheques() {
       );
 
       // Update receipt reference field
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('receipts')
         .update({ reference: JSON.stringify(updatedCheques) })
         .eq('id', receiptId);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // If marking as returned, reverse the receipt allocations for this cheque amount
+      if (status === 'returned') {
+        // Get receipt allocations for this receipt
+        const { data: allocations, error: allocError } = await supabase
+          .from('receipt_allocations')
+          .select('id, amount')
+          .eq('receipt_id', receiptId);
+
+        if (allocError) throw allocError;
+
+        if (allocations && allocations.length > 0) {
+          // Calculate proportional amount to reverse based on cheque amount
+          const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+          let remainingToReverse = cheque.amount;
+
+          // Delete allocations proportionally
+          for (const allocation of allocations) {
+            if (remainingToReverse <= 0) break;
+            
+            const amountToReverse = Math.min(allocation.amount, remainingToReverse);
+            
+            if (amountToReverse >= allocation.amount) {
+              // Delete entire allocation
+              const { error: deleteError } = await supabase
+                .from('receipt_allocations')
+                .delete()
+                .eq('id', allocation.id);
+              
+              if (deleteError) throw deleteError;
+            } else {
+              // Reduce allocation amount
+              const { error: reduceError } = await supabase
+                .from('receipt_allocations')
+                .update({ amount: allocation.amount - amountToReverse })
+                .eq('id', allocation.id);
+              
+              if (reduceError) throw reduceError;
+            }
+            
+            remainingToReverse -= amountToReverse;
+          }
+        }
+      }
 
       toast({
         title: "Success",
-        description: `Cheque ${chequeNo} marked as ${status}`,
+        description: status === 'returned' 
+          ? `Cheque ${chequeNo} marked as returned and outstanding balance updated`
+          : `Cheque ${chequeNo} marked as ${status}`,
       });
 
       fetchCheques();
