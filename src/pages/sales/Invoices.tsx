@@ -395,7 +395,6 @@ export default function Invoices() {
                           size="sm"
                           onClick={() => handleEdit(invoice)}
                           title="Edit"
-                          disabled={invoice.posted}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
