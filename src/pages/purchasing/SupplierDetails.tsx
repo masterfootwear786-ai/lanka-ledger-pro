@@ -59,8 +59,23 @@ export default function SupplierDetails() {
       setBills(billsData || []);
       setPayments(paymentsData || []);
 
+      // Calculate statistics considering returned cheques
       const totalBilled = billsData?.reduce((sum, bill) => sum + (bill.grand_total || 0), 0) || 0;
-      const totalPaid = paymentsData?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0;
+      
+      // Calculate total paid, deducting returned cheques
+      let totalReturnedCheques = 0;
+      paymentsData?.forEach((payment) => {
+        const cheques = parseChequeDetails(payment.reference);
+        if (cheques) {
+          cheques.forEach((cheque: any) => {
+            if (cheque.status === 'returned') {
+              totalReturnedCheques += cheque.amount || 0;
+            }
+          });
+        }
+      });
+      
+      const totalPaid = (paymentsData?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0) - totalReturnedCheques;
       const outstanding = totalBilled - totalPaid;
 
       setStats({
@@ -135,13 +150,36 @@ export default function SupplierDetails() {
         debit: bill.grand_total || 0,
         credit: 0,
       })),
-      ...payments.map((payment) => ({
-        date: payment.payment_date,
-        type: "Payment",
-        reference: payment.payment_no,
-        debit: 0,
-        credit: payment.amount || 0,
-      })),
+      ...payments.flatMap((payment) => {
+        const cheques = parseChequeDetails(payment.reference);
+        const transactions = [];
+        
+        // Add the payment transaction
+        transactions.push({
+          date: payment.payment_date,
+          type: "Payment",
+          reference: payment.payment_no,
+          debit: 0,
+          credit: payment.amount || 0,
+        });
+        
+        // Add returned cheques as separate debit transactions
+        if (cheques) {
+          cheques.forEach((cheque: any) => {
+            if (cheque.status === 'returned') {
+              transactions.push({
+                date: payment.payment_date,
+                type: "Returned Cheque",
+                reference: `${payment.payment_no} - Cheque #${cheque.cheque_no}`,
+                debit: cheque.amount || 0,
+                credit: 0,
+              });
+            }
+          });
+        }
+        
+        return transactions;
+      }),
     ];
     
     return allTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
