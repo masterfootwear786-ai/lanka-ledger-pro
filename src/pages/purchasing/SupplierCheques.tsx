@@ -181,14 +181,14 @@ export default function SupplierCheques() {
         if (allocations && allocations.length > 0) {
           let remainingToReverse = cheque.amount;
 
-          // Delete or reduce allocations proportionally
+          // Delete or reduce allocations proportionally to reverse the payment
           for (const allocation of allocations) {
             if (remainingToReverse <= 0) break;
             
             const amountToReverse = Math.min(allocation.amount, remainingToReverse);
             
             if (amountToReverse >= allocation.amount) {
-              // Delete entire allocation
+              // Delete entire allocation - this increases supplier outstanding
               const { error: deleteError } = await supabase
                 .from('payment_allocations')
                 .delete()
@@ -196,7 +196,7 @@ export default function SupplierCheques() {
               
               if (deleteError) throw deleteError;
             } else {
-              // Reduce allocation amount
+              // Reduce allocation amount - this increases supplier outstanding
               const { error: reduceError } = await supabase
                 .from('payment_allocations')
                 .update({ amount: allocation.amount - amountToReverse })
@@ -208,9 +208,28 @@ export default function SupplierCheques() {
             remainingToReverse -= amountToReverse;
           }
 
+          // Reduce the payment amount by the returned cheque amount
+          // This reduces the total paid and increases outstanding balance
+          const { data: currentPayment, error: fetchError } = await supabase
+            .from('bill_payments')
+            .select('amount')
+            .eq('id', paymentId)
+            .single();
+
+          if (fetchError) throw fetchError;
+
+          const newPaymentAmount = currentPayment.amount - cheque.amount;
+
+          const { error: updateAmountError } = await supabase
+            .from('bill_payments')
+            .update({ amount: newPaymentAmount })
+            .eq('id', paymentId);
+
+          if (updateAmountError) throw updateAmountError;
+
           toast({
             title: "Success",
-            description: `Cheque ${chequeNo} marked as returned. Supplier outstanding balance has been increased by ${cheque.amount.toLocaleString()}`,
+            description: `Cheque ${chequeNo} marked as returned. Supplier outstanding increased by ${cheque.amount.toLocaleString()} and total paid reduced accordingly.`,
           });
         } else {
           toast({
