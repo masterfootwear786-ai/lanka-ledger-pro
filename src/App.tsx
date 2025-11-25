@@ -32,6 +32,7 @@ import Suppliers from "./pages/purchasing/Suppliers";
 import SupplierDetails from "./pages/purchasing/SupplierDetails";
 import DebitNotes from "./pages/purchasing/DebitNotes";
 import Payments from "./pages/purchasing/Payments";
+import SupplierCheques from "./pages/purchasing/SupplierCheques";
 import Items from "./pages/inventory/Items";
 import Stock from "./pages/inventory/Stock";
 import ChartOfAccounts from "./pages/accounting/ChartOfAccounts";
@@ -92,6 +93,7 @@ const App = () => (
               <Route path="/purchasing/bills" element={<ProtectedRoute><Bills /></ProtectedRoute>} />
               <Route path="/purchasing/debit-notes" element={<ProtectedRoute><DebitNotes /></ProtectedRoute>} />
               <Route path="/purchasing/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+              <Route path="/purchasing/cheques" element={<ProtectedRoute><SupplierCheques /></ProtectedRoute>} />
               <Route path="/purchasing/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
               <Route path="/purchasing/suppliers/:id" element={<ProtectedRoute><SupplierDetails /></ProtectedRoute>} />
               {/* Inventory routes */}
