@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileEdit } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileEdit, CheckCircle, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -87,6 +87,45 @@ export default function CustomerDetails() {
       cancelled: "destructive",
     };
     return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
+  };
+
+  const getChequeStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'passed':
+        return (
+          <Badge className="bg-green-500 hover:bg-green-600 text-white">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Passed
+          </Badge>
+        );
+      case 'returned':
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            Returned
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        );
+    }
+  };
+
+  const parseChequeDetails = (reference: string | null) => {
+    if (!reference) return null;
+    try {
+      const parsed = JSON.parse(reference);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+    return null;
   };
 
   const getTransactions = () => {
@@ -407,9 +446,9 @@ export default function CustomerDetails() {
                   <TableRow>
                     <TableHead>Receipt No</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Reference</TableHead>
+                    <TableHead>Payment Details</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Notes</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -418,19 +457,53 @@ export default function CustomerDetails() {
                       <TableCell colSpan={5} className="text-center">No receipts found</TableCell>
                     </TableRow>
                   ) : (
-                    receipts.map((receipt) => (
-                      <TableRow key={receipt.id}>
-                        <TableCell className="font-mono">{receipt.receipt_no}</TableCell>
-                        <TableCell>{format(new Date(receipt.receipt_date), "PPP")}</TableCell>
-                        <TableCell>{receipt.reference || "-"}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {receipt.amount?.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {receipt.notes || "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    receipts.map((receipt) => {
+                      const cheques = parseChequeDetails(receipt.reference);
+                      return (
+                        <TableRow key={receipt.id}>
+                          <TableCell className="font-mono">{receipt.receipt_no}</TableCell>
+                          <TableCell>{format(new Date(receipt.receipt_date), "PPP")}</TableCell>
+                          <TableCell>
+                            {cheques ? (
+                              <div className="space-y-1">
+                                {cheques.map((cheque: any, idx: number) => (
+                                  <div key={idx} className="text-sm">
+                                    <div className="font-medium">Cheque #{cheque.cheque_no}</div>
+                                    <div className="text-muted-foreground">
+                                      {cheque.cheque_bank} - {cheque.cheque_branch}
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                      Holder: {cheque.cheque_holder}
+                                    </div>
+                                    <div className="text-muted-foreground">
+                                      Date: {format(new Date(cheque.cheque_date), "PPP")}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">{receipt.notes || "Cash Payment"}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {receipt.amount?.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            {cheques ? (
+                              <div className="space-y-1">
+                                {cheques.map((cheque: any, idx: number) => (
+                                  <div key={idx}>
+                                    {getChequeStatusBadge(cheque.status)}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <Badge variant="outline">Cash</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
