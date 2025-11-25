@@ -43,6 +43,7 @@ export default function UnifiedInventory() {
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
   useEffect(() => {
     fetchInventory();
@@ -126,11 +127,15 @@ export default function UnifiedInventory() {
     }
   };
 
-  const filteredInventory = inventoryData.filter(item =>
-    item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.color?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInventory = inventoryData.filter(item => {
+    const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.color?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesLowStockFilter = !showLowStockOnly || item.hasLowStock;
+    
+    return matchesSearch && matchesLowStockFilter;
+  });
 
   const totalValue = filteredInventory.reduce((sum, item) => sum + item.stockValue, 0);
   const totalItems = filteredInventory.length;
@@ -207,12 +212,20 @@ export default function UnifiedInventory() {
             <div className="text-2xl font-bold">{totalItems}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md"
+          onClick={() => setShowLowStockOnly(!showLowStockOnly)}
+        >
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">Low Stock Alerts</div>
             <div className="text-2xl font-bold text-destructive">
               {lowStockItems.length}
             </div>
+            {showLowStockOnly && (
+              <div className="text-xs text-muted-foreground mt-2">
+                Click to show all items
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -220,7 +233,15 @@ export default function UnifiedInventory() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Inventory Items</CardTitle>
+            <div className="flex items-center gap-4">
+              <CardTitle>Inventory Items</CardTitle>
+              {showLowStockOnly && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Low Stock Filter Active
+                </Badge>
+              )}
+            </div>
             <div className="relative w-96">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
