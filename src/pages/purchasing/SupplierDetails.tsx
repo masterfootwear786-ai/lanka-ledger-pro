@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileEdit } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileEdit, CheckCircle, XCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -85,6 +85,45 @@ export default function SupplierDetails() {
       cancelled: "destructive",
     };
     return <Badge variant={variants[status] || "outline"}>{status}</Badge>;
+  };
+
+  const getChequeStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'passed':
+        return (
+          <Badge className="bg-green-500 hover:bg-green-600 text-white">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Passed
+          </Badge>
+        );
+      case 'returned':
+        return (
+          <Badge variant="destructive">
+            <XCircle className="h-3 w-3 mr-1" />
+            Returned
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline">
+            <Clock className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        );
+    }
+  };
+
+  const parseChequeDetails = (reference: string | null) => {
+    if (!reference) return null;
+    try {
+      const parsed = JSON.parse(reference);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    } catch {
+      return null;
+    }
+    return null;
   };
 
   const getTransactions = () => {
@@ -406,7 +445,8 @@ export default function SupplierDetails() {
                   <TableRow>
                     <TableHead>Payment No</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Reference</TableHead>
+                    <TableHead>Payment Details</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Notes</TableHead>
                   </TableRow>
@@ -414,22 +454,64 @@ export default function SupplierDetails() {
                 <TableBody>
                   {payments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center">No payments found</TableCell>
+                      <TableCell colSpan={6} className="text-center">No payments found</TableCell>
                     </TableRow>
                   ) : (
-                    payments.map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-mono">{payment.payment_no}</TableCell>
-                        <TableCell>{format(new Date(payment.payment_date), "PPP")}</TableCell>
-                        <TableCell>{payment.reference || "-"}</TableCell>
-                        <TableCell className="text-right font-medium">
-                          {payment.amount?.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {payment.notes || "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    payments.map((payment) => {
+                      const cheques = parseChequeDetails(payment.reference);
+                      return (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-mono">{payment.payment_no}</TableCell>
+                          <TableCell>{format(new Date(payment.payment_date), "PPP")}</TableCell>
+                          <TableCell>
+                            {cheques ? (
+                              <div className="space-y-1">
+                                {cheques.map((cheque: any, idx: number) => (
+                                  <div key={idx} className="text-sm">
+                                    <div className="font-medium">Cheque #{cheque.cheque_no}</div>
+                                    <div className="text-muted-foreground">
+                                      {cheque.cheque_bank && `${cheque.cheque_bank}`}
+                                      {cheque.cheque_branch && ` - ${cheque.cheque_branch}`}
+                                    </div>
+                                    {cheque.cheque_holder && (
+                                      <div className="text-muted-foreground">
+                                        Holder: {cheque.cheque_holder}
+                                      </div>
+                                    )}
+                                    <div className="text-muted-foreground">
+                                      Date: {format(new Date(cheque.cheque_date), "PPP")}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">
+                                {payment.reference || payment.notes || "Cash Payment"}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {cheques ? (
+                              <div className="space-y-1">
+                                {cheques.map((cheque: any, idx: number) => (
+                                  <div key={idx}>
+                                    {getChequeStatusBadge(cheque.status)}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {payment.amount?.toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {!cheques && (payment.notes || "-")}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
