@@ -55,6 +55,13 @@ export default function TransactionViewDialog({ open, onOpenChange, transaction 
               <p className="font-medium">{transaction.reference}</p>
             </div>
           )}
+
+          {transaction.contacts && (
+            <div>
+              <Label className="text-muted-foreground">Creditor / Debtor</Label>
+              <p className="font-medium">{transaction.contacts.name} ({transaction.contacts.code})</p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
