@@ -118,7 +118,8 @@ export default function Receipts() {
     
     if (cheques) {
       return (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          <span className="text-sm text-muted-foreground">Cheque:</span>
           {cheques.map((cheque: any, index: number) => (
             <Badge
               key={index}
