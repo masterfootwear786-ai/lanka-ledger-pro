@@ -56,26 +56,43 @@ export default function Journals() {
     if (!journalToDelete) return;
 
     try {
+      // First delete journal lines
+      const { error: linesError } = await supabase
+        .from('journal_lines')
+        .delete()
+        .eq('journal_id', journalToDelete.id);
+
+      if (linesError) {
+        console.error('Delete lines error:', linesError);
+        throw linesError;
+      }
+
+      // Then delete the journal
       const { error } = await supabase
         .from('journals')
         .delete()
         .eq('id', journalToDelete.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Delete journal error:', error);
+        throw error;
+      }
 
       toast({
         title: "Success",
         description: "Journal entry deleted successfully",
       });
 
+      setDeleteDialogOpen(false);
+      setJournalToDelete(null);
       fetchJournals();
     } catch (error: any) {
+      console.error('Delete failed:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to delete journal entry",
         variant: "destructive",
       });
-    } finally {
       setDeleteDialogOpen(false);
       setJournalToDelete(null);
     }
