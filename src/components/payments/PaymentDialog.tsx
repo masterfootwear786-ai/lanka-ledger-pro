@@ -185,12 +185,22 @@ export function PaymentDialog({ open, onOpenChange, payment, onSuccess }: Paymen
 
       if (!profile?.company_id) return;
 
-      const { count } = await supabase
+      const { data: existingPayments } = await supabase
         .from('bill_payments')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', profile.company_id);
+        .select('payment_no')
+        .eq('company_id', profile.company_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      const nextNumber = (count || 0) + 1;
+      let nextNumber = 1;
+      if (existingPayments && existingPayments.length > 0) {
+        const lastPaymentNo = existingPayments[0].payment_no;
+        const match = lastPaymentNo.match(/PAY-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
+      }
+
       setValue('payment_no', `PAY-${String(nextNumber).padStart(5, '0')}`);
     } catch (error: any) {
       toast({
