@@ -62,12 +62,9 @@ export function AppSidebar() {
   ];
 
   const reportItems = [
-    { title: t('reports.trialBalance'), url: '/reports/trial-balance' },
     { title: t('reports.profitLoss'), url: '/reports/profit-loss' },
-    { title: t('reports.balanceSheet'), url: '/reports/balance-sheet' },
     { title: t('reports.arAging'), url: '/reports/ar-aging' },
     { title: t('reports.apAging'), url: '/reports/ap-aging' },
-    { title: t('reports.taxSummary'), url: '/reports/tax-summary' },
   ];
 
   return (
