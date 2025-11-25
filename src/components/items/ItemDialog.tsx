@@ -29,7 +29,6 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
     color: "",
     description: "",
     uom: "EA",
-    stock_quantity: "0",
     sale_price: "",
     purchase_price: "",
     low_stock_threshold: "10",
@@ -66,7 +65,6 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         color: item.color || "",
         description: item.description || "",
         uom: item.uom || "EA",
-        stock_quantity: item.stock_quantity?.toString() || "0",
         sale_price: item.sale_price?.toString() || "",
         purchase_price: item.purchase_price?.toString() || "",
         low_stock_threshold: item.low_stock_threshold?.toString() || "10",
@@ -81,7 +79,6 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         color: "",
         description: "",
         uom: "EA",
-        stock_quantity: "0",
         sale_price: "",
         purchase_price: "",
         low_stock_threshold: "10",
@@ -116,7 +113,6 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
         const data = {
           ...formData,
           company_id: profile.company_id,
-          stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
           sale_price: formData.sale_price ? parseFloat(formData.sale_price) : 0,
           purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : 0,
           low_stock_threshold: formData.low_stock_threshold ? parseFloat(formData.low_stock_threshold) : 10,
@@ -302,7 +298,7 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
             />
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="uom">Unit of Measure</Label>
               <Input
@@ -311,18 +307,6 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 onChange={(e) => setFormData({ ...formData, uom: e.target.value })}
               />
             </div>
-            {item && (
-              <div className="space-y-2">
-                <Label htmlFor="stock_quantity">Quantity</Label>
-                <Input
-                  id="stock_quantity"
-                  type="number"
-                  step="1"
-                  value={formData.stock_quantity}
-                  onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value })}
-                />
-              </div>
-            )}
             <div className="space-y-2">
               <Label htmlFor="sale_price">Sale Price</Label>
               <Input
@@ -343,17 +327,18 @@ export function ItemDialog({ open, onOpenChange, item, onSuccess }: ItemDialogPr
                 onChange={(e) => setFormData({ ...formData, purchase_price: e.target.value })}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="low_stock_threshold">Low Stock Warning Limit</Label>
-              <Input
-                id="low_stock_threshold"
-                type="number"
-                step="1"
-                value={formData.low_stock_threshold}
-                onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })}
-                placeholder="10"
-              />
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="low_stock_threshold">Low Stock Warning Limit</Label>
+            <Input
+              id="low_stock_threshold"
+              type="number"
+              step="1"
+              value={formData.low_stock_threshold}
+              onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })}
+              placeholder="10"
+            />
           </div>
 
           <div className="flex items-center justify-between">

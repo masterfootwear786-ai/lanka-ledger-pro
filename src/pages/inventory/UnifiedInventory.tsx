@@ -273,7 +273,6 @@ export default function UnifiedInventory() {
                         <TableHead className="w-32">Color</TableHead>
                         <TableHead className="w-48">Name</TableHead>
                         <TableHead className="w-64">Description</TableHead>
-                        <TableHead className="text-right w-24">Total Stock</TableHead>
                         <TableHead className="text-right w-32">Value</TableHead>
                         <TableHead className="w-24">Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -282,7 +281,7 @@ export default function UnifiedInventory() {
                     <TableBody>
                       {filteredInventory.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center">
+                          <TableCell colSpan={7} className="text-center">
                             No items found
                           </TableCell>
                         </TableRow>
@@ -293,10 +292,6 @@ export default function UnifiedInventory() {
                             <TableCell className="font-medium">{item.color}</TableCell>
                             <TableCell>{item.name}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">{item.description}</TableCell>
-                            <TableCell className={`text-right font-semibold ${item.hasLowStock ? 'text-red-600' : ''}`}>
-                              {item.totalStock}
-                              {item.hasLowStock && ' ⚠️'}
-                            </TableCell>
                             <TableCell className="text-right">
                               {item.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </TableCell>
@@ -444,7 +439,6 @@ export default function UnifiedInventory() {
                         <TableHead className="text-right w-32">Purchase Price</TableHead>
                         <TableHead className="text-right w-32">Sale Price</TableHead>
                         <TableHead className="text-right w-32">Margin</TableHead>
-                        <TableHead className="text-right w-24">Stock</TableHead>
                         <TableHead className="text-right w-32">Stock Value</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -452,7 +446,7 @@ export default function UnifiedInventory() {
                     <TableBody>
                       {filteredInventory.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center">
+                          <TableCell colSpan={8} className="text-center">
                             No items found
                           </TableCell>
                         </TableRow>
@@ -475,7 +469,6 @@ export default function UnifiedInventory() {
                               <TableCell className={`text-right ${marginPercent < 0 ? 'text-red-600' : 'text-green-600'}`}>
                                 {margin.toFixed(2)} ({marginPercent.toFixed(1)}%)
                               </TableCell>
-                              <TableCell className="text-right">{item.totalStock}</TableCell>
                               <TableCell className="text-right font-medium">
                                 {item.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </TableCell>
