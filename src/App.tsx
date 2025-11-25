@@ -12,7 +12,6 @@ import NotFound from "./pages/NotFound";
 import Sales from "./pages/Sales";
 import Purchasing from "./pages/Purchasing";
 import Inventory from "./pages/Inventory";
-import Cashbook from "./pages/Cashbook";
 import Accounting from "./pages/Accounting";
 import Reports from "./pages/Reports";
 import TrialBalance from "./pages/reports/TrialBalance";
@@ -79,7 +78,6 @@ const App = () => (
               <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
               <Route path="/purchasing" element={<ProtectedRoute><Purchasing /></ProtectedRoute>} />
               <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-              <Route path="/cashbook" element={<ProtectedRoute><Cashbook /></ProtectedRoute>} />
               <Route path="/accounting" element={<ProtectedRoute><Accounting /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               {/* Sales routes */}
@@ -99,9 +97,6 @@ const App = () => (
               {/* Inventory routes */}
               <Route path="/inventory/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
               <Route path="/inventory/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
-              {/* Cashbook & Bank routes - to be implemented */}
-              <Route path="/cashbook" element={<ProtectedRoute><div>Cashbook - Coming Soon</div></ProtectedRoute>} />
-              <Route path="/bank-reconciliation" element={<ProtectedRoute><div>Bank Reconciliation - Coming Soon</div></ProtectedRoute>} />
               {/* Accounting routes */}
               <Route path="/accounting/coa" element={<ProtectedRoute><ChartOfAccounts /></ProtectedRoute>} />
               <Route path="/accounting/journals" element={<ProtectedRoute><Journals /></ProtectedRoute>} />
