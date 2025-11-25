@@ -10,10 +10,10 @@ export default function Accounting() {
 
   const accountingModules = [
     {
-      title: "Transactions",
-      description: "Record expenses, cash in/out, and other transactions",
+      title: "Expenses",
+      description: "Record expenses, cash in/out, and other expenses",
       icon: Plus,
-      path: "/accounting/transactions",
+      path: "/accounting/expenses",
       color: "text-green-500"
     },
     {

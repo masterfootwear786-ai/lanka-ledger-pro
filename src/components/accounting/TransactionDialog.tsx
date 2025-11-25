@@ -138,10 +138,10 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
 
         if (error) throw error;
 
-        toast({
-          title: "Success",
-          description: "Transaction updated successfully",
-        });
+      toast({
+        title: "Success",
+        description: "Expense updated successfully",
+      });
       } else {
         const { error } = await supabase
           .from("transactions")
@@ -149,10 +149,10 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
 
         if (error) throw error;
 
-        toast({
-          title: "Success",
-          description: "Transaction created successfully",
-        });
+      toast({
+        title: "Success",
+        description: "Expense created successfully",
+      });
       }
 
       onSuccess();
@@ -172,7 +172,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{transaction ? "Edit Transaction" : "Add Transaction"}</DialogTitle>
+          <DialogTitle>{transaction ? "Edit Expense" : "Add Expense"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -187,7 +187,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="transaction_type">Transaction Type</Label>
+              <Label htmlFor="transaction_type">Expense Type</Label>
               <Select
                 value={formData.transaction_type}
                 onValueChange={(value) => setFormData({ ...formData, transaction_type: value })}

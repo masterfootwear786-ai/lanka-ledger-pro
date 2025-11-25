@@ -18,12 +18,12 @@ export default function TransactionViewDialog({ open, onOpenChange, transaction 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Transaction Details</DialogTitle>
+          <DialogTitle>Expense Details</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-muted-foreground">Transaction No</Label>
+              <Label className="text-muted-foreground">Expense No</Label>
               <p className="font-medium">{transaction.transaction_no}</p>
             </div>
             <div>
@@ -34,7 +34,7 @@ export default function TransactionViewDialog({ open, onOpenChange, transaction 
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-muted-foreground">Transaction Type</Label>
+              <Label className="text-muted-foreground">Expense Type</Label>
               <p className="font-medium">{formatTransactionType(transaction.transaction_type)}</p>
             </div>
             <div>
