@@ -14,6 +14,7 @@ import Purchasing from "./pages/Purchasing";
 import Inventory from "./pages/Inventory";
 import Accounting from "./pages/Accounting";
 import Reports from "./pages/Reports";
+import AllReportsDetails from "./pages/AllReportsDetails";
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import ARAging from "./pages/reports/ARAging";
 import APAging from "./pages/reports/APAging";
@@ -101,6 +102,7 @@ const App = () => (
               <Route path="/accounting/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
               <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><CreditorsDebtors /></ProtectedRoute>} />
               {/* Reports routes */}
+              <Route path="/reports/all" element={<ProtectedRoute><AllReportsDetails /></ProtectedRoute>} />
               <Route path="/reports/sales" element={<ProtectedRoute><SalesReport /></ProtectedRoute>} />
               <Route path="/reports/purchasing" element={<ProtectedRoute><PurchasingReport /></ProtectedRoute>} />
               <Route path="/reports/inventory" element={<ProtectedRoute><InventoryReport /></ProtectedRoute>} />

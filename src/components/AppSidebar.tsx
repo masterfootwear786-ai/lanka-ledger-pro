@@ -62,6 +62,7 @@ export function AppSidebar() {
   ];
 
   const reportItems = [
+    { title: 'All Reports Details', url: '/reports/all' },
     { title: t('reports.profitLoss'), url: '/reports/profit-loss' },
     { title: t('reports.arAging'), url: '/reports/ar-aging' },
     { title: t('reports.apAging'), url: '/reports/ap-aging' },
