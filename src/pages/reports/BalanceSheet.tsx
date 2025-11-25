@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Download, Printer, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 export default function BalanceSheet() {
   const { t } = useTranslation();
@@ -33,6 +35,87 @@ export default function BalanceSheet() {
 
   const totalEquity = equity.reduce((sum, item) => sum + item.amount, 0);
   const totalLiabilitiesAndEquity = totalLiabilities + totalEquity;
+
+  const handleExportCSV = () => {
+    const rows = [
+      ["BALANCE SHEET"],
+      [""],
+      ["ASSETS"],
+      ["CURRENT ASSETS"],
+      ...assets.current.map(item => [item.name, item.amount]),
+      ["Total Current Assets", totalCurrentAssets],
+      [""],
+      ["FIXED ASSETS"],
+      ...assets.fixed.map(item => [item.name, item.amount]),
+      ["Total Fixed Assets", totalFixedAssets],
+      ["TOTAL ASSETS", totalAssets],
+      [""],
+      ["LIABILITIES & EQUITY"],
+      ["CURRENT LIABILITIES"],
+      ...liabilities.current.map(item => [item.name, item.amount]),
+      ["Total Current Liabilities", totalCurrentLiabilities],
+      [""],
+      ["LONG-TERM LIABILITIES"],
+      ...liabilities.longTerm.map(item => [item.name, item.amount]),
+      ["Total Liabilities", totalLiabilities],
+      [""],
+      ["EQUITY"],
+      ...equity.map(item => [item.name, item.amount]),
+      ["Total Equity", totalEquity],
+      ["TOTAL LIABILITIES & EQUITY", totalLiabilitiesAndEquity]
+    ];
+
+    const csvContent = rows.map(row => row.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "balance-sheet.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success("CSV exported successfully");
+  };
+
+  const handleExportExcel = () => {
+    const data = [
+      ["BALANCE SHEET"],
+      [""],
+      ["ASSETS"],
+      ["CURRENT ASSETS"],
+      ...assets.current.map(item => [item.name, item.amount]),
+      ["Total Current Assets", totalCurrentAssets],
+      [""],
+      ["FIXED ASSETS"],
+      ...assets.fixed.map(item => [item.name, item.amount]),
+      ["Total Fixed Assets", totalFixedAssets],
+      ["TOTAL ASSETS", totalAssets],
+      [""],
+      ["LIABILITIES & EQUITY"],
+      ["CURRENT LIABILITIES"],
+      ...liabilities.current.map(item => [item.name, item.amount]),
+      ["Total Current Liabilities", totalCurrentLiabilities],
+      [""],
+      ["LONG-TERM LIABILITIES"],
+      ...liabilities.longTerm.map(item => [item.name, item.amount]),
+      ["Total Liabilities", totalLiabilities],
+      [""],
+      ["EQUITY"],
+      ...equity.map(item => [item.name, item.amount]),
+      ["Total Equity", totalEquity],
+      ["TOTAL LIABILITIES & EQUITY", totalLiabilitiesAndEquity]
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Balance Sheet");
+    XLSX.writeFile(wb, "balance-sheet.xlsx");
+    toast.success("Excel exported successfully");
+  };
+
+  const handlePrint = () => {
+    window.print();
+    toast.success("Print dialog opened");
+  };
 
   return (
     <div className="space-y-6">
@@ -71,11 +154,15 @@ export default function BalanceSheet() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Assets</CardTitle>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExportCSV}>
                 <Download className="h-4 w-4 mr-2" />
                 {t('common.exportCSV')}
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                {t('common.exportExcel')}
+              </Button>
+              <Button variant="outline" size="sm" onClick={handlePrint}>
                 <Printer className="h-4 w-4 mr-2" />
                 {t('common.print')}
               </Button>
