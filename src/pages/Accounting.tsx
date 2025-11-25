@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Percent, DollarSign, Plus } from "lucide-react";
+import { Percent, DollarSign, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -9,13 +9,6 @@ export default function Accounting() {
   const { t } = useTranslation();
 
   const accountingModules = [
-    {
-      title: t("accounting.chartOfAccounts"),
-      description: "Manage your chart of accounts",
-      icon: BookOpen,
-      path: "/accounting/coa",
-      color: "text-blue-500"
-    },
     {
       title: "Transactions",
       description: "Record expenses, cash in/out, and other transactions",
@@ -48,7 +41,7 @@ export default function Accounting() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {accountingModules.map((module) => (
           <Card key={module.path} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate(module.path)}>
             <CardHeader>
