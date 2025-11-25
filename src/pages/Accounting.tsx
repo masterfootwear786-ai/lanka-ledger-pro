@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, FileText, Percent, DollarSign } from "lucide-react";
+import { BookOpen, Percent, DollarSign, Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -13,21 +13,21 @@ export default function Accounting() {
       title: t("accounting.chartOfAccounts"),
       description: "Manage your chart of accounts",
       icon: BookOpen,
-      path: "/accounting/chart-of-accounts",
+      path: "/accounting/coa",
       color: "text-blue-500"
     },
     {
-      title: t("accounting.journals"),
-      description: "Record journal entries",
-      icon: FileText,
-      path: "/accounting/journals",
+      title: "Transactions",
+      description: "Record expenses, cash in/out, and other transactions",
+      icon: Plus,
+      path: "/accounting/transactions",
       color: "text-green-500"
     },
     {
       title: t("accounting.taxRates"),
       description: "Manage tax rates",
       icon: Percent,
-      path: "/accounting/tax-rates",
+      path: "/settings/tax-rates",
       color: "text-purple-500"
     },
     {
