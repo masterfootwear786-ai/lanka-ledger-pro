@@ -60,9 +60,23 @@ export default function CustomerDetails() {
       setInvoices(invoicesData || []);
       setReceipts(receiptsData || []);
 
-      // Calculate statistics
+      // Calculate statistics considering returned cheques
       const totalInvoiced = invoicesData?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
-      const totalPaid = receiptsData?.reduce((sum, rec) => sum + (rec.amount || 0), 0) || 0;
+      
+      // Calculate total paid, deducting returned cheques
+      let totalReturnedCheques = 0;
+      receiptsData?.forEach((rec) => {
+        const cheques = parseChequeDetails(rec.reference);
+        if (cheques) {
+          cheques.forEach((cheque: any) => {
+            if (cheque.status === 'returned') {
+              totalReturnedCheques += cheque.amount || 0;
+            }
+          });
+        }
+      });
+      
+      const totalPaid = (receiptsData?.reduce((sum, rec) => sum + (rec.amount || 0), 0) || 0) - totalReturnedCheques;
       const outstanding = totalInvoiced - totalPaid;
 
       setStats({
@@ -129,7 +143,7 @@ export default function CustomerDetails() {
   };
 
   const getTransactions = () => {
-    return [
+    const allTransactions = [
       ...invoices.map((inv) => ({
         date: inv.invoice_date,
         type: "Invoice",
@@ -137,14 +151,39 @@ export default function CustomerDetails() {
         debit: inv.grand_total || 0,
         credit: 0,
       })),
-      ...receipts.map((rec) => ({
-        date: rec.receipt_date,
-        type: "Receipt",
-        reference: rec.receipt_no,
-        debit: 0,
-        credit: rec.amount || 0,
-      })),
-    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      ...receipts.flatMap((rec) => {
+        const cheques = parseChequeDetails(rec.reference);
+        const transactions = [];
+        
+        // Add the receipt transaction
+        transactions.push({
+          date: rec.receipt_date,
+          type: "Receipt",
+          reference: rec.receipt_no,
+          debit: 0,
+          credit: rec.amount || 0,
+        });
+        
+        // Add returned cheques as separate debit transactions
+        if (cheques) {
+          cheques.forEach((cheque: any) => {
+            if (cheque.status === 'returned') {
+              transactions.push({
+                date: rec.receipt_date,
+                type: "Returned Cheque",
+                reference: `${rec.receipt_no} - Cheque #${cheque.cheque_no}`,
+                debit: cheque.amount || 0,
+                credit: 0,
+              });
+            }
+          });
+        }
+        
+        return transactions;
+      }),
+    ];
+    
+    return allTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
   const handleExportPDF = (options: StatementOptions) => {
