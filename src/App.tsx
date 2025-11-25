@@ -17,6 +17,10 @@ import Reports from "./pages/Reports";
 import ProfitLoss from "./pages/reports/ProfitLoss";
 import ARAging from "./pages/reports/ARAging";
 import APAging from "./pages/reports/APAging";
+import SalesReport from "./pages/reports/SalesReport";
+import PurchasingReport from "./pages/reports/PurchasingReport";
+import InventoryReport from "./pages/reports/InventoryReport";
+import ExpensesReport from "./pages/reports/ExpensesReport";
 import Invoices from "./pages/sales/Invoices";
 import Customers from "./pages/sales/Customers";
 import CustomerDetails from "./pages/sales/CustomerDetails";
@@ -97,6 +101,10 @@ const App = () => (
               <Route path="/accounting/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
               <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><CreditorsDebtors /></ProtectedRoute>} />
               {/* Reports routes */}
+              <Route path="/reports/sales" element={<ProtectedRoute><SalesReport /></ProtectedRoute>} />
+              <Route path="/reports/purchasing" element={<ProtectedRoute><PurchasingReport /></ProtectedRoute>} />
+              <Route path="/reports/inventory" element={<ProtectedRoute><InventoryReport /></ProtectedRoute>} />
+              <Route path="/reports/expenses" element={<ProtectedRoute><ExpensesReport /></ProtectedRoute>} />
               <Route path="/reports/profit-loss" element={<ProtectedRoute><ProfitLoss /></ProtectedRoute>} />
               <Route path="/reports/ar-aging" element={<ProtectedRoute><ARAging /></ProtectedRoute>} />
               <Route path="/reports/ap-aging" element={<ProtectedRoute><APAging /></ProtectedRoute>} />
