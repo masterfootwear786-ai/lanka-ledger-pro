@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Suppliers() {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [searchTerm, setSearchTerm] = useState("");
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -144,7 +146,11 @@ export default function Suppliers() {
                   </TableRow>
                 ) : (
                   filteredSuppliers.map((supplier) => (
-                    <TableRow key={supplier.id}>
+                    <TableRow 
+                      key={supplier.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/purchasing/suppliers/${supplier.id}`)}
+                    >
                       <TableCell className="font-mono">{supplier.code}</TableCell>
                       <TableCell className="font-medium">{supplier.name}</TableCell>
                       <TableCell>
@@ -173,13 +179,21 @@ export default function Suppliers() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(supplier)}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEdit(supplier);
+                            }}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setSupplierToDelete(supplier);
                               setDeleteDialogOpen(true);
                             }}
