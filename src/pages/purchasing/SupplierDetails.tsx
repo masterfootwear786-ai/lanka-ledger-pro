@@ -6,10 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt } from "lucide-react";
+import { ArrowLeft, Mail, Phone, MapPin, CreditCard, FileText, Receipt, FileEdit } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { generateSupplierStatement } from "@/lib/supplierStatement";
+import SupplierStatementOptionsDialog, { StatementOptions } from "@/components/statements/SupplierStatementOptionsDialog";
+import StatementPreviewDialog from "@/components/statements/StatementPreviewDialog";
+import jsPDF from "jspdf";
 
 export default function SupplierDetails() {
   const { id } = useParams();
@@ -24,6 +28,9 @@ export default function SupplierDetails() {
     totalPaid: 0,
     outstanding: 0,
   });
+  const [showStatementDialog, setShowStatementDialog] = useState(false);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [previewOptions, setPreviewOptions] = useState<StatementOptions | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -101,6 +108,113 @@ export default function SupplierDetails() {
     return allTransactions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
 
+  const handleExportPDF = (options: StatementOptions) => {
+    const transactions = getTransactions();
+    generateSupplierStatement(supplier, stats, transactions, options);
+    toast.success("Supplier statement exported successfully");
+    setShowStatementDialog(false);
+  };
+
+  const handleEmailStatement = async (options: StatementOptions) => {
+    try {
+      const transactions = getTransactions();
+      
+      const doc = new jsPDF();
+      generateSupplierStatement(supplier, stats, transactions, options);
+      const pdfBase64 = doc.output("datauristring").split(",")[1];
+      
+      const fileName = `Supplier_Statement_${supplier.code}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+
+      const { error } = await supabase.functions.invoke("send-customer-statement", {
+        body: {
+          to: supplier.email,
+          customerName: supplier.name,
+          pdfBase64,
+          fileName,
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success("Statement sent successfully to " + supplier.email);
+      setShowStatementDialog(false);
+    } catch (error: any) {
+      toast.error("Failed to send email: " + error.message);
+    }
+  };
+
+  const handleWhatsAppStatement = (options: StatementOptions) => {
+    const transactions = getTransactions();
+    generateSupplierStatement(supplier, stats, transactions, options);
+    
+    const message = encodeURIComponent(
+      `Hello ${supplier.name}, your account statement has been generated. Outstanding balance: ${stats.outstanding.toLocaleString()}`
+    );
+    const whatsappUrl = `https://wa.me/${supplier.phone?.replace(/[^0-9]/g, "")}?text=${message}`;
+    
+    window.open(whatsappUrl, "_blank");
+    toast.success("Opening WhatsApp...");
+    setShowStatementDialog(false);
+  };
+
+  const handleViewStatement = (options: StatementOptions) => {
+    setPreviewOptions(options);
+    setShowStatementDialog(false);
+    setShowPreviewDialog(true);
+  };
+
+  const handleExportFromPreview = () => {
+    if (previewOptions) {
+      const transactions = getTransactions();
+      generateSupplierStatement(supplier, stats, transactions, previewOptions);
+      toast.success("Supplier statement exported successfully");
+    }
+  };
+
+  const handleEmailFromPreview = async () => {
+    if (!previewOptions) return;
+    try {
+      const transactions = getTransactions();
+      
+      const doc = new jsPDF();
+      generateSupplierStatement(supplier, stats, transactions, previewOptions);
+      const pdfBase64 = doc.output("datauristring").split(",")[1];
+      
+      const fileName = `Supplier_Statement_${supplier.code}_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+
+      const { error } = await supabase.functions.invoke("send-customer-statement", {
+        body: {
+          to: supplier.email,
+          customerName: supplier.name,
+          pdfBase64,
+          fileName,
+        },
+      });
+
+      if (error) throw error;
+      
+      toast.success("Statement sent successfully to " + supplier.email);
+      setShowPreviewDialog(false);
+    } catch (error: any) {
+      toast.error("Failed to send email: " + error.message);
+    }
+  };
+
+  const handleWhatsAppFromPreview = () => {
+    if (!previewOptions) return;
+    const transactions = getTransactions();
+    generateSupplierStatement(supplier, stats, transactions, previewOptions);
+    
+    const message = encodeURIComponent(
+      `Hello ${supplier.name}, your account statement has been generated. Outstanding balance: ${stats.outstanding.toLocaleString()}`
+    );
+    const whatsappUrl = `https://wa.me/${supplier.phone?.replace(/[^0-9]/g, "")}?text=${message}`;
+    
+    window.open(whatsappUrl, "_blank");
+    toast.success("Opening WhatsApp...");
+    setShowPreviewDialog(false);
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -136,6 +250,10 @@ export default function SupplierDetails() {
           <h1 className="text-3xl font-bold">{supplier.name}</h1>
           <p className="text-muted-foreground">Supplier Code: {supplier.code}</p>
         </div>
+        <Button onClick={() => setShowStatementDialog(true)} variant="outline">
+          <FileEdit className="h-4 w-4 mr-2" />
+          Generate Statement
+        </Button>
         <Badge variant={supplier.active ? "default" : "secondary"}>
           {supplier.active ? "Active" : "Inactive"}
         </Badge>
@@ -373,6 +491,42 @@ export default function SupplierDetails() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <SupplierStatementOptionsDialog
+        open={showStatementDialog}
+        onOpenChange={setShowStatementDialog}
+        supplierEmail={supplier.email}
+        supplierPhone={supplier.phone}
+        onExport={handleExportPDF}
+        onEmail={handleEmailStatement}
+        onWhatsApp={handleWhatsAppStatement}
+        onView={handleViewStatement}
+      />
+
+      <StatementPreviewDialog
+        open={showPreviewDialog}
+        onOpenChange={setShowPreviewDialog}
+        customer={supplier}
+        stats={{
+          totalInvoiced: stats.totalBilled,
+          totalPaid: stats.totalPaid,
+          outstanding: stats.outstanding,
+        }}
+        transactions={getTransactions()}
+        options={previewOptions ? {
+          ...previewOptions,
+          includeInvoices: previewOptions.includeBills,
+          includeReceipts: previewOptions.includePayments,
+        } : {
+          includeInvoices: true,
+          includeReceipts: true,
+          showRunningBalance: true,
+          includeAccountSummary: true,
+        }}
+        onExport={handleExportFromPreview}
+        onEmail={handleEmailFromPreview}
+        onWhatsApp={handleWhatsAppFromPreview}
+      />
     </div>
   );
 }
