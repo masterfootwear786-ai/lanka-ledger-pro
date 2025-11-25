@@ -254,19 +254,19 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="contact_id">Creditor / Debtor (Optional)</Label>
+            <Label htmlFor="contact_id">Creditor/Debtor (Optional)</Label>
             <Select
               value={formData.contact_id}
               onValueChange={(value) => setFormData({ ...formData, contact_id: value })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select contact..." />
+                <SelectValue placeholder="Select creditor or debtor..." />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
                 {contacts.map((contact) => (
                   <SelectItem key={contact.id} value={contact.id}>
-                    {contact.name} ({contact.code}) - {contact.contact_type === 'customer' ? 'Customer' : contact.contact_type === 'supplier' ? 'Supplier' : 'Both'}
+                    {contact.name} ({contact.code}) - {contact.contact_type === 'customer' ? 'Debtor' : contact.contact_type === 'supplier' ? 'Creditor' : 'Both'}
                   </SelectItem>
                 ))}
               </SelectContent>
