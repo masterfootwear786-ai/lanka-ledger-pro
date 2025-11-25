@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, TrendingUp, PieChart, BarChart3, FileSpreadsheet, DollarSign } from "lucide-react";
+import { FileText, TrendingUp, ShoppingCart, Package, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -10,32 +10,53 @@ export default function Reports() {
 
   const reportModules = [
     {
-      title: t("reports.profitLoss"),
-      description: "Profit and loss statement",
+      title: "Sales Report",
+      description: "Comprehensive sales transactions and revenue analysis",
       icon: TrendingUp,
-      path: "/reports/profit-loss",
+      path: "/reports/sales",
       color: "text-blue-500"
     },
     {
-      title: t("reports.cashFlow"),
-      description: "Cash flow statement",
-      icon: DollarSign,
-      path: "/reports/cash-flow",
+      title: "Purchasing Report",
+      description: "Complete purchasing transactions and supplier analysis",
+      icon: ShoppingCart,
+      path: "/reports/purchasing",
       color: "text-purple-500"
     },
     {
-      title: "Aged Receivables",
-      description: "Customer outstanding report",
+      title: "Inventory Stock Report",
+      description: "Current stock levels, values and low stock alerts",
+      icon: Package,
+      path: "/reports/inventory",
+      color: "text-green-500"
+    },
+    {
+      title: "Expenses Report",
+      description: "All expenses and transaction details",
+      icon: DollarSign,
+      path: "/reports/expenses",
+      color: "text-orange-500"
+    },
+    {
+      title: t("reports.profitLoss"),
+      description: "Profit and loss statement",
       icon: FileText,
-      path: "/reports/aged-receivables",
+      path: "/reports/profit-loss",
       color: "text-pink-500"
     },
     {
-      title: "Aged Payables",
-      description: "Supplier outstanding report",
-      icon: PieChart,
-      path: "/reports/aged-payables",
+      title: t("reports.arAging"),
+      description: "Accounts receivable aging analysis",
+      icon: FileText,
+      path: "/reports/ar-aging",
       color: "text-indigo-500"
+    },
+    {
+      title: t("reports.apAging"),
+      description: "Accounts payable aging analysis",
+      icon: FileText,
+      path: "/reports/ap-aging",
+      color: "text-red-500"
     }
   ];
 
