@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit, Trash2, CreditCard } from "lucide-react";
+import { Plus, Search, Edit, Trash2, CreditCard, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReceiptDialog } from "@/components/receipts/ReceiptDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +62,60 @@ export default function Receipts() {
   const handleDeleteRequest = (receipt: any) => {
     setReceiptToDelete(receipt);
     setDeleteDialogOpen(true);
+  };
+
+  const handlePrint = async (receipt: any) => {
+    try {
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .single();
+
+      const printWindow = window.open("", "", "width=800,height=600");
+      if (!printWindow) return;
+
+      const content = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Receipt ${receipt.receipt_no}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .info { margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h2>${company?.name || 'Company Name'}</h2>
+              ${company?.address ? `<p>${company.address}</p>` : ''}
+            </div>
+            <div>
+              <h1>RECEIPT</h1>
+              <p>Receipt #: ${receipt.receipt_no}</p>
+            </div>
+          </div>
+          <div class="info">
+            <p><strong>Date:</strong> ${new Date(receipt.receipt_date).toLocaleDateString()}</p>
+            <p><strong>Customer:</strong> ${receipt.customer?.name || "N/A"}</p>
+            <p><strong>Amount:</strong> ${receipt.amount.toLocaleString()}</p>
+            ${receipt.reference ? `<p><strong>Reference:</strong> ${receipt.reference}</p>` : ''}
+          </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -226,6 +280,14 @@ export default function Receipts() {
                           title="Edit"
                         >
                           <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handlePrint(receipt)}
+                          title="Print"
+                        >
+                          <Printer className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
