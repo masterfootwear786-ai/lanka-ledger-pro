@@ -86,7 +86,14 @@ export default function SendDocuments() {
         ? selectedDocumentData.invoice_no 
         : selectedDocumentData.bill_no;
 
-      const { error } = await supabase.functions.invoke("send-document-details", {
+      console.log("Calling edge function with:", {
+        to: selectedContactData.email,
+        contactName: selectedContactData.name,
+        documentType,
+        documentNo,
+      });
+
+      const { data, error } = await supabase.functions.invoke("send-document-details", {
         body: {
           to: selectedContactData.email,
           contactName: selectedContactData.name,
@@ -97,12 +104,18 @@ export default function SendDocuments() {
         },
       });
 
-      if (error) throw error;
+      console.log("Edge function response:", { data, error });
+
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
 
       toast({ description: `Email sent successfully to ${selectedContactData.email}` });
       setMessage("");
     } catch (error: any) {
-      toast({ variant: "destructive", description: "Failed to send email: " + error.message });
+      console.error("Send email error:", error);
+      toast({ variant: "destructive", description: "Failed to send email: " + (error.message || "Unknown error") });
     } finally {
       setLoading(false);
     }
