@@ -25,8 +25,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { to, contactName, documentType, documentNo, amount, message }: EmailRequest = await req.json();
 
-    console.log("Sending email to:", to);
-    console.log("Document:", documentType, documentNo);
+    console.log("Attempting to send email to:", to);
 
     const emailResponse = await resend.emails.send({
       from: "Documents <onboarding@resend.dev>",
@@ -46,17 +45,28 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    // Check if Resend returned an error
+    if (emailResponse.error) {
+      console.error("Resend error:", emailResponse.error);
+      throw new Error(emailResponse.error.message || "Failed to send email via Resend");
+    }
 
-    return new Response(JSON.stringify(emailResponse), {
+    console.log("Email sent successfully:", emailResponse.data);
+
+    return new Response(JSON.stringify({ success: true, data: emailResponse.data }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
     console.error("Error sending email:", error);
-    console.error("Error details:", JSON.stringify(error));
     return new Response(
-      JSON.stringify({ error: error.message || "Failed to send email" }),
+      JSON.stringify({ 
+        success: false,
+        error: {
+          message: error.message || "Failed to send email",
+          details: error.toString()
+        }
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
