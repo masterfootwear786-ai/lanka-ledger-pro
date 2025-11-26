@@ -45,6 +45,7 @@ import TaxRates from "./pages/settings/TaxRates";
 import Users from "./pages/settings/Users";
 import Currencies from "./pages/settings/Currencies";
 import CustomFields from "./pages/settings/CustomFields";
+import Trash from "./pages/settings/Trash";
 import { Layout } from "./components/Layout";
 
 const queryClient = new QueryClient();
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/settings/tax-rates" element={<ProtectedRoute><TaxRates /></ProtectedRoute>} />
               <Route path="/settings/currencies" element={<ProtectedRoute><Currencies /></ProtectedRoute>} />
               <Route path="/settings/custom-fields" element={<ProtectedRoute><CustomFields /></ProtectedRoute>} />
+              <Route path="/settings/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
