@@ -74,13 +74,18 @@ export default function Suppliers() {
     
     requirePassword(async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { error } = await supabase
           .from("contacts")
-          .delete()
+          .update({
+            deleted_at: new Date().toISOString(),
+            deleted_by: user?.id
+          })
           .eq("id", supplierToDelete.id);
         
         if (error) throw error;
-        toast.success("Supplier deleted successfully");
+        toast.success("Supplier moved to trash");
         fetchSuppliers();
       } catch (error: any) {
         toast.error(error.message);

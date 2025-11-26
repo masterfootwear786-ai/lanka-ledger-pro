@@ -161,13 +161,18 @@ export default function UnifiedInventory() {
     if (!confirm(`Are you sure you want to delete ${item.code} - ${item.color}?`)) return;
     
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from("items")
-        .delete()
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id
+        })
         .eq("id", item.id);
       
       if (error) throw error;
-      toast.success("Item deleted successfully");
+      toast.success("Item moved to trash");
       fetchInventory();
     } catch (error: any) {
       toast.error(error.message);

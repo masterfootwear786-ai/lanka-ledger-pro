@@ -67,16 +67,21 @@ export default function Receipts() {
     if (!receiptToDelete) return;
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('receipts')
-        .delete()
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id
+        })
         .eq('id', receiptToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Receipt deleted successfully",
+        description: "Receipt moved to trash",
       });
 
       fetchReceipts();

@@ -74,13 +74,18 @@ export default function Bills() {
     
     requirePassword(async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
         const { error } = await supabase
           .from("bills")
-          .delete()
+          .update({
+            deleted_at: new Date().toISOString(),
+            deleted_by: user?.id
+          })
           .eq("id", billToDelete.id);
         
         if (error) throw error;
-        toast.success("Bill deleted successfully");
+        toast.success("Bill moved to trash");
         fetchBills();
       } catch (error: any) {
         toast.error(error.message);
