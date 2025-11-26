@@ -2211,6 +2211,50 @@ export type Database = {
           },
         ]
       }
+      user_permissions: {
+        Row: {
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_view: boolean | null
+          company_id: string
+          created_at: string | null
+          id: string
+          module: string
+          user_id: string
+        }
+        Insert: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          company_id: string
+          created_at?: string | null
+          id?: string
+          module: string
+          user_id: string
+        }
+        Update: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_view?: boolean | null
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          module?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           company_id: string
@@ -2249,6 +2293,10 @@ export type Database = {
     }
     Functions: {
       get_user_company: { Args: { _user_id: string }; Returns: string }
+      has_permission: {
+        Args: { _module: string; _permission: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2259,7 +2307,7 @@ export type Database = {
     }
     Enums: {
       account_type: "asset" | "liability" | "equity" | "income" | "expense"
-      app_role: "admin" | "accountant" | "clerk"
+      app_role: "admin" | "accountant" | "clerk" | "sales_rep" | "storekeeper"
       contact_type: "customer" | "supplier" | "both"
       custom_field_type: "text" | "number" | "date" | "boolean"
       document_status: "draft" | "approved" | "paid" | "void" | "cancelled"
@@ -2405,7 +2453,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["asset", "liability", "equity", "income", "expense"],
-      app_role: ["admin", "accountant", "clerk"],
+      app_role: ["admin", "accountant", "clerk", "sales_rep", "storekeeper"],
       contact_type: ["customer", "supplier", "both"],
       custom_field_type: ["text", "number", "date", "boolean"],
       document_status: ["draft", "approved", "paid", "void", "cancelled"],
