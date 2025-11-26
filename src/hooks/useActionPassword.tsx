@@ -20,7 +20,7 @@ export const useActionPassword = (module?: string) => {
 
       const { data: company } = await supabase
         .from('companies')
-        .select('password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete, protect_tax_rate_delete')
+        .select('password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete')
         .eq('id', profile.company_id)
         .single();
 
@@ -33,7 +33,6 @@ export const useActionPassword = (module?: string) => {
         'bills': company.protect_bill_delete || false,
         'suppliers': company.protect_supplier_delete || false,
         'items': company.protect_item_delete || false,
-        'taxRates': company.protect_tax_rate_delete || false,
       };
 
       return module ? moduleMap[module] || false : false;

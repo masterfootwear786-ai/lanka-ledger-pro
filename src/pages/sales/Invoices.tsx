@@ -167,27 +167,19 @@ export default function Invoices() {
 
     requirePassword(async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        // Soft delete invoice lines first
-        const { error: linesError } = await supabase
-          .from("invoice_lines")
-          .update({ deleted_at: new Date().toISOString() })
-          .eq("invoice_id", invoiceToDelete.id);
+        // Delete invoice lines first
+        const { error: linesError } = await supabase.from("invoice_lines").delete().eq("invoice_id", invoiceToDelete.id);
 
         if (linesError) throw linesError;
 
-        // Soft delete invoice
-        const { error } = await supabase
-          .from("invoices")
-          .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
-          .eq("id", invoiceToDelete.id);
+        // Delete invoice
+        const { error } = await supabase.from("invoices").delete().eq("id", invoiceToDelete.id);
 
         if (error) throw error;
 
         toast({
           title: "Success",
-          description: "Invoice moved to trash.",
+          description: "Invoice deleted successfully.",
         });
 
         setDeleteDialogOpen(false);

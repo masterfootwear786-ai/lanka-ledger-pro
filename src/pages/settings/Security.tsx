@@ -35,7 +35,6 @@ export default function Security() {
     bills: false,
     suppliers: false,
     items: false,
-    taxRates: false,
   });
 
   const form = useForm<SecurityFormData>({
@@ -62,7 +61,7 @@ export default function Security() {
         
         const { data: company } = await supabase
           .from('companies')
-          .select('action_password, password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete, protect_tax_rate_delete')
+          .select('action_password, password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete')
           .eq('id', profile.company_id)
           .single();
 
@@ -75,7 +74,6 @@ export default function Security() {
           bills: !!company?.protect_bill_delete,
           suppliers: !!company?.protect_supplier_delete,
           items: !!company?.protect_item_delete,
-          taxRates: !!company?.protect_tax_rate_delete,
         });
       }
     } catch (error: any) {
@@ -157,7 +155,6 @@ export default function Security() {
       bills: 'protect_bill_delete',
       suppliers: 'protect_supplier_delete',
       items: 'protect_item_delete',
-      taxRates: 'protect_tax_rate_delete',
     };
 
     try {
@@ -332,16 +329,6 @@ export default function Security() {
                   />
                   <label htmlFor="items" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                     Items
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="taxRates"
-                    checked={protections.taxRates}
-                    onCheckedChange={(checked) => handleProtectionToggle('taxRates', checked as boolean)}
-                  />
-                  <label htmlFor="taxRates" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Tax Rates
                   </label>
                 </div>
               </div>

@@ -9,20 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { DollarSign, Plus, Trash } from "lucide-react";
+import { DollarSign, Plus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { useActionPassword } from "@/hooks/useActionPassword";
-import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 
 const taxRateSchema = z.object({
   code: z.string().min(1, "Code is required"),
@@ -41,17 +29,6 @@ export default function TaxRates() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRate, setEditingRate] = useState<any>(null);
   const [companyId, setCompanyId] = useState<string>("");
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [rateToDelete, setRateToDelete] = useState<any>(null);
-
-  const {
-    isPasswordDialogOpen,
-    setIsPasswordDialogOpen,
-    verifyPassword,
-    requirePassword,
-    handlePasswordConfirm,
-    handlePasswordCancel,
-  } = useActionPassword('taxRates');
 
   const form = useForm<TaxRateFormData>({
     resolver: zodResolver(taxRateSchema),
@@ -172,37 +149,6 @@ export default function TaxRates() {
     setDialogOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!rateToDelete) return;
-
-    requirePassword(async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error } = await supabase
-          .from("tax_rates")
-          .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
-          .eq("id", rateToDelete.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "Success",
-          description: "Tax rate moved to trash",
-        });
-
-        setDeleteDialogOpen(false);
-        setRateToDelete(null);
-        fetchTaxRates(companyId);
-      } catch (error: any) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-      }
-    });
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -249,17 +195,6 @@ export default function TaxRates() {
                 onClick={() => handleEdit(rate)}
               >
                 Edit
-              </Button>
-              <Button
-                variant="destructive"
-                className="w-full mt-2"
-                onClick={() => {
-                  setRateToDelete(rate);
-                  setDeleteDialogOpen(true);
-                }}
-              >
-                <Trash className="h-4 w-4 mr-2" />
-                Delete
               </Button>
             </CardContent>
           </Card>
@@ -343,30 +278,6 @@ export default function TaxRates() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Tax Rate</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete "{rateToDelete?.name}"? This will move it to trash.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <PasswordPromptDialog
-        open={isPasswordDialogOpen}
-        onOpenChange={setIsPasswordDialogOpen}
-        onConfirm={handlePasswordConfirm}
-        onPasswordVerify={verifyPassword}
-        title="Confirm Delete"
-        description="Enter your action password to delete this tax rate."
-      />
     </div>
   );
 }

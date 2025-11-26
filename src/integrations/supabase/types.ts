@@ -165,8 +165,6 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           currency_code: string | null
-          deleted_at: string | null
-          deleted_by: string | null
           exchange_rate: number | null
           id: string
           notes: string | null
@@ -184,8 +182,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency_code?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           exchange_rate?: number | null
           id?: string
           notes?: string | null
@@ -203,8 +199,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency_code?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           exchange_rate?: number | null
           id?: string
           notes?: string | null
@@ -247,8 +241,6 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           currency_code: string | null
-          deleted_at: string | null
-          deleted_by: string | null
           discount: number | null
           due_date: string | null
           exchange_rate: number | null
@@ -272,8 +264,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency_code?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
@@ -297,8 +287,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           currency_code?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
@@ -449,7 +437,6 @@ export type Database = {
           protect_item_delete: boolean | null
           protect_order_delete: boolean | null
           protect_supplier_delete: boolean | null
-          protect_tax_rate_delete: boolean | null
           tax_number: string | null
           updated_at: string | null
           updated_by: string | null
@@ -475,7 +462,6 @@ export type Database = {
           protect_item_delete?: boolean | null
           protect_order_delete?: boolean | null
           protect_supplier_delete?: boolean | null
-          protect_tax_rate_delete?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -501,7 +487,6 @@ export type Database = {
           protect_item_delete?: boolean | null
           protect_order_delete?: boolean | null
           protect_supplier_delete?: boolean | null
-          protect_tax_rate_delete?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -519,8 +504,6 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           credit_limit: number | null
-          deleted_at: string | null
-          deleted_by: string | null
           district: string | null
           email: string | null
           id: string
@@ -544,8 +527,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           credit_limit?: number | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           district?: string | null
           email?: string | null
           id?: string
@@ -569,8 +550,6 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           credit_limit?: number | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           district?: string | null
           email?: string | null
           id?: string
@@ -1088,7 +1067,6 @@ export type Database = {
           currency_code: string | null
           customer_id: string
           deleted_at: string | null
-          deleted_by: string | null
           discount: number | null
           due_date: string | null
           exchange_rate: number | null
@@ -1114,7 +1092,6 @@ export type Database = {
           currency_code?: string | null
           customer_id: string
           deleted_at?: string | null
-          deleted_by?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
@@ -1140,7 +1117,6 @@ export type Database = {
           currency_code?: string | null
           customer_id?: string
           deleted_at?: string | null
-          deleted_by?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
@@ -1185,8 +1161,6 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
-          deleted_at: string | null
-          deleted_by: string | null
           description: string | null
           id: string
           low_stock_threshold: number | null
@@ -1208,8 +1182,6 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           description?: string | null
           id?: string
           low_stock_threshold?: number | null
@@ -1231,8 +1203,6 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           description?: string | null
           id?: string
           low_stock_threshold?: number | null
@@ -1670,8 +1640,6 @@ export type Database = {
           created_by: string | null
           currency_code: string | null
           customer_id: string
-          deleted_at: string | null
-          deleted_by: string | null
           exchange_rate: number | null
           id: string
           notes: string | null
@@ -1691,8 +1659,6 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id: string
-          deleted_at?: string | null
-          deleted_by?: string | null
           exchange_rate?: number | null
           id?: string
           notes?: string | null
@@ -1712,8 +1678,6 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id?: string
-          deleted_at?: string | null
-          deleted_by?: string | null
           exchange_rate?: number | null
           id?: string
           notes?: string | null
@@ -1906,8 +1870,6 @@ export type Database = {
           created_by: string | null
           currency_code: string | null
           customer_id: string
-          deleted_at: string | null
-          deleted_by: string | null
           delivery_date: string | null
           discount: number | null
           exchange_rate: number | null
@@ -1932,8 +1894,6 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id: string
-          deleted_at?: string | null
-          deleted_by?: string | null
           delivery_date?: string | null
           discount?: number | null
           exchange_rate?: number | null
@@ -1958,8 +1918,6 @@ export type Database = {
           created_by?: string | null
           currency_code?: string | null
           customer_id?: string
-          deleted_at?: string | null
-          deleted_by?: string | null
           delivery_date?: string | null
           discount?: number | null
           exchange_rate?: number | null
@@ -2158,8 +2116,6 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
-          deleted_at: string | null
-          deleted_by: string | null
           id: string
           is_inclusive: boolean | null
           name: string
@@ -2173,8 +2129,6 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           id?: string
           is_inclusive?: boolean | null
           name: string
@@ -2188,8 +2142,6 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
           id?: string
           is_inclusive?: boolean | null
           name?: string
@@ -2203,20 +2155,6 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tax_rates_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tax_rates_deleted_by_fkey"
-            columns: ["deleted_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

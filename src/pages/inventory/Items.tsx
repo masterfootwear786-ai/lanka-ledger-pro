@@ -92,14 +92,13 @@ export default function Items() {
     
     requirePassword(async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
           .from("items")
-          .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
+          .delete()
           .eq("id", itemToDelete.id);
         
         if (error) throw error;
-        toast.success("Item moved to trash");
+        toast.success("Item deleted successfully");
         fetchItems();
       } catch (error: any) {
         toast.error(error.message);
