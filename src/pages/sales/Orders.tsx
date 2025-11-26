@@ -127,14 +127,15 @@ export default function Orders() {
 
     requirePassword(async () => {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
         const { error } = await supabase
           .from('sales_orders')
-          .delete()
+          .update({ deleted_at: new Date().toISOString(), deleted_by: user?.id })
           .eq('id', orderToDelete.id);
 
         if (error) throw error;
 
-        toast.success("Order deleted successfully");
+        toast.success("Order moved to trash");
         fetchOrders();
         setDeleteDialogOpen(false);
         setOrderToDelete(null);

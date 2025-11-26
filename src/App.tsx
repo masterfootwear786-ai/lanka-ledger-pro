@@ -41,6 +41,7 @@ import CreditorsDebtors from "./pages/accounting/CreditorsDebtors";
 import Settings from "./pages/Settings";
 import Company from "./pages/settings/Company";
 import Security from "./pages/settings/Security";
+import Trash from "./pages/settings/Trash";
 import TaxRates from "./pages/settings/TaxRates";
 import Users from "./pages/settings/Users";
 import Currencies from "./pages/settings/Currencies";
@@ -114,6 +115,7 @@ const App = () => (
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/settings/company" element={<ProtectedRoute><Company /></ProtectedRoute>} />
               <Route path="/settings/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
+              <Route path="/settings/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
               <Route path="/settings/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
               <Route path="/settings/tax-rates" element={<ProtectedRoute><TaxRates /></ProtectedRoute>} />
               <Route path="/settings/currencies" element={<ProtectedRoute><Currencies /></ProtectedRoute>} />
