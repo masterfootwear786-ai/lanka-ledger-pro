@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export type UserRole = 'admin' | 'accountant' | 'clerk';
+export type UserRole = 'admin' | 'accountant' | 'clerk' | 'sales_rep' | 'storekeeper';
 
 export const useUserRole = () => {
   const { user } = useAuth();
@@ -53,6 +53,14 @@ export const useUserRole = () => {
     return roles.includes('clerk');
   };
 
+  const isSalesRep = (): boolean => {
+    return roles.includes('sales_rep');
+  };
+
+  const isStorekeeper = (): boolean => {
+    return roles.includes('storekeeper');
+  };
+
   return {
     roles,
     loading,
@@ -60,5 +68,7 @@ export const useUserRole = () => {
     isAdmin,
     isAccountant,
     isClerk,
+    isSalesRep,
+    isStorekeeper,
   };
 };

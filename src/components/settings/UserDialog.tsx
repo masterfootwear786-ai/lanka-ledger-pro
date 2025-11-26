@@ -22,6 +22,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Separator } from "@/components/ui/separator";
 
 const formSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
@@ -33,6 +34,46 @@ const formSchema = z.object({
     admin: z.boolean(),
     accountant: z.boolean(),
     clerk: z.boolean(),
+    sales_rep: z.boolean(),
+    storekeeper: z.boolean(),
+  }),
+  permissions: z.object({
+    sales: z.object({
+      view: z.boolean(),
+      create: z.boolean(),
+      edit: z.boolean(),
+      delete: z.boolean(),
+    }),
+    purchasing: z.object({
+      view: z.boolean(),
+      create: z.boolean(),
+      edit: z.boolean(),
+      delete: z.boolean(),
+    }),
+    inventory: z.object({
+      view: z.boolean(),
+      create: z.boolean(),
+      edit: z.boolean(),
+      delete: z.boolean(),
+    }),
+    expenses: z.object({
+      view: z.boolean(),
+      create: z.boolean(),
+      edit: z.boolean(),
+      delete: z.boolean(),
+    }),
+    reports: z.object({
+      view: z.boolean(),
+      create: z.boolean(),
+      edit: z.boolean(),
+      delete: z.boolean(),
+    }),
+    settings: z.object({
+      view: z.boolean(),
+      create: z.boolean(),
+      edit: z.boolean(),
+      delete: z.boolean(),
+    }),
   }),
 });
 
@@ -44,6 +85,13 @@ interface UserDialogProps {
   user: any;
   onSuccess: () => void;
 }
+
+const defaultPermissions = {
+  view: false,
+  create: false,
+  edit: false,
+  delete: false,
+};
 
 export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogProps) {
   const { toast } = useToast();
@@ -61,38 +109,89 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         admin: false,
         accountant: false,
         clerk: false,
+        sales_rep: false,
+        storekeeper: false,
+      },
+      permissions: {
+        sales: { ...defaultPermissions },
+        purchasing: { ...defaultPermissions },
+        inventory: { ...defaultPermissions },
+        expenses: { ...defaultPermissions },
+        reports: { ...defaultPermissions },
+        settings: { ...defaultPermissions },
       },
     },
   });
 
   useEffect(() => {
-    if (user) {
-      form.reset({
-        full_name: user.full_name || "",
-        email: user.email || "",
-        password: "",
-        active: user.active ?? true,
-        language: user.language || "en",
-        roles: {
-          admin: user.roles?.includes("admin") || false,
-          accountant: user.roles?.includes("accountant") || false,
-          clerk: user.roles?.includes("clerk") || false,
-        },
-      });
-    } else {
-      form.reset({
-        full_name: "",
-        email: "",
-        password: "",
-        active: true,
-        language: "en",
-        roles: {
-          admin: false,
-          accountant: false,
-          clerk: false,
-        },
-      });
-    }
+    const loadUserData = async () => {
+      if (user) {
+        // Fetch user permissions
+        const { data: permissions } = await supabase
+          .from('user_permissions')
+          .select('*')
+          .eq('user_id', user.id);
+
+        const permissionsData: any = {
+          sales: { ...defaultPermissions },
+          purchasing: { ...defaultPermissions },
+          inventory: { ...defaultPermissions },
+          expenses: { ...defaultPermissions },
+          reports: { ...defaultPermissions },
+          settings: { ...defaultPermissions },
+        };
+
+        permissions?.forEach((perm) => {
+          permissionsData[perm.module] = {
+            view: perm.can_view,
+            create: perm.can_create,
+            edit: perm.can_edit,
+            delete: perm.can_delete,
+          };
+        });
+
+        form.reset({
+          full_name: user.full_name || "",
+          email: user.email || "",
+          password: "",
+          active: user.active ?? true,
+          language: user.language || "en",
+          roles: {
+            admin: user.roles?.includes("admin") || false,
+            accountant: user.roles?.includes("accountant") || false,
+            clerk: user.roles?.includes("clerk") || false,
+            sales_rep: user.roles?.includes("sales_rep") || false,
+            storekeeper: user.roles?.includes("storekeeper") || false,
+          },
+          permissions: permissionsData,
+        });
+      } else {
+        form.reset({
+          full_name: "",
+          email: "",
+          password: "",
+          active: true,
+          language: "en",
+          roles: {
+            admin: false,
+            accountant: false,
+            clerk: false,
+            sales_rep: false,
+            storekeeper: false,
+          },
+          permissions: {
+            sales: { ...defaultPermissions },
+            purchasing: { ...defaultPermissions },
+            inventory: { ...defaultPermissions },
+            expenses: { ...defaultPermissions },
+            reports: { ...defaultPermissions },
+            settings: { ...defaultPermissions },
+          },
+        });
+      }
+    };
+
+    loadUserData();
   }, [user, form]);
 
   const onSubmit = async (data: FormData) => {
@@ -167,25 +266,24 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         if (profileError) throw profileError;
       }
 
-      // Get current roles
+      // Handle roles
       const { data: currentRoles } = await supabase
         .from("user_roles")
         .select("role, id")
         .eq("user_id", userId);
 
       const currentRoleNames = currentRoles?.map((r) => r.role) || [];
-      const selectedRoles: ("admin" | "accountant" | "clerk")[] = [];
+      const selectedRoles: ("admin" | "accountant" | "clerk" | "sales_rep" | "storekeeper")[] = [];
       
       if (data.roles.admin) selectedRoles.push("admin");
       if (data.roles.accountant) selectedRoles.push("accountant");
       if (data.roles.clerk) selectedRoles.push("clerk");
+      if (data.roles.sales_rep) selectedRoles.push("sales_rep");
+      if (data.roles.storekeeper) selectedRoles.push("storekeeper");
 
-      // Roles to add
       const rolesToAdd = selectedRoles.filter((r) => !currentRoleNames.includes(r));
-      // Roles to remove
       const rolesToRemove = currentRoleNames.filter((r) => !selectedRoles.includes(r));
 
-      // Add new roles
       if (rolesToAdd.length > 0) {
         const { error: addError } = await supabase
           .from("user_roles")
@@ -200,7 +298,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         if (addError) throw addError;
       }
 
-      // Remove old roles
       if (rolesToRemove.length > 0) {
         const roleIdsToRemove = currentRoles
           ?.filter((r) => rolesToRemove.includes(r.role))
@@ -214,6 +311,30 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
           if (removeError) throw removeError;
         }
+      }
+
+      // Handle permissions
+      const modules = ['sales', 'purchasing', 'inventory', 'expenses', 'reports', 'settings'];
+      
+      for (const module of modules) {
+        const modulePerms = data.permissions[module as keyof typeof data.permissions];
+        
+        // Upsert permissions
+        const { error: permError } = await supabase
+          .from('user_permissions')
+          .upsert({
+            user_id: userId,
+            company_id: companyId,
+            module: module,
+            can_view: modulePerms.view,
+            can_create: modulePerms.create,
+            can_edit: modulePerms.edit,
+            can_delete: modulePerms.delete,
+          }, {
+            onConflict: 'user_id,company_id,module'
+          });
+
+        if (permError) throw permError;
       }
 
       toast({
@@ -234,42 +355,112 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     }
   };
 
+  const ModulePermissions = ({ module, label }: { module: string; label: string }) => (
+    <div className="space-y-2">
+      <h4 className="font-medium text-sm">{label}</h4>
+      <div className="grid grid-cols-4 gap-2 pl-4">
+        <FormField
+          control={form.control}
+          name={`permissions.${module}.view` as any}
+          render={({ field }) => (
+            <FormItem className="flex items-center space-x-2 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="text-sm font-normal">View</FormLabel>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name={`permissions.${module}.create` as any}
+          render={({ field }) => (
+            <FormItem className="flex items-center space-x-2 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="text-sm font-normal">Create</FormLabel>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name={`permissions.${module}.edit` as any}
+          render={({ field }) => (
+            <FormItem className="flex items-center space-x-2 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="text-sm font-normal">Edit</FormLabel>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name={`permissions.${module}.delete` as any}
+          render={({ field }) => (
+            <FormItem className="flex items-center space-x-2 space-y-0">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="text-sm font-normal">Delete</FormLabel>
+            </FormItem>
+          )}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{user ? "Edit User" : "Add New User"}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="full_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="full_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input {...field} disabled={!!user} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input {...field} disabled={!!user} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {!user && (
               <FormField
@@ -322,9 +513,11 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               )}
             />
 
+            <Separator />
+
             <div className="space-y-3">
-              <FormLabel>User Roles</FormLabel>
-              <div className="space-y-2 border rounded-lg p-4">
+              <FormLabel className="text-base">User Roles</FormLabel>
+              <div className="grid grid-cols-2 gap-3 border rounded-lg p-4">
                 <FormField
                   control={form.control}
                   name="roles.admin"
@@ -338,8 +531,8 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>Admin</FormLabel>
-                        <div className="text-sm text-muted-foreground">
-                          Full system access and user management
+                        <div className="text-xs text-muted-foreground">
+                          Full system access
                         </div>
                       </div>
                     </FormItem>
@@ -359,8 +552,8 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>Accountant</FormLabel>
-                        <div className="text-sm text-muted-foreground">
-                          Can manage financial records and reports
+                        <div className="text-xs text-muted-foreground">
+                          Financial records
                         </div>
                       </div>
                     </FormItem>
@@ -380,13 +573,74 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>Clerk</FormLabel>
-                        <div className="text-sm text-muted-foreground">
-                          Standard user access with basic permissions
+                        <div className="text-xs text-muted-foreground">
+                          Basic operations
                         </div>
                       </div>
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="roles.sales_rep"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Sales Rep</FormLabel>
+                        <div className="text-xs text-muted-foreground">
+                          Sales operations
+                        </div>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="roles.storekeeper"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Storekeeper</FormLabel>
+                        <div className="text-xs text-muted-foreground">
+                          Inventory management
+                        </div>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-4">
+              <FormLabel className="text-base">Module Permissions</FormLabel>
+              <div className="space-y-4 border rounded-lg p-4">
+                <ModulePermissions module="sales" label="Sales" />
+                <Separator />
+                <ModulePermissions module="purchasing" label="Purchasing" />
+                <Separator />
+                <ModulePermissions module="inventory" label="Inventory" />
+                <Separator />
+                <ModulePermissions module="expenses" label="Expenses and Other" />
+                <Separator />
+                <ModulePermissions module="reports" label="Reports" />
+                <Separator />
+                <ModulePermissions module="settings" label="Settings" />
               </div>
             </div>
 
