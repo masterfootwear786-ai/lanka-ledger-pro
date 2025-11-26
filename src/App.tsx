@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import Install from "./pages/Install";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import SendDocuments from "./pages/SendDocuments";
 import Sales from "./pages/Sales";
 import Purchasing from "./pages/Purchasing";
 import Inventory from "./pages/Inventory";
@@ -82,6 +83,7 @@ const App = () => (
               <Route path="/install" element={<Install />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/send-documents" element={<ProtectedRoute><SendDocuments /></ProtectedRoute>} />
               {/* Main module routes */}
               <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
               <Route path="/purchasing" element={<ProtectedRoute><Purchasing /></ProtectedRoute>} />
