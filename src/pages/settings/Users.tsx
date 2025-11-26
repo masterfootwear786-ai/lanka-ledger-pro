@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle } from "lucide-react";
+import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus } from "lucide-react";
 import { UserDialog } from "@/components/settings/UserDialog";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -102,6 +102,11 @@ export default function Users() {
     setUserDialogOpen(true);
   };
 
+  const handleAddUser = () => {
+    setEditingUser(null);
+    setUserDialogOpen(true);
+  };
+
   const handleDeleteClick = (user: any) => {
     setUserToDelete(user);
     setDeleteDialogOpen(true);
@@ -178,6 +183,10 @@ export default function Users() {
             View and manage user accounts and their roles
           </p>
         </div>
+        <Button onClick={handleAddUser}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add User
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
