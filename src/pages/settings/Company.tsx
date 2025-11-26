@@ -21,6 +21,7 @@ const companySchema = z.object({
   tax_number: z.string().optional(),
   base_currency: z.string().default("LKR"),
   fiscal_year_end: z.string().default("12-31"),
+  logo_url: z.string().optional(),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -31,6 +32,8 @@ export default function Company() {
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -59,6 +62,44 @@ export default function Company() {
     } else {
       setCompanies(data || []);
     }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "Please upload an image file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "File size must be less than 2MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploading(true);
+    
+    // Convert to base64 for preview and storage
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setLogoPreview(base64String);
+      form.setValue('logo_url', base64String);
+    };
+    reader.readAsDataURL(file);
+    
+    setUploading(false);
   };
 
   const onSubmit = async (data: CompanyFormData) => {
@@ -94,6 +135,7 @@ export default function Company() {
             tax_number: data.tax_number,
             base_currency: data.base_currency,
             fiscal_year_end: data.fiscal_year_end,
+            logo_url: data.logo_url,
             created_by: user.id,
           }]);
 
@@ -107,6 +149,7 @@ export default function Company() {
 
       setDialogOpen(false);
       setEditingCompany(null);
+      setLogoPreview(null);
       form.reset();
       fetchCompanies();
     } catch (error: any) {
@@ -123,11 +166,13 @@ export default function Company() {
   const handleEdit = (company: any) => {
     setEditingCompany(company);
     form.reset(company);
+    setLogoPreview(company.logo_url || null);
     setDialogOpen(true);
   };
 
   const handleNew = () => {
     setEditingCompany(null);
+    setLogoPreview(null);
     form.reset({
       base_currency: "LKR",
       fiscal_year_end: "12-31",
@@ -157,7 +202,12 @@ export default function Company() {
         {companies.map((company) => (
           <Card key={company.id} className="cursor-pointer hover:shadow-lg transition-shadow">
             <CardHeader>
-              <CardTitle>{company.name}</CardTitle>
+              <CardTitle className="flex items-center gap-3">
+                {company.logo_url && (
+                  <img src={company.logo_url} alt={company.name} className="h-10 w-10 object-contain" />
+                )}
+                {company.name}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="text-sm">
@@ -266,6 +316,24 @@ export default function Company() {
             <div className="space-y-2">
               <Label htmlFor="fiscal_year_end">Fiscal Year End (MM-DD)</Label>
               <Input {...form.register("fiscal_year_end")} placeholder="12-31" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="logo">Company Logo</Label>
+              <div className="flex items-center gap-4">
+                {logoPreview && (
+                  <img src={logoPreview} alt="Logo preview" className="h-20 w-20 object-contain border rounded" />
+                )}
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  disabled={uploading}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Upload an image file (max 2MB). Recommended size: 200x200px
+              </p>
             </div>
 
             <div className="flex gap-2 justify-end">
