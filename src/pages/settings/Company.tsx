@@ -9,8 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, Plus } from "lucide-react";
+import { Building2, Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const companySchema = z.object({
   code: z.string().min(1, "Company code is required"),
@@ -34,6 +44,8 @@ export default function Company() {
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [companyToDelete, setCompanyToDelete] = useState<any>(null);
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -124,7 +136,7 @@ export default function Company() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error("Not authenticated");
 
-        const { error } = await supabase
+        const { data: newCompany, error } = await supabase
           .from('companies')
           .insert([{
             code: data.code,
@@ -137,9 +149,21 @@ export default function Company() {
             fiscal_year_end: data.fiscal_year_end,
             logo_url: data.logo_url,
             created_by: user.id,
-          }]);
+          }])
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Update user's profile to link to this company
+        if (newCompany) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({ company_id: newCompany.id })
+            .eq('id', user.id);
+
+          if (profileError) throw profileError;
+        }
 
         toast({
           title: "Success",
@@ -178,6 +202,40 @@ export default function Company() {
       fiscal_year_end: "12-31",
     });
     setDialogOpen(true);
+  };
+
+  const handleDeleteClick = (company: any) => {
+    setCompanyToDelete(company);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!companyToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .delete()
+        .eq('id', companyToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Company deleted successfully",
+      });
+
+      fetchCompanies();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setCompanyToDelete(null);
+    }
   };
 
   return (
@@ -236,13 +294,23 @@ export default function Company() {
               <div className="text-sm">
                 <span className="font-semibold">Currency:</span> {company.base_currency}
               </div>
-              <Button
-                variant="outline"
-                className="w-full mt-4"
-                onClick={() => handleEdit(company)}
-              >
-                Edit
-              </Button>
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => handleEdit(company)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleDeleteClick(company)}
+                  className="text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -351,6 +419,26 @@ export default function Company() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Company?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{companyToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
