@@ -36,14 +36,71 @@ export default function TrashPage() {
   const [restoreItem, setRestoreItem] = useState<DeletedItem | null>(null);
   const [permanentDeleteItem, setPermanentDeleteItem] = useState<DeletedItem | null>(null);
 
-  const {
-    isPasswordDialogOpen,
-    setIsPasswordDialogOpen,
-    verifyPassword,
-    requirePassword,
-    handlePasswordConfirm,
-    handlePasswordCancel,
-  } = useActionPassword();
+  const [pendingDeleteItem, setPendingDeleteItem] = useState<DeletedItem | null>(null);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+
+  const checkPasswordRequired = async (itemType: string): Promise<boolean> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.company_id) return false;
+
+      const { data: company } = await supabase
+        .from('companies')
+        .select('password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete')
+        .eq('id', profile.company_id)
+        .single();
+
+      if (!company?.password_protection_enabled) return false;
+
+      const moduleMap: Record<string, boolean> = {
+        'Invoice': company.protect_invoice_delete || false,
+        'Order': company.protect_order_delete || false,
+        'Customer': company.protect_customer_delete || false,
+        'Supplier': company.protect_supplier_delete || false,
+        'Bill': company.protect_bill_delete || false,
+        'Item': company.protect_item_delete || false,
+      };
+
+      return moduleMap[itemType] || false;
+    } catch (error) {
+      console.error('Error checking password requirement:', error);
+      return false;
+    }
+  };
+
+  const verifyPassword = async (password: string): Promise<boolean> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.company_id) return false;
+
+      const { data: company } = await supabase
+        .from('companies')
+        .select('action_password')
+        .eq('id', profile.company_id)
+        .single();
+
+      return company?.action_password === password;
+    } catch (error) {
+      console.error('Error verifying password:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     fetchDeletedItems();
@@ -222,6 +279,29 @@ export default function TrashPage() {
     }
   };
 
+  const handlePermanentDeleteClick = async (item: DeletedItem) => {
+    const isRequired = await checkPasswordRequired(item.type);
+    if (!isRequired) {
+      setPermanentDeleteItem(item);
+      return;
+    }
+    setPendingDeleteItem(item);
+    setIsPasswordDialogOpen(true);
+  };
+
+  const handlePasswordConfirm = () => {
+    if (pendingDeleteItem) {
+      setPermanentDeleteItem(pendingDeleteItem);
+      setPendingDeleteItem(null);
+    }
+    setIsPasswordDialogOpen(false);
+  };
+
+  const handlePasswordCancel = () => {
+    setPendingDeleteItem(null);
+    setIsPasswordDialogOpen(false);
+  };
+
   const handlePermanentDelete = async (item: DeletedItem) => {
     try {
       const tableMap: Record<string, string> = {
@@ -319,7 +399,7 @@ export default function TrashPage() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => requirePassword(() => setPermanentDeleteItem(item))}
+                      onClick={() => handlePermanentDeleteClick(item)}
                     >
                       <Trash className="h-4 w-4 mr-1" />
                       Delete
