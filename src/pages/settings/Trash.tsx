@@ -54,7 +54,7 @@ export default function TrashPage() {
 
       const { data: company } = await supabase
         .from('companies')
-        .select('password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete')
+        .select('password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete, protect_tax_rate_delete')
         .eq('id', profile.company_id)
         .single();
 
@@ -67,6 +67,7 @@ export default function TrashPage() {
         'Supplier': company.protect_supplier_delete || false,
         'Bill': company.protect_bill_delete || false,
         'Item': company.protect_item_delete || false,
+        'Tax Rate': company.protect_tax_rate_delete || false,
       };
 
       return moduleMap[itemType] || false;
@@ -232,7 +233,25 @@ export default function TrashPage() {
         })));
       }
 
-      setDeletedItems(items.sort((a, b) => 
+      // Fetch deleted tax rates
+      const { data: taxRatesList } = await supabase
+        .from('tax_rates')
+        .select('id, name, deleted_at, deleted_by:profiles!tax_rates_updated_by_fkey(full_name)')
+        .eq('company_id', profile.company_id)
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
+      if (taxRatesList) {
+        items.push(...taxRatesList.map(rate => ({
+          id: rate.id,
+          type: 'Tax Rate',
+          name: rate.name,
+          deletedAt: rate.deleted_at!,
+          deletedBy: (rate.deleted_by as any)?.full_name || 'Unknown'
+        })));
+      }
+
+      setDeletedItems(items.sort((a, b) =>
         new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime()
       ));
     } catch (error: any) {
@@ -255,6 +274,7 @@ export default function TrashPage() {
         'Supplier': 'contacts',
         'Bill': 'bills',
         'Item': 'items',
+        'Tax Rate': 'tax_rates',
       };
 
       const { error } = await supabase
@@ -311,6 +331,7 @@ export default function TrashPage() {
         'Supplier': 'contacts',
         'Bill': 'bills',
         'Item': 'items',
+        'Tax Rate': 'tax_rates',
       };
 
       const { error } = await supabase
@@ -344,6 +365,7 @@ export default function TrashPage() {
       'Supplier': 'bg-orange-500',
       'Bill': 'bg-red-500',
       'Item': 'bg-yellow-500',
+      'Tax Rate': 'bg-pink-500',
     };
     return colors[type] || 'bg-gray-500';
   };
