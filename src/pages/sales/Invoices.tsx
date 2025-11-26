@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
+import { useActionPassword } from "@/hooks/useActionPassword";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -46,6 +48,14 @@ export default function Invoices() {
   const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
   const [invoiceLines, setInvoiceLines] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
+  const {
+    isPasswordDialogOpen,
+    setIsPasswordDialogOpen,
+    verifyPassword,
+    requirePassword,
+    handlePasswordConfirm,
+    handlePasswordCancel,
+  } = useActionPassword();
 
   useEffect(() => {
     fetchInvoices();
@@ -155,32 +165,34 @@ export default function Invoices() {
   const handleDelete = async () => {
     if (!invoiceToDelete) return;
 
-    try {
-      // Delete invoice lines first
-      const { error: linesError } = await supabase.from("invoice_lines").delete().eq("invoice_id", invoiceToDelete.id);
+    requirePassword(async () => {
+      try {
+        // Delete invoice lines first
+        const { error: linesError } = await supabase.from("invoice_lines").delete().eq("invoice_id", invoiceToDelete.id);
 
-      if (linesError) throw linesError;
+        if (linesError) throw linesError;
 
-      // Delete invoice
-      const { error } = await supabase.from("invoices").delete().eq("id", invoiceToDelete.id);
+        // Delete invoice
+        const { error } = await supabase.from("invoices").delete().eq("id", invoiceToDelete.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Success",
-        description: "Invoice deleted successfully.",
-      });
+        toast({
+          title: "Success",
+          description: "Invoice deleted successfully.",
+        });
 
-      setDeleteDialogOpen(false);
-      setInvoiceToDelete(null);
-      fetchInvoices();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
+        setDeleteDialogOpen(false);
+        setInvoiceToDelete(null);
+        fetchInvoices();
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   const handlePrint = async (invoice: any) => {
@@ -755,6 +767,15 @@ export default function Invoices() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PasswordPromptDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onConfirm={handlePasswordConfirm}
+        onPasswordVerify={verifyPassword}
+        title="Delete Invoice"
+        description="Please enter the action password to delete this invoice."
+      />
     </div>
   );
 }

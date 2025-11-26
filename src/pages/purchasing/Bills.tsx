@@ -9,6 +9,8 @@ import { Plus, Search, Eye, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BillDialog } from "@/components/bills/BillDialog";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
+import { useActionPassword } from "@/hooks/useActionPassword";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,14 @@ export default function Bills() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState<any>(null);
+  const {
+    isPasswordDialogOpen,
+    setIsPasswordDialogOpen,
+    verifyPassword,
+    requirePassword,
+    handlePasswordConfirm,
+    handlePasswordCancel,
+  } = useActionPassword();
 
   useEffect(() => {
     fetchBills();
@@ -62,21 +72,23 @@ export default function Bills() {
   const handleDelete = async () => {
     if (!billToDelete) return;
     
-    try {
-      const { error } = await supabase
-        .from("bills")
-        .delete()
-        .eq("id", billToDelete.id);
-      
-      if (error) throw error;
-      toast.success("Bill deleted successfully");
-      fetchBills();
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setDeleteDialogOpen(false);
-      setBillToDelete(null);
-    }
+    requirePassword(async () => {
+      try {
+        const { error } = await supabase
+          .from("bills")
+          .delete()
+          .eq("id", billToDelete.id);
+        
+        if (error) throw error;
+        toast.success("Bill deleted successfully");
+        fetchBills();
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setDeleteDialogOpen(false);
+        setBillToDelete(null);
+      }
+    });
   };
 
   const filteredBills = bills.filter(bill =>
@@ -210,6 +222,15 @@ export default function Bills() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PasswordPromptDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onConfirm={handlePasswordConfirm}
+        onPasswordVerify={verifyPassword}
+        title="Delete Bill"
+        description="Please enter the action password to delete this bill."
+      />
     </div>
   );
 }

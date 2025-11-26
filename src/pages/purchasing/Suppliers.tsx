@@ -10,6 +10,8 @@ import { Plus, Search, Edit, Trash2, Mail, Phone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
+import { useActionPassword } from "@/hooks/useActionPassword";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +33,14 @@ export default function Suppliers() {
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<any>(null);
+  const {
+    isPasswordDialogOpen,
+    setIsPasswordDialogOpen,
+    verifyPassword,
+    requirePassword,
+    handlePasswordConfirm,
+    handlePasswordCancel,
+  } = useActionPassword();
 
   useEffect(() => {
     fetchSuppliers();
@@ -62,21 +72,23 @@ export default function Suppliers() {
   const handleDelete = async () => {
     if (!supplierToDelete) return;
     
-    try {
-      const { error } = await supabase
-        .from("contacts")
-        .delete()
-        .eq("id", supplierToDelete.id);
-      
-      if (error) throw error;
-      toast.success("Supplier deleted successfully");
-      fetchSuppliers();
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setDeleteDialogOpen(false);
-      setSupplierToDelete(null);
-    }
+    requirePassword(async () => {
+      try {
+        const { error } = await supabase
+          .from("contacts")
+          .delete()
+          .eq("id", supplierToDelete.id);
+        
+        if (error) throw error;
+        toast.success("Supplier deleted successfully");
+        fetchSuppliers();
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setDeleteDialogOpen(false);
+        setSupplierToDelete(null);
+      }
+    });
   };
 
   const filteredSuppliers = suppliers.filter(supplier =>
@@ -236,6 +248,15 @@ export default function Suppliers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PasswordPromptDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onConfirm={handlePasswordConfirm}
+        onPasswordVerify={verifyPassword}
+        title="Delete Supplier"
+        description="Please enter the action password to delete this supplier."
+      />
     </div>
   );
 }
