@@ -86,13 +86,6 @@ export default function SendDocuments() {
         ? selectedDocumentData.invoice_no 
         : selectedDocumentData.bill_no;
 
-      console.log("Calling edge function with:", {
-        to: selectedContactData.email,
-        contactName: selectedContactData.name,
-        documentType,
-        documentNo,
-      });
-
       const { data, error } = await supabase.functions.invoke("send-document-details", {
         body: {
           to: selectedContactData.email,
@@ -104,18 +97,26 @@ export default function SendDocuments() {
         },
       });
 
-      console.log("Edge function response:", { data, error });
-
       if (error) {
         console.error("Edge function error:", error);
-        throw error;
+        throw new Error("Failed to send email");
+      }
+
+      // Check if the response indicates an error from Resend
+      if (data?.error) {
+        console.error("Resend API error:", data.error);
+        throw new Error(data.error.message || "Failed to send email");
       }
 
       toast({ description: `Email sent successfully to ${selectedContactData.email}` });
       setMessage("");
     } catch (error: any) {
       console.error("Send email error:", error);
-      toast({ variant: "destructive", description: "Failed to send email: " + (error.message || "Unknown error") });
+      toast({ 
+        variant: "destructive", 
+        title: "Failed to send email",
+        description: error.message || "Please check your Resend API key and try again" 
+      });
     } finally {
       setLoading(false);
     }
