@@ -58,16 +58,21 @@ export default function Payments() {
     if (!paymentToDelete) return;
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
       const { error } = await supabase
         .from('bill_payments')
-        .delete()
+        .update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id
+        })
         .eq('id', paymentToDelete.id);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Payment deleted successfully",
+        description: "Payment moved to trash",
       });
 
       fetchPayments();
