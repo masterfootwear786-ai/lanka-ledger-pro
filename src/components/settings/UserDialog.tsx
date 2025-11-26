@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 const formSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
+  password: z.string().min(6, "Password must be at least 6 characters").optional(),
   active: z.boolean(),
   language: z.string(),
   roles: z.object({
@@ -53,6 +54,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     defaultValues: {
       full_name: "",
       email: "",
+      password: "",
       active: true,
       language: "en",
       roles: {
@@ -68,12 +70,26 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
       form.reset({
         full_name: user.full_name || "",
         email: user.email || "",
+        password: "",
         active: user.active ?? true,
         language: user.language || "en",
         roles: {
           admin: user.roles?.includes("admin") || false,
           accountant: user.roles?.includes("accountant") || false,
           clerk: user.roles?.includes("clerk") || false,
+        },
+      });
+    } else {
+      form.reset({
+        full_name: "",
+        email: "",
+        password: "",
+        active: true,
+        language: "en",
+        roles: {
+          admin: false,
+          accountant: false,
+          clerk: false,
         },
       });
     }
@@ -83,23 +99,79 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     try {
       setLoading(true);
 
-      // Update profile
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
-          full_name: data.full_name,
-          active: data.active,
-          language: data.language,
-        })
-        .eq("id", user.id);
+      let userId = user?.id;
+      let companyId = user?.company_id;
 
-      if (profileError) throw profileError;
+      if (!user) {
+        // Creating new user
+        if (!data.password) {
+          throw new Error("Password is required for new users");
+        }
+
+        // Get current user's company ID
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        if (!currentUser) throw new Error("Not authenticated");
+
+        const { data: currentProfile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (!currentProfile?.company_id) {
+          throw new Error("Current user has no company assigned");
+        }
+
+        companyId = currentProfile.company_id;
+
+        // Create auth user via signup
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email: data.email,
+          password: data.password,
+          options: {
+            data: {
+              full_name: data.full_name,
+            }
+          }
+        });
+
+        if (signUpError) throw signUpError;
+        if (!authData.user) throw new Error("Failed to create user");
+
+        userId = authData.user.id;
+
+        // Update the new user's profile with company ID
+        const { error: profileUpdateError } = await supabase
+          .from("profiles")
+          .update({
+            company_id: companyId,
+            full_name: data.full_name,
+            active: data.active,
+            language: data.language,
+          })
+          .eq("id", userId);
+
+        if (profileUpdateError) throw profileUpdateError;
+
+      } else {
+        // Update existing user profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            full_name: data.full_name,
+            active: data.active,
+            language: data.language,
+          })
+          .eq("id", user.id);
+
+        if (profileError) throw profileError;
+      }
 
       // Get current roles
       const { data: currentRoles } = await supabase
         .from("user_roles")
         .select("role, id")
-        .eq("user_id", user.id);
+        .eq("user_id", userId);
 
       const currentRoleNames = currentRoles?.map((r) => r.role) || [];
       const selectedRoles: ("admin" | "accountant" | "clerk")[] = [];
@@ -119,9 +191,9 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
           .from("user_roles")
           .insert(
             rolesToAdd.map((role) => ({
-              user_id: user.id,
+              user_id: userId,
               role,
-              company_id: user.company_id,
+              company_id: companyId,
             }))
           );
 
@@ -146,7 +218,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
       toast({
         title: "Success",
-        description: "User updated successfully",
+        description: user ? "User updated successfully" : "User created successfully",
       });
 
       onSuccess();
@@ -166,7 +238,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
+          <DialogTitle>{user ? "Edit User" : "Add New User"}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -192,12 +264,28 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input {...field} disabled />
+                    <Input {...field} disabled={!!user} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {!user && (
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password *</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="password" placeholder="Minimum 6 characters" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -311,7 +399,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? "Saving..." : "Save Changes"}
+                {loading ? "Saving..." : user ? "Save Changes" : "Create User"}
               </Button>
             </div>
           </form>
