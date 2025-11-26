@@ -114,10 +114,23 @@ export default function SendDocuments() {
       return;
     }
 
-    const phone = selectedContactData.whatsapp || selectedContactData.phone;
+    let phone = selectedContactData.whatsapp || selectedContactData.phone;
     if (!phone) {
       toast({ variant: "destructive", description: "Contact has no WhatsApp/phone number" });
       return;
+    }
+
+    // Clean phone number - remove all non-numeric characters
+    phone = phone.replace(/[^0-9]/g, "");
+    
+    // If phone starts with 0, assume Sri Lanka and add country code 94
+    if (phone.startsWith("0")) {
+      phone = "94" + phone.substring(1);
+    }
+    
+    // If phone doesn't start with country code, add 94 (Sri Lanka default)
+    if (phone.length === 9) {
+      phone = "94" + phone;
     }
 
     const documentType = selectedType === "customer" ? "Invoice" : "Bill";
@@ -129,7 +142,7 @@ export default function SendDocuments() {
       `Hello ${selectedContactData.name},\n\n${documentType} ${documentNo}\nAmount: ${selectedDocumentData.grand_total.toLocaleString()}\n\n${message}`
     );
     
-    const whatsappUrl = `https://wa.me/${phone.replace(/[^0-9]/g, "")}?text=${whatsappMessage}`;
+    const whatsappUrl = `https://wa.me/${phone}?text=${whatsappMessage}`;
     window.open(whatsappUrl, "_blank");
     toast({ description: "Opening WhatsApp..." });
   };
@@ -270,6 +283,7 @@ export default function SendDocuments() {
                 <div className="space-y-1">
                   <Label className="text-sm text-muted-foreground">WhatsApp</Label>
                   <p className="font-medium">{selectedContactData.whatsapp || selectedContactData.phone || "Not provided"}</p>
+                  <p className="text-xs text-muted-foreground">Use international format: +94771234567</p>
                 </div>
               </>
             ) : (
