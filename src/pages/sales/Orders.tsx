@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Eye, Edit, Trash2, FileText } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, FileText, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
@@ -121,6 +121,93 @@ export default function Orders() {
   const handleEdit = (order: any) => {
     setSelectedOrder(order);
     setEditDialogOpen(true);
+  };
+
+  const handlePrint = async (order: any) => {
+    try {
+      const { data: lines } = await supabase
+        .from("sales_order_lines")
+        .select("*")
+        .eq("order_id", order.id)
+        .order("line_no", { ascending: true});
+
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", order.company_id)
+        .single();
+
+      const printWindow = window.open("", "", "width=800,height=600");
+      if (!printWindow) return;
+
+      const content = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Order ${order.order_no}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+            .company-info { display: flex; align-items: center; gap: 15px; }
+            .company-logo { max-height: 80px; max-width: 80px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f4f4f4; }
+            .total { text-align: right; margin-top: 20px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-info">
+              ${company?.logo_url ? `<img src="${company.logo_url}" alt="${company.name}" class="company-logo" />` : ''}
+              <div>
+                <h2>${company?.name || 'Company Name'}</h2>
+                ${company?.address ? `<p>${company.address}</p>` : ''}
+                ${company?.phone ? `<p>Tel: ${company.phone}</p>` : ''}
+              </div>
+            </div>
+            <div>
+              <h1>ORDER</h1>
+              <p>Order #: ${order.order_no}</p>
+            </div>
+          </div>
+          <div>
+            <p><strong>Date:</strong> ${new Date(order.order_date).toLocaleDateString()}</p>
+            <p><strong>Customer:</strong> ${order.customer?.name || "N/A"}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(lines || []).map(line => `
+                <tr>
+                  <td>${line.description}</td>
+                  <td>${line.quantity}</td>
+                  <td>${line.unit_price.toFixed(2)}</td>
+                  <td>${line.line_total.toFixed(2)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+          <div class="total">
+            <p>Grand Total: ${order.grand_total?.toFixed(2) || "0.00"}</p>
+          </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error: any) {
+      toast.error("Error printing order: " + error.message);
+    }
   };
 
   const handleDelete = async () => {
@@ -363,6 +450,7 @@ export default function Orders() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleView(order)}
+                          title="View"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -370,8 +458,17 @@ export default function Orders() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(order)}
+                          title="Edit"
                         >
                           <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePrint(order)}
+                          title="Print"
+                        >
+                          <Printer className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -428,7 +525,18 @@ export default function Orders() {
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
         <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="sr-only">Order Details</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-2xl font-bold">Order Details</DialogTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => selectedOrder && handlePrint(selectedOrder)}
+                className="flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                Print
+              </Button>
+            </div>
           </DialogHeader>
 
           {selectedOrder && (

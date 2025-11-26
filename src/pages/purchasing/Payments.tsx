@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
@@ -53,6 +53,60 @@ export default function Payments() {
   const handleDeleteRequest = (payment: any) => {
     setPaymentToDelete(payment);
     setDeleteDialogOpen(true);
+  };
+
+  const handlePrint = async (payment: any) => {
+    try {
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .single();
+
+      const printWindow = window.open("", "", "width=800,height=600");
+      if (!printWindow) return;
+
+      const content = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Payment ${payment.payment_no}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .info { margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h2>${company?.name || 'Company Name'}</h2>
+              ${company?.address ? `<p>${company.address}</p>` : ''}
+            </div>
+            <div>
+              <h1>PAYMENT</h1>
+              <p>Payment #: ${payment.payment_no}</p>
+            </div>
+          </div>
+          <div class="info">
+            <p><strong>Date:</strong> ${new Date(payment.payment_date).toLocaleDateString()}</p>
+            <p><strong>Supplier:</strong> ${payment.contacts?.name || "N/A"}</p>
+            <p><strong>Amount:</strong> ${payment.amount.toLocaleString()}</p>
+            ${payment.reference ? `<p><strong>Reference:</strong> ${payment.reference}</p>` : ''}
+          </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async () => {
@@ -174,10 +228,13 @@ export default function Payments() {
                     <TableCell className="text-right">{payment.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(payment)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleEdit(payment)} title="Edit">
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(payment)}>
+                        <Button variant="ghost" size="sm" onClick={() => handlePrint(payment)} title="Print">
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteRequest(payment)} title="Delete">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>

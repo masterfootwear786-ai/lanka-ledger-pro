@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Eye, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BillDialog } from "@/components/bills/BillDialog";
@@ -68,6 +68,56 @@ export default function Bills() {
   const handleEdit = (bill: any) => {
     setSelectedBill(bill);
     setDialogOpen(true);
+  };
+
+  const handlePrint = async (bill: any) => {
+    try {
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .single();
+
+      const printWindow = window.open("", "", "width=800,height=600");
+      if (!printWindow) return;
+
+      const content = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Bill ${bill.bill_no}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .info { margin-bottom: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h2>${company?.name || 'Company Name'}</h2>
+              ${company?.address ? `<p>${company.address}</p>` : ''}
+            </div>
+            <div>
+              <h1>BILL</h1>
+              <p>Bill #: ${bill.bill_no}</p>
+            </div>
+          </div>
+          <div class="info">
+            <p><strong>Date:</strong> ${new Date(bill.bill_date).toLocaleDateString()}</p>
+            <p><strong>Supplier:</strong> ${bill.supplier?.name || "N/A"}</p>
+            <p><strong>Amount:</strong> ${bill.grand_total?.toLocaleString() || "0"}</p>
+            ${bill.due_date ? `<p><strong>Due Date:</strong> ${new Date(bill.due_date).toLocaleDateString()}</p>` : ''}
+          </div>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.print();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   const handleDelete = async () => {
@@ -180,8 +230,11 @@ export default function Bills() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(bill)}>
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(bill)} title="Edit">
                             <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handlePrint(bill)} title="Print">
+                            <Printer className="h-4 w-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
@@ -190,6 +243,7 @@ export default function Bills() {
                               setBillToDelete(bill);
                               setDeleteDialogOpen(true);
                             }}
+                            title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
