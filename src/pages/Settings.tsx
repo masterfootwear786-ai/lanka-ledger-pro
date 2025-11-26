@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2 } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -11,6 +11,14 @@ export default function Settings() {
   const { isAdmin } = useUserRole();
 
   const settingsModules = [
+    {
+      title: "Install App",
+      description: "Install the app on your device for offline access",
+      icon: Download,
+      path: "/install",
+      color: "text-primary",
+      adminOnly: false,
+    },
     {
       title: t('settings.company'),
       description: "Manage company information and settings",

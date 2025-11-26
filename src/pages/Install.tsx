@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Smartphone, Monitor, Check } from 'lucide-react';
+import { Download, Smartphone, Monitor, Check, Copy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -11,8 +12,19 @@ interface BeforeInstallPromptEvent extends Event {
 
 const Install = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
+
+  const appUrl = window.location.origin + '/install';
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(appUrl);
+    toast({
+      title: "Link Copied",
+      description: "Installation link copied to clipboard",
+    });
+  };
 
   useEffect(() => {
     // Check if already installed
@@ -71,6 +83,21 @@ const Install = () => {
             </div>
           ) : (
             <>
+              <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+                <p className="text-sm font-medium mb-2">Installation Link:</p>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={appUrl}
+                    className="flex-1 px-3 py-2 text-sm bg-background border rounded-md"
+                  />
+                  <Button onClick={copyLink} variant="outline" size="sm">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
                   <Smartphone className="w-6 h-6 text-primary mt-1" />
