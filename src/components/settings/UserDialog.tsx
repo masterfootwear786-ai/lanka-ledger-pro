@@ -121,7 +121,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             rolesToAdd.map((role) => ({
               user_id: user.id,
               role,
-              company_id: user.company_id,
             }))
           );
 
