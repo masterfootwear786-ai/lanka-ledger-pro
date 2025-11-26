@@ -8,6 +8,7 @@ import {
   FileText,
   Settings,
   ChevronDown,
+  Send,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +35,7 @@ export function AppSidebar() {
 
   const mainMenuItems = [
     { title: t('app.dashboard'), url: '/', icon: LayoutDashboard },
+    { title: 'Send Documents', url: '/send-documents', icon: Send },
   ];
 
   const salesItems = [
