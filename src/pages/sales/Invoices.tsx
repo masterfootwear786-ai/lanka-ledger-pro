@@ -191,6 +191,13 @@ export default function Invoices() {
         .eq("invoice_id", invoice.id)
         .order("line_no", { ascending: true });
 
+      // Fetch company data for logo
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", invoice.company_id)
+        .single();
+
       const printWindow = window.open("", "", "width=800,height=600");
       if (!printWindow) return;
 
@@ -201,7 +208,9 @@ export default function Invoices() {
           <title>Invoice ${invoice.invoice_no}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
+            .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+            .company-info { display: flex; align-items: center; gap: 15px; }
+            .company-logo { max-height: 80px; max-width: 80px; }
             .info { margin-bottom: 20px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -211,8 +220,18 @@ export default function Invoices() {
         </head>
         <body>
           <div class="header">
-            <h1>INVOICE</h1>
-            <p>Invoice #: ${invoice.invoice_no}</p>
+            <div class="company-info">
+              ${company?.logo_url ? `<img src="${company.logo_url}" alt="${company.name}" class="company-logo" />` : ''}
+              <div>
+                <h2>${company?.name || 'Company Name'}</h2>
+                ${company?.address ? `<p>${company.address}</p>` : ''}
+                ${company?.phone ? `<p>Tel: ${company.phone}</p>` : ''}
+              </div>
+            </div>
+            <div>
+              <h1>INVOICE</h1>
+              <p>Invoice #: ${invoice.invoice_no}</p>
+            </div>
           </div>
           <div class="info">
             <p><strong>Date:</strong> ${new Date(invoice.invoice_date).toLocaleDateString()}</p>
