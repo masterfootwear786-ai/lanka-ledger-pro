@@ -449,6 +449,7 @@ export type Database = {
           protect_item_delete: boolean | null
           protect_order_delete: boolean | null
           protect_supplier_delete: boolean | null
+          protect_tax_rate_delete: boolean | null
           tax_number: string | null
           updated_at: string | null
           updated_by: string | null
@@ -474,6 +475,7 @@ export type Database = {
           protect_item_delete?: boolean | null
           protect_order_delete?: boolean | null
           protect_supplier_delete?: boolean | null
+          protect_tax_rate_delete?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -499,6 +501,7 @@ export type Database = {
           protect_item_delete?: boolean | null
           protect_order_delete?: boolean | null
           protect_supplier_delete?: boolean | null
+          protect_tax_rate_delete?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -2152,6 +2155,8 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           id: string
           is_inclusive: boolean | null
           name: string
@@ -2165,6 +2170,8 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           is_inclusive?: boolean | null
           name: string
@@ -2178,6 +2185,8 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           id?: string
           is_inclusive?: boolean | null
           name?: string
