@@ -236,7 +236,7 @@ export default function TrashPage() {
       // Fetch deleted tax rates
       const { data: taxRatesList } = await supabase
         .from('tax_rates')
-        .select('id, name, deleted_at, deleted_by:profiles!tax_rates_updated_by_fkey(full_name)')
+        .select('id, name, deleted_at, deleted_by:profiles!tax_rates_deleted_by_fkey(full_name)')
         .eq('company_id', profile.company_id)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false });
