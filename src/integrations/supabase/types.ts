@@ -1088,6 +1088,7 @@ export type Database = {
           currency_code: string | null
           customer_id: string
           deleted_at: string | null
+          deleted_by: string | null
           discount: number | null
           due_date: string | null
           exchange_rate: number | null
@@ -1113,6 +1114,7 @@ export type Database = {
           currency_code?: string | null
           customer_id: string
           deleted_at?: string | null
+          deleted_by?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
@@ -1138,6 +1140,7 @@ export type Database = {
           currency_code?: string | null
           customer_id?: string
           deleted_at?: string | null
+          deleted_by?: string | null
           discount?: number | null
           due_date?: string | null
           exchange_rate?: number | null
