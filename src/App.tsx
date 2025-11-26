@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import "./i18n/config";
 import Auth from "./pages/Auth";
+import Install from "./pages/Install";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import Sales from "./pages/Sales";
@@ -74,6 +75,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <Routes>
+              <Route path="/install" element={<Install />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               {/* Main module routes */}
