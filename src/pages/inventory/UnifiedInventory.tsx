@@ -57,6 +57,7 @@ export default function UnifiedInventory() {
         .from("items")
         .select("*")
         .eq("active", true)
+        .is('deleted_at', null)
         .order("code");
       
       if (itemsError) throw itemsError;

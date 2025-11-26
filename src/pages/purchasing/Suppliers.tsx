@@ -53,6 +53,7 @@ export default function Suppliers() {
         .from("contacts")
         .select("*")
         .eq("contact_type", "supplier")
+        .is('deleted_at', null)
         .order("code");
       
       if (error) throw error;

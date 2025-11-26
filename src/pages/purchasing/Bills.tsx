@@ -53,6 +53,7 @@ export default function Bills() {
           *,
           supplier:contacts(name)
         `)
+        .is('deleted_at', null)
         .order("bill_date", { ascending: false });
       
       if (error) throw error;
