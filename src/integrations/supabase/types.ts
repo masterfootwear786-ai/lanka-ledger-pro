@@ -429,7 +429,14 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          password_protection_enabled: boolean | null
           phone: string | null
+          protect_bill_delete: boolean | null
+          protect_customer_delete: boolean | null
+          protect_invoice_delete: boolean | null
+          protect_item_delete: boolean | null
+          protect_order_delete: boolean | null
+          protect_supplier_delete: boolean | null
           tax_number: string | null
           updated_at: string | null
           updated_by: string | null
@@ -447,7 +454,14 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          password_protection_enabled?: boolean | null
           phone?: string | null
+          protect_bill_delete?: boolean | null
+          protect_customer_delete?: boolean | null
+          protect_invoice_delete?: boolean | null
+          protect_item_delete?: boolean | null
+          protect_order_delete?: boolean | null
+          protect_supplier_delete?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -465,7 +479,14 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          password_protection_enabled?: boolean | null
           phone?: string | null
+          protect_bill_delete?: boolean | null
+          protect_customer_delete?: boolean | null
+          protect_invoice_delete?: boolean | null
+          protect_item_delete?: boolean | null
+          protect_order_delete?: boolean | null
+          protect_supplier_delete?: boolean | null
           tax_number?: string | null
           updated_at?: string | null
           updated_by?: string | null

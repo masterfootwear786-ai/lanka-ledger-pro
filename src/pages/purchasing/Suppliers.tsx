@@ -40,7 +40,7 @@ export default function Suppliers() {
     requirePassword,
     handlePasswordConfirm,
     handlePasswordCancel,
-  } = useActionPassword();
+  } = useActionPassword('suppliers');
 
   useEffect(() => {
     fetchSuppliers();

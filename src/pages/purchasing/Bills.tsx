@@ -38,7 +38,7 @@ export default function Bills() {
     requirePassword,
     handlePasswordConfirm,
     handlePasswordCancel,
-  } = useActionPassword();
+  } = useActionPassword('bills');
 
   useEffect(() => {
     fetchBills();

@@ -55,7 +55,7 @@ export default function Invoices() {
     requirePassword,
     handlePasswordConfirm,
     handlePasswordCancel,
-  } = useActionPassword();
+  } = useActionPassword('invoices');
 
   useEffect(() => {
     fetchInvoices();

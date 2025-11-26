@@ -38,7 +38,7 @@ export default function Customers() {
     requirePassword,
     handlePasswordConfirm,
     handlePasswordCancel,
-  } = useActionPassword();
+  } = useActionPassword('customers');
 
   useEffect(() => {
     fetchCustomers();

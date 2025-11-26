@@ -38,7 +38,7 @@ export default function Items() {
     requirePassword,
     handlePasswordConfirm,
     handlePasswordCancel,
-  } = useActionPassword();
+  } = useActionPassword('items');
 
   useEffect(() => {
     fetchItems();
