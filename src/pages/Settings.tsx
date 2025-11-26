@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -57,6 +57,14 @@ export default function Settings() {
       icon: Tag,
       path: "/settings/custom-fields",
       color: "text-pink-600 dark:text-pink-400",
+      adminOnly: true,
+    },
+    {
+      title: "Trash",
+      description: "View and restore deleted items",
+      icon: Trash2,
+      path: "/settings/trash",
+      color: "text-gray-600 dark:text-gray-400",
       adminOnly: true,
     },
   ].filter(module => !module.adminOnly || isAdmin());
