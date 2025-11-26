@@ -9,6 +9,8 @@ import { Plus, Search, Edit, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ItemDialog } from "@/components/items/ItemDialog";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
+import { useActionPassword } from "@/hooks/useActionPassword";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,14 @@ export default function Items() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<any>(null);
+  const {
+    isPasswordDialogOpen,
+    setIsPasswordDialogOpen,
+    verifyPassword,
+    requirePassword,
+    handlePasswordConfirm,
+    handlePasswordCancel,
+  } = useActionPassword();
 
   useEffect(() => {
     fetchItems();
@@ -80,21 +90,23 @@ export default function Items() {
   const handleDelete = async () => {
     if (!itemToDelete) return;
     
-    try {
-      const { error } = await supabase
-        .from("items")
-        .delete()
-        .eq("id", itemToDelete.id);
-      
-      if (error) throw error;
-      toast.success("Item deleted successfully");
-      fetchItems();
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setDeleteDialogOpen(false);
-      setItemToDelete(null);
-    }
+    requirePassword(async () => {
+      try {
+        const { error } = await supabase
+          .from("items")
+          .delete()
+          .eq("id", itemToDelete.id);
+        
+        if (error) throw error;
+        toast.success("Item deleted successfully");
+        fetchItems();
+      } catch (error: any) {
+        toast.error(error.message);
+      } finally {
+        setDeleteDialogOpen(false);
+        setItemToDelete(null);
+      }
+    });
   };
 
   const filteredItems = items.filter(item =>
@@ -233,6 +245,15 @@ export default function Items() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PasswordPromptDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onConfirm={handlePasswordConfirm}
+        onPasswordVerify={verifyPassword}
+        title="Delete Item"
+        description="Please enter the action password to delete this item."
+      />
     </div>
   );
 }

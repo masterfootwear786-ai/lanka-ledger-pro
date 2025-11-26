@@ -9,6 +9,8 @@ import { Plus, Search, Edit, Trash2, Mail, Phone, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ContactDialog } from "@/components/contacts/ContactDialog";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
+import { useActionPassword } from "@/hooks/useActionPassword";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,14 @@ export default function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<any>(null);
+  const {
+    isPasswordDialogOpen,
+    setIsPasswordDialogOpen,
+    verifyPassword,
+    requirePassword,
+    handlePasswordConfirm,
+    handlePasswordCancel,
+  } = useActionPassword();
 
   useEffect(() => {
     fetchCustomers();
@@ -60,34 +70,36 @@ export default function Customers() {
   const handleDelete = async () => {
     if (!customerToDelete) return;
     
-    try {
-      const { error } = await supabase
-        .from("contacts")
-        .delete()
-        .eq("id", customerToDelete.id);
-      
-      if (error) {
-        console.error("Delete error:", error);
-        if (error.message.includes("row-level security")) {
-          toast.error("You don't have permission to delete customers. Only admins can delete customers.");
-        } else if (error.message.includes("foreign key")) {
-          toast.error("Cannot delete customer with existing transactions. Please delete related invoices, receipts, and credit notes first.");
-        } else {
-          toast.error(`Failed to delete customer: ${error.message}`);
+    requirePassword(async () => {
+      try {
+        const { error } = await supabase
+          .from("contacts")
+          .delete()
+          .eq("id", customerToDelete.id);
+        
+        if (error) {
+          console.error("Delete error:", error);
+          if (error.message.includes("row-level security")) {
+            toast.error("You don't have permission to delete customers. Only admins can delete customers.");
+          } else if (error.message.includes("foreign key")) {
+            toast.error("Cannot delete customer with existing transactions. Please delete related invoices, receipts, and credit notes first.");
+          } else {
+            toast.error(`Failed to delete customer: ${error.message}`);
+          }
+          return;
         }
-        return;
+        
+        toast.success("Customer deleted successfully");
+        setDeleteDialogOpen(false);
+        setCustomerToDelete(null);
+        fetchCustomers();
+      } catch (error: any) {
+        console.error("Delete error:", error);
+        toast.error(`Failed to delete customer: ${error.message}`);
+        setDeleteDialogOpen(false);
+        setCustomerToDelete(null);
       }
-      
-      toast.success("Customer deleted successfully");
-      setDeleteDialogOpen(false);
-      setCustomerToDelete(null);
-      fetchCustomers();
-    } catch (error: any) {
-      console.error("Delete error:", error);
-      toast.error(`Failed to delete customer: ${error.message}`);
-      setDeleteDialogOpen(false);
-      setCustomerToDelete(null);
-    }
+    });
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -245,6 +257,15 @@ export default function Customers() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PasswordPromptDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onConfirm={handlePasswordConfirm}
+        onPasswordVerify={verifyPassword}
+        title="Delete Customer"
+        description="Please enter the action password to delete this customer."
+      />
     </div>
   );
 }

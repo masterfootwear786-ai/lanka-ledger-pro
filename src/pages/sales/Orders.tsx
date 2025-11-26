@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Plus, Eye, Edit, Trash2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
+import { useActionPassword } from "@/hooks/useActionPassword";
 import {
   Table,
   TableBody,
@@ -43,6 +45,14 @@ export default function Orders() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [orderToConvert, setOrderToConvert] = useState<any>(null);
   const [convertOrderLines, setConvertOrderLines] = useState<any[]>([]);
+  const {
+    isPasswordDialogOpen,
+    setIsPasswordDialogOpen,
+    verifyPassword,
+    requirePassword,
+    handlePasswordConfirm,
+    handlePasswordCancel,
+  } = useActionPassword();
 
   useEffect(() => {
     fetchOrders();
@@ -115,21 +125,23 @@ export default function Orders() {
   const handleDelete = async () => {
     if (!orderToDelete) return;
 
-    try {
-      const { error } = await supabase
-        .from('sales_orders')
-        .delete()
-        .eq('id', orderToDelete.id);
+    requirePassword(async () => {
+      try {
+        const { error } = await supabase
+          .from('sales_orders')
+          .delete()
+          .eq('id', orderToDelete.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast.success("Order deleted successfully");
-      fetchOrders();
-      setDeleteDialogOpen(false);
-      setOrderToDelete(null);
-    } catch (error: any) {
-      toast.error("Error deleting order: " + error.message);
-    }
+        toast.success("Order deleted successfully");
+        fetchOrders();
+        setDeleteDialogOpen(false);
+        setOrderToDelete(null);
+      } catch (error: any) {
+        toast.error("Error deleting order: " + error.message);
+      }
+    });
   };
 
   const handleConvertToInvoice = async (order: any) => {
@@ -628,6 +640,15 @@ export default function Orders() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PasswordPromptDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        onConfirm={handlePasswordConfirm}
+        onPasswordVerify={verifyPassword}
+        title="Delete Order"
+        description="Please enter the action password to delete this order."
+      />
 
       {/* Convert to Invoice Confirmation Dialog */}
       <Dialog open={convertDialogOpen} onOpenChange={setConvertDialogOpen}>
