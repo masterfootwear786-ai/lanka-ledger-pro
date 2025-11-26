@@ -48,12 +48,15 @@ import Currencies from "./pages/settings/Currencies";
 import CustomFields from "./pages/settings/CustomFields";
 import Trash from "./pages/settings/Trash";
 import { Layout } from "./components/Layout";
+import { UpdateNotification } from "./components/UpdateNotification";
+import { useOfflineSync } from "./hooks/useOfflineSync";
 
 const queryClient = new QueryClient();
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  useOfflineSync();
   
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
@@ -72,6 +75,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <UpdateNotification />
         <BrowserRouter>
           <AuthProvider>
             <Routes>
