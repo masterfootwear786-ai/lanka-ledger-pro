@@ -5,9 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, MessageSquare, Phone } from "lucide-react";
+import { Mail, MessageSquare, Phone, Eye } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { SendPreviewDialog } from "@/components/documents/SendPreviewDialog";
 
 export default function SendDocuments() {
   const { toast } = useToast();
@@ -20,6 +21,14 @@ export default function SendDocuments() {
   const [selectedDocument, setSelectedDocument] = useState<string>("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lineItems, setLineItems] = useState<any[]>([]);
+  const [outstandingBalance, setOutstandingBalance] = useState<number>(0);
+  const [showPreview, setShowPreview] = useState(false);
+  const [options, setOptions] = useState({
+    includeOutstanding: true,
+    includeLineItems: true,
+    includePaymentTerms: true,
+  });
 
   useEffect(() => {
     fetchData();
@@ -68,6 +77,79 @@ export default function SendDocuments() {
   const selectedContactData = contacts.find((c) => c.id === selectedContact);
   const selectedDocumentData = documents.find((d) => d.id === selectedDocument);
 
+  useEffect(() => {
+    if (selectedDocument) {
+      fetchDocumentDetails();
+      fetchOutstandingBalance();
+    }
+  }, [selectedDocument, selectedType]);
+
+  const fetchDocumentDetails = async () => {
+    if (selectedType === "customer") {
+      const { data } = await supabase
+        .from("invoice_lines")
+        .select("*")
+        .eq("invoice_id", selectedDocument);
+      setLineItems(data || []);
+    } else {
+      const { data } = await supabase
+        .from("bill_lines")
+        .select("*")
+        .eq("bill_id", selectedDocument);
+      setLineItems(data || []);
+    }
+  };
+
+  const fetchOutstandingBalance = async () => {
+    if (!selectedContact) return;
+
+    if (selectedType === "customer") {
+      // Calculate customer outstanding
+      const { data: invoicesData } = await supabase
+        .from("invoices")
+        .select("grand_total")
+        .eq("customer_id", selectedContact);
+
+      const { data: receiptsData } = await supabase
+        .from("receipt_allocations")
+        .select("amount, receipts!inner(customer_id)")
+        .eq("receipts.customer_id", selectedContact);
+
+      const totalInvoiced = invoicesData?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
+      const totalReceived = receiptsData?.reduce((sum, rec) => sum + rec.amount, 0) || 0;
+      setOutstandingBalance(totalInvoiced - totalReceived);
+    } else {
+      // Calculate supplier outstanding
+      const { data: billsData } = await supabase
+        .from("bills")
+        .select("grand_total")
+        .eq("supplier_id", selectedContact);
+
+      const { data: paymentsData } = await supabase
+        .from("payment_allocations")
+        .select("amount, bill_payments!inner(supplier_id)")
+        .eq("bill_payments.supplier_id", selectedContact);
+
+      const totalBilled = billsData?.reduce((sum, bill) => sum + (bill.grand_total || 0), 0) || 0;
+      const totalPaid = paymentsData?.reduce((sum, pay) => sum + pay.amount, 0) || 0;
+      setOutstandingBalance(totalBilled - totalPaid);
+    }
+  };
+
+  const handlePreviewEmail = () => {
+    if (!selectedContactData || !selectedDocumentData) {
+      toast({ variant: "destructive", description: "Please select contact and document" });
+      return;
+    }
+
+    if (!selectedContactData.email) {
+      toast({ variant: "destructive", description: "Contact has no email address" });
+      return;
+    }
+
+    setShowPreview(true);
+  };
+
   const handleSendEmail = async () => {
     if (!selectedContactData || !selectedDocumentData) {
       toast({ variant: "destructive", description: "Please select contact and document" });
@@ -94,6 +176,9 @@ export default function SendDocuments() {
           documentNo,
           amount: selectedDocumentData.grand_total,
           message,
+          outstandingBalance: options.includeOutstanding ? outstandingBalance : undefined,
+          lineItems: options.includeLineItems ? lineItems : undefined,
+          includePaymentTerms: options.includePaymentTerms,
         },
       });
 
@@ -102,7 +187,6 @@ export default function SendDocuments() {
         throw new Error("Failed to send email");
       }
 
-      // Check if the response indicates an error from Resend
       if (data?.error) {
         console.error("Resend API error:", data.error);
         throw new Error(data.error.message || "Failed to send email");
@@ -110,6 +194,7 @@ export default function SendDocuments() {
 
       toast({ description: `Email sent successfully to ${selectedContactData.email}` });
       setMessage("");
+      setShowPreview(false);
     } catch (error: any) {
       console.error("Send email error:", error);
       toast({ 
@@ -271,19 +356,61 @@ export default function SendDocuments() {
                 rows={3}
               />
             </div>
+
+            <div className="space-y-3">
+              <Label>Include in Email</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="outstanding"
+                    checked={options.includeOutstanding}
+                    onCheckedChange={(checked) =>
+                      setOptions({ ...options, includeOutstanding: checked as boolean })
+                    }
+                  />
+                  <label htmlFor="outstanding" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Outstanding Balance
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="lineItems"
+                    checked={options.includeLineItems}
+                    onCheckedChange={(checked) =>
+                      setOptions({ ...options, includeLineItems: checked as boolean })
+                    }
+                  />
+                  <label htmlFor="lineItems" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Line Items Details
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="paymentTerms"
+                    checked={options.includePaymentTerms}
+                    onCheckedChange={(checked) =>
+                      setOptions({ ...options, includePaymentTerms: checked as boolean })
+                    }
+                  />
+                  <label htmlFor="paymentTerms" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Payment Terms
+                  </label>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-            <CardDescription>Selected contact details</CardDescription>
+            <CardTitle>Document Preview</CardTitle>
+            <CardDescription>Selected document details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {selectedContactData ? (
+            {selectedDocumentData && selectedContactData ? (
               <>
                 <div className="space-y-1">
-                  <Label className="text-sm text-muted-foreground">Name</Label>
+                  <Label className="text-sm text-muted-foreground">Contact Name</Label>
                   <p className="font-medium">{selectedContactData.name}</p>
                 </div>
                 <div className="space-y-1">
@@ -291,17 +418,30 @@ export default function SendDocuments() {
                   <p className="font-medium">{selectedContactData.email || "Not provided"}</p>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm text-muted-foreground">Phone</Label>
-                  <p className="font-medium">{selectedContactData.phone || "Not provided"}</p>
+                  <Label className="text-sm text-muted-foreground">Document Number</Label>
+                  <p className="font-medium">
+                    {selectedType === "customer" ? selectedDocumentData.invoice_no : selectedDocumentData.bill_no}
+                  </p>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-sm text-muted-foreground">WhatsApp</Label>
-                  <p className="font-medium">{selectedContactData.whatsapp || selectedContactData.phone || "Not provided"}</p>
-                  <p className="text-xs text-muted-foreground">Use international format: +94771234567</p>
+                  <Label className="text-sm text-muted-foreground">Amount</Label>
+                  <p className="font-medium">{selectedDocumentData.grand_total?.toLocaleString()}</p>
                 </div>
+                {options.includeOutstanding && (
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">Outstanding Balance</Label>
+                    <p className="font-medium text-destructive">{outstandingBalance.toLocaleString()}</p>
+                  </div>
+                )}
+                {options.includeLineItems && lineItems.length > 0 && (
+                  <div className="space-y-1">
+                    <Label className="text-sm text-muted-foreground">Line Items</Label>
+                    <p className="text-sm">{lineItems.length} items</p>
+                  </div>
+                )}
               </>
             ) : (
-              <p className="text-muted-foreground text-center py-8">Select a contact to view details</p>
+              <p className="text-muted-foreground text-center py-8">Select document to view details</p>
             )}
           </CardContent>
         </Card>
@@ -315,12 +455,13 @@ export default function SendDocuments() {
         <CardContent>
           <div className="flex flex-wrap gap-3">
             <Button
-              onClick={handleSendEmail}
-              disabled={!selectedContact || !selectedDocument || loading}
+              onClick={handlePreviewEmail}
+              disabled={!selectedContact || !selectedDocument}
+              variant="outline"
               className="flex-1 min-w-[150px]"
             >
-              <Mail className="mr-2 h-4 w-4" />
-              Send via Email
+              <Eye className="mr-2 h-4 w-4" />
+              Preview Email
             </Button>
             <Button
               onClick={handleSendWhatsApp}
@@ -343,6 +484,26 @@ export default function SendDocuments() {
           </div>
         </CardContent>
       </Card>
+
+      <SendPreviewDialog
+        open={showPreview}
+        onOpenChange={setShowPreview}
+        onConfirm={handleSendEmail}
+        documentType={selectedType === "customer" ? "Invoice" : "Bill"}
+        documentNo={
+          selectedType === "customer"
+            ? selectedDocumentData?.invoice_no || ""
+            : selectedDocumentData?.bill_no || ""
+        }
+        contactName={selectedContactData?.name || ""}
+        contactEmail={selectedContactData?.email || ""}
+        amount={selectedDocumentData?.grand_total || 0}
+        outstandingBalance={outstandingBalance}
+        lineItems={lineItems}
+        message={message}
+        options={options}
+        loading={loading}
+      />
     </div>
   );
 }
