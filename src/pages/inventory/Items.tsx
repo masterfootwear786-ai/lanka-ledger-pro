@@ -50,6 +50,7 @@ export default function Items() {
       const { data: itemsData, error: itemsError } = await supabase
         .from("items")
         .select("*")
+        .is('deleted_at', null)
         .order("code");
       
       if (itemsError) throw itemsError;

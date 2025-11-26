@@ -78,6 +78,7 @@ export default function Orders() {
           customer:contacts(id, code, name)
         `)
         .eq('company_id', profileData.company_id)
+        .is('deleted_at', null)
         .order('order_date', { ascending: false });
 
       if (error) throw error;

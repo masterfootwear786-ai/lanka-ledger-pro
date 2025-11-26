@@ -34,6 +34,7 @@ export default function Payments() {
           *,
           contacts:supplier_id (name)
         `)
+        .is('deleted_at', null)
         .order('payment_date', { ascending: false });
 
       if (error) throw error;

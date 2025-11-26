@@ -51,6 +51,7 @@ export default function Customers() {
         .from("contacts")
         .select("*")
         .eq("contact_type", "customer")
+        .is('deleted_at', null)
         .order("code");
       
       if (error) throw error;
