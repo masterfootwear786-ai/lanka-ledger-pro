@@ -4,8 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Mail, Shield, Edit, Trash2 } from "lucide-react";
+import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle } from "lucide-react";
 import { UserDialog } from "@/components/settings/UserDialog";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +21,7 @@ import {
 
 export default function Users() {
   const { toast } = useToast();
+  const { isAdmin, loading: roleLoading } = useUserRole();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<any>(null);
@@ -142,8 +145,25 @@ export default function Users() {
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-[400px]">Loading...</div>;
+  if (loading || roleLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAdmin()) {
+    return (
+      <div className="container mx-auto p-6">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You do not have permission to access user management. Only administrators can manage users.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   }
 
   return (

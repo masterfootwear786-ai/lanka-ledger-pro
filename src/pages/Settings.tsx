@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export default function Settings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
 
   const settingsModules = [
     {
@@ -14,44 +16,50 @@ export default function Settings() {
       description: "Manage company information and settings",
       icon: Building2,
       path: "/settings/company",
-      color: "text-blue-600 dark:text-blue-400"
+      color: "text-blue-600 dark:text-blue-400",
+      adminOnly: false,
     },
     {
       title: "Security",
       description: "Configure action passwords and security settings",
       icon: Shield,
       path: "/settings/security",
-      color: "text-red-600 dark:text-red-400"
+      color: "text-red-600 dark:text-red-400",
+      adminOnly: true,
     },
     {
       title: t('settings.users'),
       description: "Manage user accounts and permissions",
       icon: Users,
       path: "/settings/users",
-      color: "text-green-600 dark:text-green-400"
+      color: "text-green-600 dark:text-green-400",
+      adminOnly: true,
     },
     {
       title: t('settings.taxRates'),
       description: "Configure tax rates and rules",
       icon: DollarSign,
       path: "/settings/tax-rates",
-      color: "text-purple-600 dark:text-purple-400"
+      color: "text-purple-600 dark:text-purple-400",
+      adminOnly: true,
     },
     {
       title: t('settings.currencies'),
       description: "Manage currency settings",
       icon: DollarSign,
       path: "/settings/currencies",
-      color: "text-orange-600 dark:text-orange-400"
+      color: "text-orange-600 dark:text-orange-400",
+      adminOnly: true,
     },
     {
       title: t('settings.customFields'),
       description: "Define custom fields for entities",
       icon: Tag,
       path: "/settings/custom-fields",
-      color: "text-pink-600 dark:text-pink-400"
+      color: "text-pink-600 dark:text-pink-400",
+      adminOnly: true,
     },
-  ];
+  ].filter(module => !module.adminOnly || isAdmin());
 
   return (
     <div className="space-y-6">
