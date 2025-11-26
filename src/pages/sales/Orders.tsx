@@ -52,7 +52,7 @@ export default function Orders() {
     requirePassword,
     handlePasswordConfirm,
     handlePasswordCancel,
-  } = useActionPassword();
+  } = useActionPassword('orders');
 
   useEffect(() => {
     fetchOrders();

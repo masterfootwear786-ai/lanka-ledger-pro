@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Shield, Lock } from "lucide-react";
@@ -25,6 +27,15 @@ export default function Security() {
   const [loading, setLoading] = useState(false);
   const [hasPassword, setHasPassword] = useState(false);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [passwordEnabled, setPasswordEnabled] = useState(false);
+  const [protections, setProtections] = useState({
+    invoices: false,
+    orders: false,
+    customers: false,
+    bills: false,
+    suppliers: false,
+    items: false,
+  });
 
   const form = useForm<SecurityFormData>({
     resolver: zodResolver(securitySchema),
@@ -50,11 +61,20 @@ export default function Security() {
         
         const { data: company } = await supabase
           .from('companies')
-          .select('action_password')
+          .select('action_password, password_protection_enabled, protect_invoice_delete, protect_order_delete, protect_customer_delete, protect_bill_delete, protect_supplier_delete, protect_item_delete')
           .eq('id', profile.company_id)
           .single();
 
         setHasPassword(!!company?.action_password);
+        setPasswordEnabled(!!company?.password_protection_enabled);
+        setProtections({
+          invoices: !!company?.protect_invoice_delete,
+          orders: !!company?.protect_order_delete,
+          customers: !!company?.protect_customer_delete,
+          bills: !!company?.protect_bill_delete,
+          suppliers: !!company?.protect_supplier_delete,
+          items: !!company?.protect_item_delete,
+        });
       }
     } catch (error: any) {
       console.error('Error checking password:', error);
@@ -88,6 +108,7 @@ export default function Security() {
 
       setHasPassword(true);
       form.reset();
+      checkActionPassword();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -96,6 +117,65 @@ export default function Security() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordToggle = async (enabled: boolean) => {
+    if (!companyId) return;
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({ password_protection_enabled: enabled })
+        .eq('id', companyId);
+
+      if (error) throw error;
+
+      setPasswordEnabled(enabled);
+      toast({
+        title: "Success",
+        description: enabled ? "Password protection enabled" : "Password protection disabled",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleProtectionToggle = async (module: keyof typeof protections, enabled: boolean) => {
+    if (!companyId) return;
+
+    const columnMap = {
+      invoices: 'protect_invoice_delete',
+      orders: 'protect_order_delete',
+      customers: 'protect_customer_delete',
+      bills: 'protect_bill_delete',
+      suppliers: 'protect_supplier_delete',
+      items: 'protect_item_delete',
+    };
+
+    try {
+      const { error } = await supabase
+        .from('companies')
+        .update({ [columnMap[module]]: enabled })
+        .eq('id', companyId);
+
+      if (error) throw error;
+
+      setProtections(prev => ({ ...prev, [module]: enabled }));
+      toast({
+        title: "Success",
+        description: `${module} delete protection ${enabled ? 'enabled' : 'disabled'}`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -167,13 +247,105 @@ export default function Security() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Password Protection Settings</CardTitle>
+          <CardDescription>
+            Enable password protection for delete actions and select which modules require password verification
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label>Enable Password Protection</Label>
+              <p className="text-sm text-muted-foreground">
+                Require password for delete actions in selected modules
+              </p>
+            </div>
+            <Switch
+              checked={passwordEnabled}
+              onCheckedChange={handlePasswordToggle}
+              disabled={!hasPassword}
+            />
+          </div>
+
+          {passwordEnabled && (
+            <div className="space-y-4 border-t pt-4">
+              <Label>Protected Modules</Label>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="invoices"
+                    checked={protections.invoices}
+                    onCheckedChange={(checked) => handleProtectionToggle('invoices', checked as boolean)}
+                  />
+                  <label htmlFor="invoices" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Invoices
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="orders"
+                    checked={protections.orders}
+                    onCheckedChange={(checked) => handleProtectionToggle('orders', checked as boolean)}
+                  />
+                  <label htmlFor="orders" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Orders
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="customers"
+                    checked={protections.customers}
+                    onCheckedChange={(checked) => handleProtectionToggle('customers', checked as boolean)}
+                  />
+                  <label htmlFor="customers" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Customers
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="bills"
+                    checked={protections.bills}
+                    onCheckedChange={(checked) => handleProtectionToggle('bills', checked as boolean)}
+                  />
+                  <label htmlFor="bills" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Bills
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="suppliers"
+                    checked={protections.suppliers}
+                    onCheckedChange={(checked) => handleProtectionToggle('suppliers', checked as boolean)}
+                  />
+                  <label htmlFor="suppliers" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Suppliers
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="items"
+                    checked={protections.items}
+                    onCheckedChange={(checked) => handleProtectionToggle('items', checked as boolean)}
+                  />
+                  <label htmlFor="items" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Items
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Security Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <p>• The action password is required when editing or deleting invoices</p>
+          <p>• Set an action password first before enabling password protection</p>
+          <p>• Enable password protection and select which modules require password verification</p>
           <p>• Keep this password secure and share only with authorized users</p>
           <p>• You can change the password at any time from this page</p>
-          <p>• If you forget the password, you'll need to reset it here</p>
         </CardContent>
       </Card>
     </div>
