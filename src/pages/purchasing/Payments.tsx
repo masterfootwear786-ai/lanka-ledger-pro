@@ -57,49 +57,105 @@ export default function Payments() {
 
   const handlePrint = async (payment: any) => {
     try {
-      const { data: company } = await supabase
-        .from("companies")
-        .select("*")
-        .single();
+      const { data: allocations } = await supabase
+        .from("payment_allocations")
+        .select("*, bills(bill_no, bill_date)")
+        .eq("payment_id", payment.id);
 
-      const printWindow = window.open("", "", "width=800,height=600");
-      if (!printWindow) return;
-
-      const content = `
+      const printContent = `
         <!DOCTYPE html>
         <html>
-        <head>
-          <title>Payment ${payment.payment_no}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .info { margin-bottom: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h2>${company?.name || 'Company Name'}</h2>
-              ${company?.address ? `<p>${company.address}</p>` : ''}
+          <head>
+            <title>Payment ${payment.payment_no}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+              .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+              .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; }
+              .details { margin: 30px 0; }
+              .detail-row { display: grid; grid-template-columns: 200px 1fr; padding: 12px 0; border-bottom: 1px solid #eee; }
+              .detail-label { font-weight: 600; color: #666; }
+              .detail-value { color: #000; }
+              .allocations { margin: 30px 0; }
+              .allocations-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+              th { background: #f5f5f5; padding: 12px; text-align: left; border: 1px solid #ddd; }
+              td { padding: 10px; border: 1px solid #ddd; }
+              @media print { body { padding: 20px; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">PAYMENT</div>
             </div>
-            <div>
-              <h1>PAYMENT</h1>
-              <p>Payment #: ${payment.payment_no}</p>
+            
+            <div class="details">
+              <div class="detail-row">
+                <span class="detail-label">Payment No:</span>
+                <span class="detail-value">${payment.payment_no}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Date:</span>
+                <span class="detail-value">${new Date(payment.payment_date).toLocaleDateString()}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Supplier:</span>
+                <span class="detail-value">${payment.contacts?.name || ''}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Amount:</span>
+                <span class="detail-value" style="font-size: 20px; font-weight: bold;">${payment.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              ${payment.reference ? `
+                <div class="detail-row">
+                  <span class="detail-label">Reference:</span>
+                  <span class="detail-value">${payment.reference}</span>
+                </div>
+              ` : ''}
+              ${payment.notes ? `
+                <div class="detail-row">
+                  <span class="detail-label">Notes:</span>
+                  <span class="detail-value">${payment.notes}</span>
+                </div>
+              ` : ''}
             </div>
-          </div>
-          <div class="info">
-            <p><strong>Date:</strong> ${new Date(payment.payment_date).toLocaleDateString()}</p>
-            <p><strong>Supplier:</strong> ${payment.contacts?.name || "N/A"}</p>
-            <p><strong>Amount:</strong> ${payment.amount.toLocaleString()}</p>
-            ${payment.reference ? `<p><strong>Reference:</strong> ${payment.reference}</p>` : ''}
-          </div>
-        </body>
+
+            ${allocations && allocations.length > 0 ? `
+              <div class="allocations">
+                <div class="allocations-title">Bill Allocations</div>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Bill No</th>
+                      <th>Bill Date</th>
+                      <th style="text-align: right;">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${allocations.map((alloc: any) => `
+                      <tr>
+                        <td>${alloc.bills?.bill_no || ''}</td>
+                        <td>${alloc.bills?.bill_date ? new Date(alloc.bills.bill_date).toLocaleDateString() : ''}</td>
+                        <td style="text-align: right;">${alloc.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            ` : ''}
+          </body>
         </html>
       `;
 
-      printWindow.document.write(content);
-      printWindow.document.close();
-      printWindow.print();
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
     } catch (error: any) {
       toast({
         title: "Error",

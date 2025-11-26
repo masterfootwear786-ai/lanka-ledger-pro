@@ -207,97 +207,175 @@ export default function Invoices() {
         .eq("invoice_id", invoice.id)
         .order("line_no", { ascending: true });
 
-      // Fetch company data for logo
       const { data: company } = await supabase
         .from("companies")
         .select("*")
         .eq("id", invoice.company_id)
         .single();
 
-      const printWindow = window.open("", "", "width=800,height=600");
-      if (!printWindow) return;
+      const groupedLines = (lines || []).reduce((acc: any, line: any) => {
+        const key = `${line.description}-${line.item_id || 'no-item'}`;
+        if (!acc[key]) {
+          acc[key] = {
+            description: line.description,
+            unit_price: line.unit_price,
+            sizes: { 39: 0, 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0 },
+            line_total: 0
+          };
+        }
+        acc[key].sizes[39] += line.size_39 || 0;
+        acc[key].sizes[40] += line.size_40 || 0;
+        acc[key].sizes[41] += line.size_41 || 0;
+        acc[key].sizes[42] += line.size_42 || 0;
+        acc[key].sizes[43] += line.size_43 || 0;
+        acc[key].sizes[44] += line.size_44 || 0;
+        acc[key].sizes[45] += line.size_45 || 0;
+        acc[key].line_total += line.line_total || 0;
+        return acc;
+      }, {});
 
-      const content = `
+      const printContent = `
         <!DOCTYPE html>
         <html>
-        <head>
-          <title>Invoice ${invoice.invoice_no}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
-            .company-info { display: flex; align-items: center; gap: 15px; }
-            .company-logo { max-height: 80px; max-width: 80px; }
-            .info { margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f4f4f4; }
-            .total { text-align: right; margin-top: 20px; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="company-info">
-              ${company?.logo_url ? `<img src="${company.logo_url}" alt="${company.name}" class="company-logo" />` : ''}
-              <div>
-                <h2>${company?.name || 'Company Name'}</h2>
-                ${company?.address ? `<p>${company.address}</p>` : ''}
-                ${company?.phone ? `<p>Tel: ${company.phone}</p>` : ''}
+          <head>
+            <title>Invoice ${invoice.invoice_no}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+              .company-info { flex: 1; }
+              .company-logo { width: 120px; height: auto; }
+              .company-name { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+              .company-details { font-size: 12px; color: #666; }
+              .invoice-title { text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0; }
+              .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+              .detail-item { margin-bottom: 10px; }
+              .detail-label { font-size: 12px; color: #666; }
+              .detail-value { font-weight: 600; }
+              .line-items { margin: 30px 0; }
+              table { width: 100%; border-collapse: collapse; }
+              th { background: #f5f5f5; padding: 10px; text-align: left; border: 1px solid #ddd; font-size: 11px; }
+              td { padding: 8px; border: 1px solid #ddd; font-size: 12px; }
+              .size-col { text-align: center; width: 50px; }
+              .total-section { margin-top: 30px; float: right; width: 300px; }
+              .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+              .total-row.grand { font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; }
+              @media print { body { padding: 0; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="company-info">
+                ${company?.logo_url ? `<img src="${company.logo_url}" class="company-logo" />` : ''}
+                <div class="company-name">${company?.name || ''}</div>
+                <div class="company-details">
+                  ${company?.address || ''}<br/>
+                  ${company?.phone || ''} | ${company?.email || ''}
+                </div>
               </div>
             </div>
-            <div>
-              <h1>INVOICE</h1>
-              <p>Invoice #: ${invoice.invoice_no}</p>
+            
+            <div class="invoice-title">INVOICE</div>
+            
+            <div class="details-grid">
+              <div>
+                <div class="detail-item">
+                  <div class="detail-label">Invoice No</div>
+                  <div class="detail-value">${invoice.invoice_no}</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">Invoice Date</div>
+                  <div class="detail-value">${new Date(invoice.invoice_date).toLocaleDateString()}</div>
+                </div>
+                ${invoice.due_date ? `
+                  <div class="detail-item">
+                    <div class="detail-label">Due Date</div>
+                    <div class="detail-value">${new Date(invoice.due_date).toLocaleDateString()}</div>
+                  </div>
+                ` : ''}
+              </div>
+              <div>
+                <div class="detail-item">
+                  <div class="detail-label">Customer</div>
+                  <div class="detail-value">${invoice.customer?.name || ''}</div>
+                </div>
+                <div class="detail-item">
+                  <div class="detail-label">Status</div>
+                  <div class="detail-value">${invoice.status || 'draft'}</div>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="info">
-            <p><strong>Date:</strong> ${new Date(invoice.invoice_date).toLocaleDateString()}</p>
-            <p><strong>Customer:</strong> ${invoice.customer?.name || "N/A"}</p>
-            ${
-              invoice.due_date
-                ? `<p><strong>Due Date:</strong> ${new Date(invoice.due_date).toLocaleDateString()}</p>`
-                : ""
-            }
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Tax</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${(lines || [])
-                .map(
-                  (line: any) => `
-                <tr>
-                  <td>${line.description}</td>
-                  <td>${line.quantity}</td>
-                  <td>${line.unit_price.toFixed(2)}</td>
-                  <td>${line.tax_amount.toFixed(2)}</td>
-                  <td>${line.line_total.toFixed(2)}</td>
-                </tr>
-              `,
-                )
-                .join("")}
-            </tbody>
-          </table>
-          <div class="total">
-            <p>Subtotal: ${invoice.subtotal?.toFixed(2) || "0.00"}</p>
-            <p>Tax: ${invoice.tax_total?.toFixed(2) || "0.00"}</p>
-            <p>Discount: ${invoice.discount?.toFixed(2) || "0.00"}</p>
-            <p>Grand Total: ${invoice.grand_total?.toFixed(2) || "0.00"}</p>
-          </div>
-          ${invoice.notes ? `<div style="margin-top: 20px;"><strong>Notes:</strong><p>${invoice.notes}</p></div>` : ""}
-        </body>
+
+            <div class="line-items">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Art No / Color</th>
+                    <th class="size-col">39</th>
+                    <th class="size-col">40</th>
+                    <th class="size-col">41</th>
+                    <th class="size-col">42</th>
+                    <th class="size-col">43</th>
+                    <th class="size-col">44</th>
+                    <th class="size-col">45</th>
+                    <th>Unit Price</th>
+                    <th>Line Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${Object.values(groupedLines).map((line: any) => `
+                    <tr>
+                      <td>${line.description}</td>
+                      <td class="size-col">${line.sizes[39] || '-'}</td>
+                      <td class="size-col">${line.sizes[40] || '-'}</td>
+                      <td class="size-col">${line.sizes[41] || '-'}</td>
+                      <td class="size-col">${line.sizes[42] || '-'}</td>
+                      <td class="size-col">${line.sizes[43] || '-'}</td>
+                      <td class="size-col">${line.sizes[44] || '-'}</td>
+                      <td class="size-col">${line.sizes[45] || '-'}</td>
+                      <td>${line.unit_price?.toFixed(2)}</td>
+                      <td>${line.line_total?.toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="total-section">
+              <div class="total-row">
+                <span>Subtotal:</span>
+                <span>${(invoice.subtotal || 0).toFixed(2)}</span>
+              </div>
+              ${invoice.discount ? `
+                <div class="total-row">
+                  <span>Discount:</span>
+                  <span>${invoice.discount.toFixed(2)}</span>
+                </div>
+              ` : ''}
+              ${invoice.tax_total ? `
+                <div class="total-row">
+                  <span>Tax:</span>
+                  <span>${invoice.tax_total.toFixed(2)}</span>
+                </div>
+              ` : ''}
+              <div class="total-row grand">
+                <span>Grand Total:</span>
+                <span>${(invoice.grand_total || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          </body>
         </html>
       `;
 
-      printWindow.document.write(content);
-      printWindow.document.close();
-      printWindow.print();
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
     } catch (error: any) {
       toast({
         title: "Error",

@@ -72,49 +72,138 @@ export default function Bills() {
 
   const handlePrint = async (bill: any) => {
     try {
+      const { data: lines } = await supabase
+        .from("bill_lines")
+        .select("*")
+        .eq("bill_id", bill.id)
+        .order("line_no", { ascending: true });
+
       const { data: company } = await supabase
         .from("companies")
         .select("*")
+        .eq("id", bill.company_id)
         .single();
 
-      const printWindow = window.open("", "", "width=800,height=600");
-      if (!printWindow) return;
-
-      const content = `
+      const printContent = `
         <!DOCTYPE html>
         <html>
-        <head>
-          <title>Bill ${bill.bill_no}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .header { display: flex; justify-content: space-between; margin-bottom: 30px; }
-            .info { margin-bottom: 20px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h2>${company?.name || 'Company Name'}</h2>
-              ${company?.address ? `<p>${company.address}</p>` : ''}
+          <head>
+            <title>Bill ${bill.bill_no}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; }
+              .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+              .title { font-size: 32px; font-weight: bold; margin-bottom: 10px; }
+              .details { margin: 30px 0; }
+              .detail-row { display: grid; grid-template-columns: 200px 1fr; padding: 12px 0; border-bottom: 1px solid #eee; }
+              .detail-label { font-weight: 600; color: #666; }
+              .detail-value { color: #000; }
+              .line-items { margin: 30px 0; }
+              .items-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+              th { background: #f5f5f5; padding: 12px; text-align: left; border: 1px solid #ddd; }
+              td { padding: 10px; border: 1px solid #ddd; }
+              .totals { margin-top: 30px; float: right; width: 350px; }
+              .total-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+              .total-row.grand { font-weight: bold; font-size: 18px; border-top: 2px solid #333; margin-top: 10px; }
+              @media print { body { padding: 20px; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div class="title">BILL</div>
             </div>
-            <div>
-              <h1>BILL</h1>
-              <p>Bill #: ${bill.bill_no}</p>
+            
+            <div class="details">
+              <div class="detail-row">
+                <span class="detail-label">Bill No:</span>
+                <span class="detail-value">${bill.bill_no}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Bill Date:</span>
+                <span class="detail-value">${new Date(bill.bill_date).toLocaleDateString()}</span>
+              </div>
+              ${bill.due_date ? `
+                <div class="detail-row">
+                  <span class="detail-label">Due Date:</span>
+                  <span class="detail-value">${new Date(bill.due_date).toLocaleDateString()}</span>
+                </div>
+              ` : ''}
+              <div class="detail-row">
+                <span class="detail-label">Supplier:</span>
+                <span class="detail-value">${bill.supplier?.name || ''}</span>
+              </div>
+              ${bill.supplier_ref ? `
+                <div class="detail-row">
+                  <span class="detail-label">Supplier Reference:</span>
+                  <span class="detail-value">${bill.supplier_ref}</span>
+                </div>
+              ` : ''}
+              <div class="detail-row">
+                <span class="detail-label">Status:</span>
+                <span class="detail-value">${bill.status || 'draft'}</span>
+              </div>
             </div>
-          </div>
-          <div class="info">
-            <p><strong>Date:</strong> ${new Date(bill.bill_date).toLocaleDateString()}</p>
-            <p><strong>Supplier:</strong> ${bill.supplier?.name || "N/A"}</p>
-            <p><strong>Amount:</strong> ${bill.grand_total?.toLocaleString() || "0"}</p>
-            ${bill.due_date ? `<p><strong>Due Date:</strong> ${new Date(bill.due_date).toLocaleDateString()}</p>` : ''}
-          </div>
-        </body>
+
+            <div class="line-items">
+              <div class="items-title">Line Items</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Description</th>
+                    <th style="text-align: center;">Quantity</th>
+                    <th style="text-align: right;">Unit Price</th>
+                    <th style="text-align: right;">Line Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${(lines || []).map((line: any) => `
+                    <tr>
+                      <td>${line.description}</td>
+                      <td style="text-align: center;">${line.quantity}</td>
+                      <td style="text-align: right;">${line.unit_price?.toFixed(2)}</td>
+                      <td style="text-align: right;">${line.line_total?.toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="totals">
+              <div class="total-row">
+                <span>Subtotal:</span>
+                <span>${(bill.subtotal || 0).toFixed(2)}</span>
+              </div>
+              ${bill.discount ? `
+                <div class="total-row">
+                  <span>Discount:</span>
+                  <span>${bill.discount.toFixed(2)}</span>
+                </div>
+              ` : ''}
+              ${bill.tax_total ? `
+                <div class="total-row">
+                  <span>Tax:</span>
+                  <span>${bill.tax_total.toFixed(2)}</span>
+                </div>
+              ` : ''}
+              <div class="total-row grand">
+                <span>Grand Total:</span>
+                <span>${(bill.grand_total || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          </body>
         </html>
       `;
 
-      printWindow.document.write(content);
-      printWindow.document.close();
-      printWindow.print();
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
     } catch (error: any) {
       toast.error(error.message);
     }
