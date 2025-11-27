@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 const invoiceSchema = z.object({
+  invoice_no: z.string().min(1, "Invoice number is required"),
   customer_id: z.string().optional(),
   customer_name: z.string().optional(),
   customer_area: z.string().optional(),
@@ -78,6 +79,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
+      invoice_no: `INV-${Date.now()}`,
       invoice_date: new Date().toISOString().split('T')[0],
       payment_method: "cash",
     },
@@ -99,6 +101,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     } else {
       // Reset form when closed
       form.reset({
+        invoice_no: `INV-${Date.now()}`,
         invoice_date: new Date().toISOString().split('T')[0],
         payment_method: "cash",
       });
@@ -174,6 +177,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
     // Set form data
     form.reset({
+      invoice_no: invoice.invoice_no,
       customer_id: invoice.customer_id,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date || '',
@@ -472,12 +476,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         if (invoice) {
         // Update existing invoice
-        invoice_no = invoice.invoice_no;
+        invoice_no = data.invoice_no;
         invoiceId = invoice.id;
 
         const { error: invoiceError } = await supabase
           .from('invoices')
           .update({
+            invoice_no: data.invoice_no,
             customer_id: customerId,
             invoice_date: data.invoice_date,
             due_date: data.due_date,
@@ -502,8 +507,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         if (deleteLinesError) throw deleteLinesError;
       } else {
-        // Generate invoice number
-        invoice_no = `INV-${Date.now()}`;
+        // Use provided invoice number
+        invoice_no = data.invoice_no;
 
         // Insert new invoice (initially as draft)
         const { data: newInvoice, error: invoiceError } = await supabase
@@ -646,6 +651,17 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               </div>
             </div>
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor="invoice_no">Invoice Number *</Label>
+            <Input
+              {...form.register("invoice_no")}
+              placeholder="Enter invoice number"
+            />
+            {form.formState.errors.invoice_no && (
+              <p className="text-sm text-destructive">{form.formState.errors.invoice_no.message}</p>
+            )}
+          </div>
         
           <div className="space-y-4">
             <div className="flex items-center justify-between">
