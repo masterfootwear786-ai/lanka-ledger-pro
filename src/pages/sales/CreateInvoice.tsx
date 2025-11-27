@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
 const invoiceSchema = z.object({
+  invoice_no: z.string().optional(),
   customer_id: z.string().optional(),
   customer_name: z.string().optional(),
   customer_area: z.string().optional(),
@@ -166,6 +167,7 @@ export default function CreateInvoice() {
     const paymentMethod = invoice.terms?.includes('cheque') ? 'cheque' : (invoice.terms || 'cash');
     
     form.reset({
+      invoice_no: invoice.invoice_no,
       customer_id: invoice.customer_id,
       invoice_date: invoice.invoice_date,
       due_date: invoice.due_date || '',
@@ -471,7 +473,7 @@ export default function CreateInvoice() {
 
           if (deleteLinesError) throw deleteLinesError;
         } else {
-          invoice_no = `INV-${Date.now()}`;
+          invoice_no = data.invoice_no || `INV-${Date.now()}`;
 
           const { data: newInvoice, error: invoiceError } = await supabase
             .from('invoices')
@@ -612,6 +614,17 @@ export default function CreateInvoice() {
           )}
 
           <Separator />
+
+          <div className="space-y-4">
+            <div>
+              <Label>Invoice/Order Number {!invoiceId && <span className="text-muted-foreground">(Optional - Auto-generated if empty)</span>}</Label>
+              <Input 
+                {...form.register("invoice_no")} 
+                placeholder="e.g., MST1786"
+                disabled={!!invoiceId}
+              />
+            </div>
+          </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
