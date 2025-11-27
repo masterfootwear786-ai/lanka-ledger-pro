@@ -25,7 +25,6 @@ import PurchasingReport from "./pages/reports/PurchasingReport";
 import InventoryReport from "./pages/reports/InventoryReport";
 import ExpensesReport from "./pages/reports/ExpensesReport";
 import Invoices from "./pages/sales/Invoices";
-import CreateInvoice from "./pages/sales/CreateInvoice";
 import Customers from "./pages/sales/Customers";
 import CustomerDetails from "./pages/sales/CustomerDetails";
 import Orders from "./pages/sales/Orders";
@@ -94,7 +93,6 @@ const App = () => (
               {/* Sales routes */}
               <Route path="/sales/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
               <Route path="/sales/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-              <Route path="/sales/invoices/create" element={<ProtectedRoute><CreateInvoice /></ProtectedRoute>} />
               <Route path="/sales/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
               <Route path="/sales/cheques" element={<ProtectedRoute><Cheques /></ProtectedRoute>} />
               <Route path="/sales/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
