@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useActionPassword } from "@/hooks/useActionPassword";
 import { useToast } from "@/hooks/use-toast";
@@ -35,12 +35,12 @@ type StatusFilter = "all" | "draft" | "approved" | "paid";
 export default function Invoices() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -154,8 +154,7 @@ export default function Invoices() {
   };
 
   const handleEdit = (invoice: any) => {
-    setSelectedInvoice(invoice);
-    setDialogOpen(true);
+    navigate(`/sales/invoices/edit/${invoice.id}`);
   };
 
   const handleDeleteRequest = (invoice: any) => {
@@ -408,22 +407,11 @@ export default function Invoices() {
           <h1 className="text-3xl font-bold">{t("sales.invoices")}</h1>
           <p className="mt-2 text-muted-foreground">Manage customer invoices</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button onClick={() => navigate('/sales/invoices/create')}>
           <Plus className="mr-2 h-4 w-4" />
           {t("sales.createInvoice")}
         </Button>
       </div>
-
-      {/* Create / Edit dialog */}
-      <InvoiceDialog
-        open={dialogOpen}
-        onOpenChange={(open) => {
-          setDialogOpen(open);
-          if (!open) setSelectedInvoice(null);
-        }}
-        invoice={selectedInvoice}
-        onSuccess={fetchInvoices}
-      />
 
       {/* Search + Filter */}
       <Card>
