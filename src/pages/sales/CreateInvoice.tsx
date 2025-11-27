@@ -93,8 +93,39 @@ export default function CreateInvoice() {
       loadInvoiceData();
     } else {
       addLineItem();
+      fetchNextInvoiceNumber();
     }
   }, [invoiceId]);
+
+  const fetchNextInvoiceNumber = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('company_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!profile?.company_id) return;
+
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('invoice_no')
+      .eq('company_id', profile.company_id)
+      .like('invoice_no', 'MST%')
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (invoices && invoices.length > 0) {
+      const lastNumber = invoices[0].invoice_no;
+      const numericPart = lastNumber.replace('MST', '');
+      const nextNumber = parseInt(numericPart) + 1;
+      form.setValue('invoice_no', `MST${nextNumber}`);
+    } else {
+      form.setValue('invoice_no', 'MST1786');
+    }
+  };
 
   useEffect(() => {
     const customerId = form.watch("customer_id");
@@ -617,11 +648,10 @@ export default function CreateInvoice() {
 
           <div className="space-y-4">
             <div>
-              <Label>Invoice/Order Number {!invoiceId && <span className="text-muted-foreground">(Optional - Auto-generated if empty)</span>}</Label>
+              <Label>Invoice/Order Number</Label>
               <Input 
                 {...form.register("invoice_no")} 
                 placeholder="e.g., MST1786"
-                disabled={!!invoiceId}
               />
             </div>
           </div>
