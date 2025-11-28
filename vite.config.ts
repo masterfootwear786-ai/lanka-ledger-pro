@@ -96,6 +96,16 @@ export default defineConfig(({ mode }) => ({
               },
             },
           },
+          {
+            urlPattern: ({ request }) => request.destination === 'document' || 
+                                        request.destination === 'script' ||
+                                        request.destination === 'style',
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "app-cache",
+              networkTimeoutSeconds: 10,
+            },
+          },
         ],
       },
     }),
