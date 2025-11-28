@@ -49,6 +49,7 @@ import Users from "./pages/settings/Users";
 import Currencies from "./pages/settings/Currencies";
 import CustomFields from "./pages/settings/CustomFields";
 import Trash from "./pages/settings/Trash";
+import Backup from "./pages/settings/Backup";
 import { Layout } from "./components/Layout";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useOfflineSync } from "./hooks/useOfflineSync";
@@ -131,6 +132,7 @@ const App = () => (
               <Route path="/settings/currencies" element={<ProtectedRoute><Currencies /></ProtectedRoute>} />
               <Route path="/settings/custom-fields" element={<ProtectedRoute><CustomFields /></ProtectedRoute>} />
               <Route path="/settings/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
+              <Route path="/settings/backup" element={<ProtectedRoute><Backup /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
