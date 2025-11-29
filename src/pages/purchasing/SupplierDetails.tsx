@@ -47,8 +47,8 @@ export default function SupplierDetails() {
         { data: paymentsData, error: paymentsError }
       ] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", id).single(),
-        supabase.from("bills").select("*").eq("supplier_id", id).order("bill_date", { ascending: false }),
-        supabase.from("bill_payments").select("*").eq("supplier_id", id).order("payment_date", { ascending: false })
+        supabase.from("bills").select("*").eq("supplier_id", id).is('deleted_at', null).order("bill_date", { ascending: false }),
+        supabase.from("bill_payments").select("*").eq("supplier_id", id).is('deleted_at', null).order("payment_date", { ascending: false })
       ]);
 
       if (supplierError) throw supplierError;

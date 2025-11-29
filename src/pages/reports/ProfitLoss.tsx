@@ -30,7 +30,8 @@ export default function ProfitLoss() {
           grand_total,
           customer:contacts(name)
         `)
-        .eq("posted", true);
+        .eq("posted", true)
+        .is('deleted_at', null);
 
       if (fromDate) query = query.gte("invoice_date", fromDate);
       if (toDate) query = query.lte("invoice_date", toDate);
@@ -80,7 +81,8 @@ export default function ProfitLoss() {
           grand_total,
           supplier:contacts(name)
         `)
-        .eq("posted", true);
+        .eq("posted", true)
+        .is('deleted_at', null);
 
       if (fromDate) query = query.gte("bill_date", fromDate);
       if (toDate) query = query.lte("bill_date", toDate);

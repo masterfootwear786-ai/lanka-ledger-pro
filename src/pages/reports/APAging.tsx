@@ -60,7 +60,8 @@ export default function APAging() {
           )
         `)
         .eq('company_id', profile.company_id)
-        .eq('posted', true);
+        .eq('posted', true)
+        .is('deleted_at', null);
 
       if (billsError) throw billsError;
 

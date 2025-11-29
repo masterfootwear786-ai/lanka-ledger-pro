@@ -62,6 +62,7 @@ export default function SalesReport() {
         `)
         .eq('company_id', profile.company_id)
         .eq('posted', true)
+        .is('deleted_at', null)
         .order('invoice_date', { ascending: false });
 
       if (startDate) {
