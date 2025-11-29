@@ -62,6 +62,7 @@ export default function PurchasingReport() {
         `)
         .eq('company_id', profile.company_id)
         .eq('posted', true)
+        .is('deleted_at', null)
         .order('bill_date', { ascending: false });
 
       if (startDate) {

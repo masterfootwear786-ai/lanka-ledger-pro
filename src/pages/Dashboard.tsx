@@ -40,6 +40,7 @@ const Dashboard = () => {
           .from('invoices')
           .select('grand_total, status, invoice_no, invoice_date, customer_id')
           .eq('company_id', profile.company_id)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(5),
         supabase
@@ -47,12 +48,14 @@ const Dashboard = () => {
           .select('id')
           .eq('company_id', profile.company_id)
           .eq('active', true)
+          .is('deleted_at', null)
           .in('contact_type', ['customer', 'both']),
         supabase
           .from('items')
           .select('id')
           .eq('company_id', profile.company_id)
-          .eq('active', true),
+          .eq('active', true)
+          .is('deleted_at', null),
       ]);
 
       const totalRevenue = invoicesRes.data?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;

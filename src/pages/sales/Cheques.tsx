@@ -56,6 +56,7 @@ export default function Cheques() {
           reference,
           customer:contacts(name)
         `)
+        .is('deleted_at', null)
         .order('receipt_date', { ascending: false });
 
       if (error) throw error;

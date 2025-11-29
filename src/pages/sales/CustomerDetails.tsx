@@ -48,8 +48,8 @@ export default function CustomerDetails() {
         { data: receiptsData, error: receiptsError }
       ] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", id).single(),
-        supabase.from("invoices").select("*").eq("customer_id", id).order("invoice_date", { ascending: false }),
-        supabase.from("receipts").select("*").eq("customer_id", id).order("receipt_date", { ascending: false })
+        supabase.from("invoices").select("*").eq("customer_id", id).is('deleted_at', null).order("invoice_date", { ascending: false }),
+        supabase.from("receipts").select("*").eq("customer_id", id).is('deleted_at', null).order("receipt_date", { ascending: false })
       ]);
 
       if (customerError) throw customerError;
