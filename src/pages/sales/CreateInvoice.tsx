@@ -72,6 +72,7 @@ export default function CreateInvoice() {
   const [useManualEntry, setUseManualEntry] = useState(false);
   const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
   const [invoice, setInvoice] = useState<any>(null);
+  const [selectAllDiscount, setSelectAllDiscount] = useState(false);
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -286,7 +287,7 @@ export default function CreateInvoice() {
   };
 
   const updateLineItem = (id: string, field: keyof LineItem, value: any) => {
-    setLineItems(lineItems.map(item => {
+    const updatedItems = lineItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
         
@@ -306,7 +307,23 @@ export default function CreateInvoice() {
         return updated;
       }
       return item;
-    }));
+    });
+    
+    setLineItems(updatedItems);
+    
+    // Update select all state based on individual selections
+    if (field === "discount_selected") {
+      const allSelected = updatedItems.every(item => item.discount_selected);
+      setSelectAllDiscount(allSelected);
+    }
+  };
+
+  const handleSelectAllDiscount = (checked: boolean) => {
+    setSelectAllDiscount(checked);
+    setLineItems(lineItems.map(item => ({
+      ...item,
+      discount_selected: checked
+    })));
   };
 
   const getAvailableStock = (art_no: string, color: string) => {
@@ -861,8 +878,17 @@ export default function CreateInvoice() {
           <CardContent>
             <div className="space-y-2 overflow-x-auto">
               <div className="min-w-[1200px]">
-                <div className="grid grid-cols-[40px_100px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 mb-2 text-xs font-semibold">
-                  <div className="text-center">✓</div>
+                <div className="grid grid-cols-[40px_100px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 mb-2 text-xs font-semibold bg-muted/50 p-2 rounded-lg">
+                  <div className="flex flex-col items-center justify-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={selectAllDiscount}
+                      onChange={(e) => handleSelectAllDiscount(e.target.checked)}
+                      className="h-4 w-4 cursor-pointer"
+                      title="Select all for discount"
+                    />
+                    <span className="text-[10px]">All</span>
+                  </div>
                   <div>DSG. No</div>
                   <div>CLR</div>
                   <div className="text-center">39</div>
@@ -885,7 +911,8 @@ export default function CreateInvoice() {
                         type="checkbox"
                         checked={line.discount_selected}
                         onChange={(e) => updateLineItem(line.id, "discount_selected", e.target.checked)}
-                        className="h-4 w-4"
+                        className="h-4 w-4 cursor-pointer"
+                        title="Apply discount to this line"
                       />
                     </div>
                     <div className="space-y-1">
