@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 
 type DeletedItem = {
@@ -24,6 +25,7 @@ export default function Trash() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   // Fetch deleted items from all tables
   const { data: deletedItems = [], isLoading } = useQuery({
@@ -286,6 +288,55 @@ export default function Trash() {
     return colors[type] || "bg-gray-500";
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(filteredItems.map(item => `${item.type}-${item.id}`));
+      setSelectedItems(allIds);
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemKey: string, checked: boolean) => {
+    const newSelected = new Set(selectedItems);
+    if (checked) {
+      newSelected.add(itemKey);
+    } else {
+      newSelected.delete(itemKey);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const handleBulkRestore = async () => {
+    const items = Array.from(selectedItems).map(key => {
+      const [type, id] = key.split('-');
+      return { type, id };
+    });
+
+    for (const item of items) {
+      await restoreMutation.mutateAsync(item);
+    }
+    setSelectedItems(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to permanently delete ${selectedItems.size} items? This action cannot be undone.`)) {
+      return;
+    }
+
+    const items = Array.from(selectedItems).map(key => {
+      const [type, id] = key.split('-');
+      return { type, id };
+    });
+
+    for (const item of items) {
+      await deleteMutation.mutateAsync(item);
+    }
+    setSelectedItems(new Set());
+  };
+
+  const allSelected = filteredItems.length > 0 && selectedItems.size === filteredItems.length;
+
   return (
     <div className="space-y-6">
       <div>
@@ -308,6 +359,42 @@ export default function Trash() {
             className="pl-10"
           />
         </div>
+        {filteredItems.length > 0 && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 px-4 py-2 border rounded-md">
+              <Checkbox
+                id="select-all"
+                checked={allSelected}
+                onCheckedChange={handleSelectAll}
+              />
+              <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+                Select All
+              </label>
+            </div>
+            {selectedItems.size > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleBulkRestore}
+                  disabled={restoreMutation.isPending}
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Restore Selected ({selectedItems.size})
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected ({selectedItems.size})
+                </Button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -334,65 +421,27 @@ export default function Trash() {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            {filteredItems.map((item) => (
-              <Card key={`${item.type}-${item.id}`}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{item.name}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Badge className={getTypeBadgeColor(item.type)}>
-                        {getTypeLabel(item.type)}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        Deleted {format(new Date(item.deleted_at), "PPp")}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        restoreMutation.mutate({ id: item.id, type: item.type })
-                      }
-                      disabled={restoreMutation.isPending}
-                    >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Restore
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            "Are you sure you want to permanently delete this item? This action cannot be undone."
-                          )
-                        ) {
-                          deleteMutation.mutate({ id: item.id, type: item.type });
-                        }
-                      }}
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Permanently
-                    </Button>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </TabsContent>
-
-          {Object.keys(groupedItems).map((type) => (
-            <TabsContent key={type} value={type} className="space-y-4">
-              {groupedItems[type].map((item) => (
-                <Card key={item.id}>
+            {filteredItems.map((item) => {
+              const itemKey = `${item.type}-${item.id}`;
+              return (
+                <Card key={itemKey}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <div className="space-y-1">
-                      <CardTitle className="text-lg">{item.name}</CardTitle>
-                      <span className="text-sm text-muted-foreground">
-                        Deleted {format(new Date(item.deleted_at), "PPp")}
-                      </span>
+                    <div className="flex items-center gap-4">
+                      <Checkbox
+                        checked={selectedItems.has(itemKey)}
+                        onCheckedChange={(checked) => handleSelectItem(itemKey, checked as boolean)}
+                      />
+                      <div className="space-y-1">
+                        <CardTitle className="text-lg">{item.name}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getTypeBadgeColor(item.type)}>
+                            {getTypeLabel(item.type)}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            Deleted {format(new Date(item.deleted_at), "PPp")}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -426,7 +475,63 @@ export default function Trash() {
                     </div>
                   </CardHeader>
                 </Card>
-              ))}
+              );
+            })}
+          </TabsContent>
+
+          {Object.keys(groupedItems).map((type) => (
+            <TabsContent key={type} value={type} className="space-y-4">
+              {groupedItems[type].map((item) => {
+                const itemKey = `${item.type}-${item.id}`;
+                return (
+                  <Card key={item.id}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <div className="flex items-center gap-4">
+                        <Checkbox
+                          checked={selectedItems.has(itemKey)}
+                          onCheckedChange={(checked) => handleSelectItem(itemKey, checked as boolean)}
+                        />
+                        <div className="space-y-1">
+                          <CardTitle className="text-lg">{item.name}</CardTitle>
+                          <span className="text-sm text-muted-foreground">
+                            Deleted {format(new Date(item.deleted_at), "PPp")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            restoreMutation.mutate({ id: item.id, type: item.type })
+                          }
+                          disabled={restoreMutation.isPending}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Restore
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                "Are you sure you want to permanently delete this item? This action cannot be undone."
+                              )
+                            ) {
+                              deleteMutation.mutate({ id: item.id, type: item.type });
+                            }
+                          }}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Permanently
+                        </Button>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                );
+              })}
             </TabsContent>
           ))}
         </Tabs>
