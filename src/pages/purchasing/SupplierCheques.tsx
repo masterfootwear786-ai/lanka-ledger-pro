@@ -56,6 +56,7 @@ export default function SupplierCheques() {
           reference,
           supplier:contacts(name)
         `)
+        .is('deleted_at', null)
         .order('payment_date', { ascending: false });
 
       if (error) throw error;
