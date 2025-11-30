@@ -161,6 +161,7 @@ export default function Customers() {
                 <TableRow>
                   <TableHead>Code</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>Area</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead className="text-right">Credit Limit</TableHead>
                   <TableHead>{t('common.status')}</TableHead>
@@ -170,7 +171,7 @@ export default function Customers() {
               <TableBody>
                 {filteredCustomers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
+                    <TableCell colSpan={7} className="text-center">
                       No customers found
                     </TableCell>
                   </TableRow>
@@ -179,6 +180,7 @@ export default function Customers() {
                     <TableRow key={customer.id}>
                       <TableCell className="font-mono">{customer.code}</TableCell>
                       <TableCell className="font-medium">{customer.name}</TableCell>
+                      <TableCell>{customer.area || '-'}</TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1 text-sm">
                           {customer.email && (
