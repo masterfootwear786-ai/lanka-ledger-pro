@@ -309,7 +309,9 @@ export default function Trash() {
 
   const handleBulkRestore = async () => {
     const items = Array.from(selectedItems).map(key => {
-      const [type, id] = key.split('-');
+      const separatorIndex = key.indexOf('-');
+      const type = key.substring(0, separatorIndex);
+      const id = key.substring(separatorIndex + 1);
       return { type, id };
     });
 
@@ -325,7 +327,9 @@ export default function Trash() {
     }
 
     const items = Array.from(selectedItems).map(key => {
-      const [type, id] = key.split('-');
+      const separatorIndex = key.indexOf('-');
+      const type = key.substring(0, separatorIndex);
+      const id = key.substring(separatorIndex + 1);
       return { type, id };
     });
 
