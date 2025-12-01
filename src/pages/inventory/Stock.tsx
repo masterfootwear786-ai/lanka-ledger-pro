@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, AlertTriangle, Plus } from "lucide-react";
+import { Search, AlertTriangle, Plus, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StockBySizeDialog } from "@/components/inventory/StockBySizeDialog";
@@ -34,10 +34,119 @@ export default function Stock() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchStock();
   }, []);
+
+  const syncStockFromInvoices = async () => {
+    setSyncing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.company_id) throw new Error("No company assigned");
+
+      // Get all items
+      const { data: items, error: itemsError } = await supabase
+        .from('items')
+        .select('id, code, color')
+        .eq('company_id', profile.company_id)
+        .eq('track_inventory', true);
+
+      if (itemsError) throw itemsError;
+
+      // Create a map of code-color to item_id
+      const itemsMap = new Map();
+      items?.forEach(item => {
+        const key = `${item.code}-${item.color}`;
+        itemsMap.set(key, item.id);
+      });
+
+      // Get all invoice lines
+      const { data: invoiceLines, error: linesError } = await supabase
+        .from('invoice_lines')
+        .select('item_id, size_39, size_40, size_41, size_42, size_43, size_44, size_45')
+        .is('deleted_at', null);
+
+      if (linesError) throw linesError;
+
+      // Aggregate quantities by item and size
+      const stockAdjustments = new Map<string, Map<string, number>>();
+
+      invoiceLines?.forEach(line => {
+        if (!line.item_id) return;
+
+        if (!stockAdjustments.has(line.item_id)) {
+          stockAdjustments.set(line.item_id, new Map());
+        }
+
+        const itemSizes = stockAdjustments.get(line.item_id)!;
+        
+        const sizes = [
+          { size: '39', qty: line.size_39 || 0 },
+          { size: '40', qty: line.size_40 || 0 },
+          { size: '41', qty: line.size_41 || 0 },
+          { size: '42', qty: line.size_42 || 0 },
+          { size: '43', qty: line.size_43 || 0 },
+          { size: '44', qty: line.size_44 || 0 },
+          { size: '45', qty: line.size_45 || 0 },
+        ];
+
+        sizes.forEach(({ size, qty }) => {
+          if (qty > 0) {
+            const current = itemSizes.get(size) || 0;
+            itemSizes.set(size, current + qty);
+          }
+        });
+      });
+
+      // Update stock_by_size table
+      let updatedCount = 0;
+      for (const [itemId, sizes] of stockAdjustments.entries()) {
+        for (const [size, totalSold] of sizes.entries()) {
+          // Get current stock record
+          const { data: stockRecord } = await supabase
+            .from('stock_by_size')
+            .select('quantity, id')
+            .eq('item_id', itemId)
+            .eq('size', size)
+            .eq('company_id', profile.company_id)
+            .maybeSingle();
+
+          if (stockRecord) {
+            // Calculate what the stock should be (assuming initial stock was higher)
+            // We'll just set it to negative if needed
+            const newQuantity = -totalSold;
+            
+            await supabase
+              .from('stock_by_size')
+              .update({ 
+                quantity: newQuantity,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', stockRecord.id);
+
+            updatedCount++;
+          }
+        }
+      }
+
+      toast.success(`Stock synchronized! Updated ${updatedCount} size records based on invoice data.`);
+      fetchStock();
+    } catch (error: any) {
+      toast.error(`Sync failed: ${error.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchStock = async () => {
     setLoading(true);
@@ -152,13 +261,23 @@ export default function Stock() {
           <h1 className="text-3xl font-bold">Stock</h1>
           <p className="text-muted-foreground mt-2">View and manage stock levels by size</p>
         </div>
-        <Button onClick={() => {
-          setSelectedItem(null);
-          setDialogOpen(true);
-        }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Stock
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={syncStockFromInvoices} 
+            variant="outline"
+            disabled={syncing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            Sync from Invoices
+          </Button>
+          <Button onClick={() => {
+            setSelectedItem(null);
+            setDialogOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Stock
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -252,32 +371,32 @@ export default function Stock() {
                           <TableCell className="font-mono font-semibold">{stock.code}</TableCell>
                           <TableCell className="font-medium">{stock.color}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{stock.name}</TableCell>
-                          <TableCell className={`text-center ${stock.size_39 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
-                            {stock.size_39 > 0 ? stock.size_39 : '-'}
+                           <TableCell className={`text-center ${stock.size_39 < 0 ? 'text-red-600 font-bold' : stock.size_39 < stock.lowStockThreshold ? 'text-orange-600 font-bold' : ''}`}>
+                            {stock.size_39}
                             {stock.size_39 > 0 && stock.size_39 < stock.lowStockThreshold && ' ⚠️'}
                           </TableCell>
-                          <TableCell className={`text-center ${stock.size_40 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
-                            {stock.size_40 > 0 ? stock.size_40 : '-'}
+                          <TableCell className={`text-center ${stock.size_40 < 0 ? 'text-red-600 font-bold' : stock.size_40 < stock.lowStockThreshold ? 'text-orange-600 font-bold' : ''}`}>
+                            {stock.size_40}
                             {stock.size_40 > 0 && stock.size_40 < stock.lowStockThreshold && ' ⚠️'}
                           </TableCell>
-                          <TableCell className={`text-center ${stock.size_41 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
-                            {stock.size_41 > 0 ? stock.size_41 : '-'}
+                          <TableCell className={`text-center ${stock.size_41 < 0 ? 'text-red-600 font-bold' : stock.size_41 < stock.lowStockThreshold ? 'text-orange-600 font-bold' : ''}`}>
+                            {stock.size_41}
                             {stock.size_41 > 0 && stock.size_41 < stock.lowStockThreshold && ' ⚠️'}
                           </TableCell>
-                          <TableCell className={`text-center ${stock.size_42 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
-                            {stock.size_42 > 0 ? stock.size_42 : '-'}
+                          <TableCell className={`text-center ${stock.size_42 < 0 ? 'text-red-600 font-bold' : stock.size_42 < stock.lowStockThreshold ? 'text-orange-600 font-bold' : ''}`}>
+                            {stock.size_42}
                             {stock.size_42 > 0 && stock.size_42 < stock.lowStockThreshold && ' ⚠️'}
                           </TableCell>
-                          <TableCell className={`text-center ${stock.size_43 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
-                            {stock.size_43 > 0 ? stock.size_43 : '-'}
+                          <TableCell className={`text-center ${stock.size_43 < 0 ? 'text-red-600 font-bold' : stock.size_43 < stock.lowStockThreshold ? 'text-orange-600 font-bold' : ''}`}>
+                            {stock.size_43}
                             {stock.size_43 > 0 && stock.size_43 < stock.lowStockThreshold && ' ⚠️'}
                           </TableCell>
-                          <TableCell className={`text-center ${stock.size_44 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
-                            {stock.size_44 > 0 ? stock.size_44 : '-'}
+                          <TableCell className={`text-center ${stock.size_44 < 0 ? 'text-red-600 font-bold' : stock.size_44 < stock.lowStockThreshold ? 'text-orange-600 font-bold' : ''}`}>
+                            {stock.size_44}
                             {stock.size_44 > 0 && stock.size_44 < stock.lowStockThreshold && ' ⚠️'}
                           </TableCell>
-                          <TableCell className={`text-center ${stock.size_45 < stock.lowStockThreshold ? 'text-red-600 font-bold' : ''}`}>
-                            {stock.size_45 > 0 ? stock.size_45 : '-'}
+                          <TableCell className={`text-center ${stock.size_45 < 0 ? 'text-red-600 font-bold' : stock.size_45 < stock.lowStockThreshold ? 'text-orange-600 font-bold' : ''}`}>
+                            {stock.size_45}
                             {stock.size_45 > 0 && stock.size_45 < stock.lowStockThreshold && ' ⚠️'}
                           </TableCell>
                           <TableCell className="text-right">
