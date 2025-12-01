@@ -364,6 +364,59 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       if (!profile) throw new Error("User profile not found. Please contact support.");
       if (!profile.company_id) throw new Error("No company assigned to user. Please contact support.");
 
+      // Validate stock availability for invoices (not orders)
+      if (documentType === 'invoice') {
+        const itemsMap = new Map();
+        items.forEach(i => {
+          const key = `${i.code}-${i.color}`;
+          itemsMap.set(key, i.id);
+        });
+
+        const stockErrors: string[] = [];
+
+        for (const lineItem of lineItems) {
+          const itemKey = `${lineItem.art_no}-${lineItem.color}`;
+          const itemId = itemsMap.get(itemKey);
+
+          if (!itemId) {
+            stockErrors.push(`Item ${lineItem.art_no} - ${lineItem.color} not found in inventory`);
+            continue;
+          }
+
+          // Check stock for each size
+          const sizes = [
+            { size: '39', qty: lineItem.size_39 },
+            { size: '40', qty: lineItem.size_40 },
+            { size: '41', qty: lineItem.size_41 },
+            { size: '42', qty: lineItem.size_42 },
+            { size: '43', qty: lineItem.size_43 },
+            { size: '44', qty: lineItem.size_44 },
+            { size: '45', qty: lineItem.size_45 },
+          ];
+
+          for (const { size, qty } of sizes) {
+            if (qty > 0) {
+              const { data: stockRecord, error: stockError } = await supabase
+                .from('stock_by_size')
+                .select('quantity')
+                .eq('item_id', itemId)
+                .eq('size', size)
+                .single();
+
+              if (stockError || !stockRecord) {
+                stockErrors.push(`${lineItem.art_no} - ${lineItem.color} (Size ${size}): No stock available`);
+              } else if (stockRecord.quantity < qty) {
+                stockErrors.push(`${lineItem.art_no} - ${lineItem.color} (Size ${size}): Insufficient stock (Available: ${stockRecord.quantity}, Required: ${qty})`);
+              }
+            }
+          }
+        }
+
+        if (stockErrors.length > 0) {
+          throw new Error(`Cannot create invoice - Stock issues:\n${stockErrors.join('\n')}`);
+        }
+      }
+
       // If manual entry, create or find customer
       let customerId = data.customer_id;
       if (useManualEntry && data.customer_name) {
