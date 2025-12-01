@@ -364,14 +364,15 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       if (!profile) throw new Error("User profile not found. Please contact support.");
       if (!profile.company_id) throw new Error("No company assigned to user. Please contact support.");
 
+      // Build items map for both invoices and orders
+      const itemsMap = new Map();
+      items.forEach(i => {
+        const key = `${i.code}-${i.color}`;
+        itemsMap.set(key, i.id);
+      });
+
       // Validate stock availability for invoices (not orders)
       if (documentType === 'invoice') {
-        const itemsMap = new Map();
-        items.forEach(i => {
-          const key = `${i.code}-${i.color}`;
-          itemsMap.set(key, i.id);
-        });
-
         const stockErrors: string[] = [];
 
         for (const lineItem of lineItems) {
@@ -518,6 +519,48 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         if (linesError) throw linesError;
 
+        // Deduct stock for order items
+        for (const lineItem of lineItems) {
+          const itemKey = `${lineItem.art_no}-${lineItem.color}`;
+          const itemId = itemsMap.get(itemKey);
+
+          if (itemId) {
+            const sizes = [
+              { size: '39', qty: lineItem.size_39 || 0 },
+              { size: '40', qty: lineItem.size_40 || 0 },
+              { size: '41', qty: lineItem.size_41 || 0 },
+              { size: '42', qty: lineItem.size_42 || 0 },
+              { size: '43', qty: lineItem.size_43 || 0 },
+              { size: '44', qty: lineItem.size_44 || 0 },
+              { size: '45', qty: lineItem.size_45 || 0 },
+            ];
+
+            for (const { size, qty } of sizes) {
+              if (qty > 0) {
+                const { data: currentStock } = await supabase
+                  .from('stock_by_size')
+                  .select('quantity')
+                  .eq('item_id', itemId)
+                  .eq('size', size)
+                  .eq('company_id', profile.company_id)
+                  .maybeSingle();
+
+                if (currentStock) {
+                  await supabase
+                    .from('stock_by_size')
+                    .update({ 
+                      quantity: currentStock.quantity - qty,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('item_id', itemId)
+                    .eq('size', size)
+                    .eq('company_id', profile.company_id);
+                }
+              }
+            }
+          }
+        }
+
         toast({
           title: "Success",
           description: "Order created successfully",
@@ -627,6 +670,48 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         .insert(lines);
 
         if (linesError) throw linesError;
+
+        // Deduct stock for invoice items
+        for (const lineItem of lineItems) {
+          const itemKey = `${lineItem.art_no}-${lineItem.color}`;
+          const itemId = itemsMap.get(itemKey);
+
+          if (itemId) {
+            const sizes = [
+              { size: '39', qty: lineItem.size_39 || 0 },
+              { size: '40', qty: lineItem.size_40 || 0 },
+              { size: '41', qty: lineItem.size_41 || 0 },
+              { size: '42', qty: lineItem.size_42 || 0 },
+              { size: '43', qty: lineItem.size_43 || 0 },
+              { size: '44', qty: lineItem.size_44 || 0 },
+              { size: '45', qty: lineItem.size_45 || 0 },
+            ];
+
+            for (const { size, qty } of sizes) {
+              if (qty > 0) {
+                const { data: currentStock } = await supabase
+                  .from('stock_by_size')
+                  .select('quantity')
+                  .eq('item_id', itemId)
+                  .eq('size', size)
+                  .eq('company_id', profile.company_id)
+                  .maybeSingle();
+
+                if (currentStock) {
+                  await supabase
+                    .from('stock_by_size')
+                    .update({ 
+                      quantity: currentStock.quantity - qty,
+                      updated_at: new Date().toISOString()
+                    })
+                    .eq('item_id', itemId)
+                    .eq('size', size)
+                    .eq('company_id', profile.company_id);
+                }
+              }
+            }
+          }
+        }
 
         // Now post the invoice to trigger stock deduction
         if (!invoice) {
