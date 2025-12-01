@@ -379,32 +379,32 @@ export default function UnifiedInventory() {
                             <TableCell className="font-mono font-semibold">{item.code}</TableCell>
                             <TableCell className="font-medium">{item.color}</TableCell>
                             <TableCell>{item.name}</TableCell>
-                            <TableCell className={`text-center ${item.size_39 < item.low_stock_threshold ? 'text-red-600 font-bold' : ''}`}>
-                              {item.size_39 > 0 ? item.size_39 : '-'}
+                            <TableCell className={`text-center ${item.size_39 < 0 ? 'text-red-600 font-bold' : item.size_39 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
+                              {item.size_39}
                               {item.size_39 > 0 && item.size_39 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
-                            <TableCell className={`text-center ${item.size_40 < item.low_stock_threshold ? 'text-red-600 font-bold' : ''}`}>
-                              {item.size_40 > 0 ? item.size_40 : '-'}
+                            <TableCell className={`text-center ${item.size_40 < 0 ? 'text-red-600 font-bold' : item.size_40 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
+                              {item.size_40}
                               {item.size_40 > 0 && item.size_40 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
-                            <TableCell className={`text-center ${item.size_41 < item.low_stock_threshold ? 'text-red-600 font-bold' : ''}`}>
-                              {item.size_41 > 0 ? item.size_41 : '-'}
+                            <TableCell className={`text-center ${item.size_41 < 0 ? 'text-red-600 font-bold' : item.size_41 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
+                              {item.size_41}
                               {item.size_41 > 0 && item.size_41 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
-                            <TableCell className={`text-center ${item.size_42 < item.low_stock_threshold ? 'text-red-600 font-bold' : ''}`}>
-                              {item.size_42 > 0 ? item.size_42 : '-'}
+                            <TableCell className={`text-center ${item.size_42 < 0 ? 'text-red-600 font-bold' : item.size_42 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
+                              {item.size_42}
                               {item.size_42 > 0 && item.size_42 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
-                            <TableCell className={`text-center ${item.size_43 < item.low_stock_threshold ? 'text-red-600 font-bold' : ''}`}>
-                              {item.size_43 > 0 ? item.size_43 : '-'}
+                            <TableCell className={`text-center ${item.size_43 < 0 ? 'text-red-600 font-bold' : item.size_43 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
+                              {item.size_43}
                               {item.size_43 > 0 && item.size_43 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
-                            <TableCell className={`text-center ${item.size_44 < item.low_stock_threshold ? 'text-red-600 font-bold' : ''}`}>
-                              {item.size_44 > 0 ? item.size_44 : '-'}
+                            <TableCell className={`text-center ${item.size_44 < 0 ? 'text-red-600 font-bold' : item.size_44 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
+                              {item.size_44}
                               {item.size_44 > 0 && item.size_44 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
-                            <TableCell className={`text-center ${item.size_45 < item.low_stock_threshold ? 'text-red-600 font-bold' : ''}`}>
-                              {item.size_45 > 0 ? item.size_45 : '-'}
+                            <TableCell className={`text-center ${item.size_45 < 0 ? 'text-red-600 font-bold' : item.size_45 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
+                              {item.size_45}
                               {item.size_45 > 0 && item.size_45 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-right font-semibold ${item.hasLowStock ? 'text-destructive' : ''}`}>
