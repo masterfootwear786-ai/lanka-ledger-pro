@@ -1,4 +1,3 @@
-InvoiceLayout.tsx
 import React from "react";
 
 export default function InvoiceLayout({ invoice, items }) {
@@ -70,3 +69,4 @@ export default function InvoiceLayout({ invoice, items }) {
     </div>
   );
 }
+
