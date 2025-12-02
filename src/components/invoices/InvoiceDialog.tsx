@@ -539,7 +539,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               if (qty > 0) {
                 const { data: currentStock } = await supabase
                   .from('stock_by_size')
-                  .select('quantity')
+                  .select('quantity, id')
                   .eq('item_id', itemId)
                   .eq('size', size)
                   .eq('company_id', profile.company_id)
@@ -555,6 +555,16 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     .eq('item_id', itemId)
                     .eq('size', size)
                     .eq('company_id', profile.company_id);
+                } else {
+                  // Create new stock record with negative quantity
+                  await supabase
+                    .from('stock_by_size')
+                    .insert({
+                      company_id: profile.company_id,
+                      item_id: itemId,
+                      size: size,
+                      quantity: -qty
+                    });
                 }
               }
             }
@@ -691,7 +701,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               if (qty > 0) {
                 const { data: currentStock } = await supabase
                   .from('stock_by_size')
-                  .select('quantity')
+                  .select('quantity, id')
                   .eq('item_id', itemId)
                   .eq('size', size)
                   .eq('company_id', profile.company_id)
@@ -707,6 +717,16 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     .eq('item_id', itemId)
                     .eq('size', size)
                     .eq('company_id', profile.company_id);
+                } else {
+                  // Create new stock record with negative quantity
+                  await supabase
+                    .from('stock_by_size')
+                    .insert({
+                      company_id: profile.company_id,
+                      item_id: itemId,
+                      size: size,
+                      quantity: -qty
+                    });
                 }
               }
             }
