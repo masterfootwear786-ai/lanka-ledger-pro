@@ -142,6 +142,46 @@ export default function UnifiedInventory() {
   const totalItems = filteredInventory.length;
   const lowStockItems = filteredInventory.filter(item => item.hasLowStock);
 
+  const updateStockQuantity = async (itemId: string, size: string, newQty: number) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
+      if (!profile?.company_id) throw new Error("No company assigned");
+
+      const { data: stockRecord } = await supabase
+        .from("stock_by_size")
+        .select("id")
+        .eq("item_id", itemId)
+        .eq("size", size)
+        .eq("company_id", profile.company_id)
+        .maybeSingle();
+
+      if (stockRecord) {
+        await supabase
+          .from("stock_by_size")
+          .update({
+            quantity: newQty,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", stockRecord.id);
+      } else {
+        await supabase.from("stock_by_size").insert({
+          company_id: profile.company_id,
+          item_id: itemId,
+          size: size,
+          quantity: newQty,
+        });
+      }
+
+      fetchInventory();
+      toast.success("Stock updated");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
   const handleEditItem = (item: InventoryItem) => {
     setSelectedItem(item);
     setItemDialogOpen(true);
@@ -380,31 +420,87 @@ export default function UnifiedInventory() {
                             <TableCell className="font-medium">{item.color}</TableCell>
                             <TableCell>{item.name}</TableCell>
                             <TableCell className={`text-center ${item.size_39 < 0 ? 'text-red-600 font-bold' : item.size_39 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
-                              {item.size_39}
+                              <Input
+                                type="number"
+                                value={item.size_39}
+                                onChange={async (e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  await updateStockQuantity(item.id, "39", newQty);
+                                }}
+                                className="w-20 h-8 text-center"
+                              />
                               {item.size_39 > 0 && item.size_39 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-center ${item.size_40 < 0 ? 'text-red-600 font-bold' : item.size_40 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
-                              {item.size_40}
+                              <Input
+                                type="number"
+                                value={item.size_40}
+                                onChange={async (e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  await updateStockQuantity(item.id, "40", newQty);
+                                }}
+                                className="w-20 h-8 text-center"
+                              />
                               {item.size_40 > 0 && item.size_40 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-center ${item.size_41 < 0 ? 'text-red-600 font-bold' : item.size_41 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
-                              {item.size_41}
+                              <Input
+                                type="number"
+                                value={item.size_41}
+                                onChange={async (e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  await updateStockQuantity(item.id, "41", newQty);
+                                }}
+                                className="w-20 h-8 text-center"
+                              />
                               {item.size_41 > 0 && item.size_41 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-center ${item.size_42 < 0 ? 'text-red-600 font-bold' : item.size_42 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
-                              {item.size_42}
+                              <Input
+                                type="number"
+                                value={item.size_42}
+                                onChange={async (e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  await updateStockQuantity(item.id, "42", newQty);
+                                }}
+                                className="w-20 h-8 text-center"
+                              />
                               {item.size_42 > 0 && item.size_42 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-center ${item.size_43 < 0 ? 'text-red-600 font-bold' : item.size_43 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
-                              {item.size_43}
+                              <Input
+                                type="number"
+                                value={item.size_43}
+                                onChange={async (e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  await updateStockQuantity(item.id, "43", newQty);
+                                }}
+                                className="w-20 h-8 text-center"
+                              />
                               {item.size_43 > 0 && item.size_43 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-center ${item.size_44 < 0 ? 'text-red-600 font-bold' : item.size_44 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
-                              {item.size_44}
+                              <Input
+                                type="number"
+                                value={item.size_44}
+                                onChange={async (e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  await updateStockQuantity(item.id, "44", newQty);
+                                }}
+                                className="w-20 h-8 text-center"
+                              />
                               {item.size_44 > 0 && item.size_44 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-center ${item.size_45 < 0 ? 'text-red-600 font-bold' : item.size_45 < item.low_stock_threshold ? 'text-orange-600 font-bold' : ''}`}>
-                              {item.size_45}
+                              <Input
+                                type="number"
+                                value={item.size_45}
+                                onChange={async (e) => {
+                                  const newQty = parseFloat(e.target.value) || 0;
+                                  await updateStockQuantity(item.id, "45", newQty);
+                                }}
+                                className="w-20 h-8 text-center"
+                              />
                               {item.size_45 > 0 && item.size_45 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
                             <TableCell className={`text-right font-semibold ${item.hasLowStock ? 'text-destructive' : ''}`}>
