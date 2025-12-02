@@ -11,24 +11,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import InvoiceLayout from "@/components/invoices/InvoiceLayout";
 
-const invoiceSchema = z
-  .object({
-    invoice_no: z.string().min(1, "Invoice number is required"),
-    customer_id: z.string().optional(),
-    customer_name: z.string().optional(),
-    customer_area: z.string().optional(),
-    customer_mobile: z.string().optional(),
-    invoice_date: z.string(),
-    due_date: z.string().optional(),
-    notes: z.string().optional(),
-    payment_method: z.enum(["credit", "cash", "cheque"]),
-  })
-  .refine((data) => data.customer_id || data.customer_name, {
-    message: "Either select a customer or enter customer name",
-    path: ["customer_name"],
-  });
+const invoiceSchema = z.object({
+  invoice_no: z.string().min(1, "Invoice number is required"),
+  customer_id: z.string().optional(),
+  customer_name: z.string().optional(),
+  customer_area: z.string().optional(),
+  customer_mobile: z.string().optional(),
+  invoice_date: z.string(),
+  due_date: z.string().optional(),
+  notes: z.string().optional(),
+  payment_method: z.enum(["credit", "cash", "cheque"]),
+}).refine((data) => data.customer_id || data.customer_name, {
+  message: "Either select a customer or enter customer name",
+  path: ["customer_name"],
+});
 
 type InvoiceFormData = z.infer<typeof invoiceSchema>;
 
@@ -77,13 +74,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   const [discountPercent, setDiscountPercent] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [useManualEntry, setUseManualEntry] = useState(false);
-  const [documentType, setDocumentType] = useState<"invoice" | "order">("invoice");
+  const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
     defaultValues: {
       invoice_no: `INV-${Date.now()}`,
-      invoice_date: new Date().toISOString().split("T")[0],
+      invoice_date: new Date().toISOString().split('T')[0],
       payment_method: "cash",
     },
   });
@@ -93,7 +90,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       fetchCustomers();
       fetchItems();
       fetchStockData();
-
+      
       if (invoice) {
         // Load existing invoice data
         loadInvoiceData();
@@ -105,21 +102,21 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       // Reset form when closed
       form.reset({
         invoice_no: `INV-${Date.now()}`,
-        invoice_date: new Date().toISOString().split("T")[0],
+        invoice_date: new Date().toISOString().split('T')[0],
         payment_method: "cash",
       });
       setLineItems([]);
       setCheques([]);
       setDiscountPercent(0);
       setUseManualEntry(false);
-      setDocumentType("invoice");
+      setDocumentType('invoice');
     }
   }, [open, invoice]);
 
   useEffect(() => {
     const customerId = form.watch("customer_id");
     if (customerId) {
-      const customer = customers.find((c) => c.id === customerId);
+      const customer = customers.find(c => c.id === customerId);
       setSelectedCustomer(customer);
     } else {
       setSelectedCustomer(null);
@@ -127,19 +124,28 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   }, [form.watch("customer_id"), customers]);
 
   const fetchCustomers = async () => {
-    const { data } = await supabase.from("contacts").select("*").eq("contact_type", "customer").eq("active", true);
+    const { data } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('contact_type', 'customer')
+      .eq('active', true);
     if (data) setCustomers(data);
   };
 
   const fetchItems = async () => {
-    const { data } = await supabase.from("items").select("*").eq("active", true);
+    const { data } = await supabase
+      .from('items')
+      .select('*')
+      .eq('active', true);
     if (data) setItems(data);
   };
 
   const fetchStockData = async () => {
     // Fetch all stock by size records
-    const { data: stockBySizeData, error } = await supabase.from("stock_by_size").select("*");
-
+    const { data: stockBySizeData, error } = await supabase
+      .from("stock_by_size")
+      .select("*");
+    
     if (error) {
       toast({
         title: "Error fetching stock",
@@ -151,13 +157,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
     // Group stock by item_id and size
     const stockMap = new Map<string, any>();
-
-    stockBySizeData?.forEach((stock) => {
+    
+    stockBySizeData?.forEach(stock => {
       const key = stock.item_id;
       if (!stockMap.has(key)) {
         stockMap.set(key, {
           item_id: stock.item_id,
-          sizes: {},
+          sizes: {}
         });
       }
       stockMap.get(key)!.sizes[stock.size] = stock.quantity || 0;
@@ -174,30 +180,30 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       invoice_no: invoice.invoice_no,
       customer_id: invoice.customer_id,
       invoice_date: invoice.invoice_date,
-      due_date: invoice.due_date || "",
-      notes: invoice.notes || "",
-      payment_method: invoice.terms?.includes("cheque") ? "cheque" : invoice.terms || "cash",
+      due_date: invoice.due_date || '',
+      notes: invoice.notes || '',
+      payment_method: invoice.terms?.includes('cheque') ? 'cheque' : (invoice.terms || 'cash'),
     });
 
     // Fetch invoice lines
     const { data: lines } = await supabase
-      .from("invoice_lines")
-      .select("*")
-      .eq("invoice_id", invoice.id)
-      .order("line_no", { ascending: true });
+      .from('invoice_lines')
+      .select('*')
+      .eq('invoice_id', invoice.id)
+      .order('line_no', { ascending: true });
 
     if (lines && lines.length > 0) {
       // Lines now have size columns, so we can directly map them
       const reconstructedLines = lines.map((line: any) => {
         // Extract art_no and color from description (format: "ART_NO - COLOR")
-        const parts = line.description.split(" - ");
-        const art_no = parts[0] || "";
-        const color = parts[1] || "";
-
+        const parts = line.description.split(' - ');
+        const art_no = parts[0] || '';
+        const color = parts[1] || '';
+        
         return {
           id: Math.random().toString(),
           art_no,
-          description: "",
+          description: '',
           color,
           size_39: line.size_39 || 0,
           size_40: line.size_40 || 0,
@@ -219,7 +225,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     }
 
     // Parse cheques if payment method is cheque
-    if (invoice.terms && invoice.terms.includes("cheque")) {
+    if (invoice.terms && invoice.terms.includes('cheque')) {
       try {
         const parsed = JSON.parse(invoice.terms);
         if (parsed.cheques) {
@@ -232,8 +238,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
     // Calculate discount percent from existing discount
     if (invoice.discount && invoice.discount > 0) {
-      const discountableAmount =
-        lines?.reduce((sum: number, line: any) => sum + line.quantity * line.unit_price, 0) || 0;
+      const discountableAmount = lines?.reduce((sum: number, line: any) => sum + (line.quantity * line.unit_price), 0) || 0;
       if (discountableAmount > 0) {
         setDiscountPercent((invoice.discount / discountableAmount) * 100);
       }
@@ -274,73 +279,68 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
   };
 
   const removeCheque = (id: string) => {
-    setCheques(cheques.filter((cheque) => cheque.id !== id));
+    setCheques(cheques.filter(cheque => cheque.id !== id));
   };
 
   const updateCheque = (id: string, field: keyof Cheque, value: any) => {
-    setCheques(cheques.map((cheque) => (cheque.id === id ? { ...cheque, [field]: value } : cheque)));
+    setCheques(cheques.map(cheque => 
+      cheque.id === id ? { ...cheque, [field]: value } : cheque
+    ));
   };
 
   const removeLineItem = (id: string) => {
-    setLineItems(lineItems.filter((item) => item.id !== id));
+    setLineItems(lineItems.filter(item => item.id !== id));
   };
 
   const updateLineItem = (id: string, field: keyof LineItem, value: any) => {
-    setLineItems(
-      lineItems.map((item) => {
-        if (item.id === id) {
-          const updated = { ...item, [field]: value };
-
-          // If art_no or color changed, update from selected item
-          if (field === "art_no" || field === "color") {
-            const selectedItem = items.find((i) => i.code === updated.art_no && i.color === updated.color);
-            if (selectedItem) {
-              updated.unit_price = selectedItem.sale_price || 0;
-              // Don't auto-populate quantities, let user enter them
-            }
+    setLineItems(lineItems.map(item => {
+      if (item.id === id) {
+        const updated = { ...item, [field]: value };
+        
+        // If art_no or color changed, update from selected item
+        if (field === "art_no" || field === "color") {
+          const selectedItem = items.find(i => i.code === updated.art_no && i.color === updated.color);
+          if (selectedItem) {
+            updated.unit_price = selectedItem.sale_price || 0;
+            // Don't auto-populate quantities, let user enter them
           }
-
-          // Calculate total pairs
-          updated.total_pairs =
-            updated.size_39 +
-            updated.size_40 +
-            updated.size_41 +
-            updated.size_42 +
-            updated.size_43 +
-            updated.size_44 +
-            updated.size_45;
-          // Calculate totals
-          const subtotal = updated.total_pairs * updated.unit_price;
-          updated.tax_amount = subtotal * (updated.tax_rate / 100);
-          updated.line_total = subtotal + updated.tax_amount;
-          return updated;
         }
-        return item;
-      }),
-    );
+        
+        // Calculate total pairs
+        updated.total_pairs = 
+          updated.size_39 + updated.size_40 + updated.size_41 + 
+          updated.size_42 + updated.size_43 + updated.size_44 + updated.size_45;
+        // Calculate totals
+        const subtotal = updated.total_pairs * updated.unit_price;
+        updated.tax_amount = subtotal * (updated.tax_rate / 100);
+        updated.line_total = subtotal + updated.tax_amount;
+        return updated;
+      }
+      return item;
+    }));
   };
 
   const getAvailableStock = (art_no: string, color: string) => {
-    const item = items.find((i) => i.code === art_no && i.color === color);
+    const item = items.find(i => i.code === art_no && i.color === color);
     if (!item) return null;
-
-    const stock = stockData.find((s) => s.item_id === item.id);
+    
+    const stock = stockData.find(s => s.item_id === item.id);
     if (!stock) return { sizes: {}, total: 0 };
-
+    
     const total = Object.values(stock.sizes).reduce((sum: number, qty: any) => sum + (qty || 0), 0);
     return { sizes: stock.sizes, total };
   };
 
   const calculateTotals = () => {
-    const subtotal = lineItems.reduce((sum, item) => sum + item.total_pairs * item.unit_price, 0);
+    const subtotal = lineItems.reduce((sum, item) => sum + (item.total_pairs * item.unit_price), 0);
     const tax_total = lineItems.reduce((sum, item) => sum + item.tax_amount, 0);
-
+    
     // Calculate discount on selected items
     const discountableAmount = lineItems
-      .filter((item) => item.discount_selected)
-      .reduce((sum, item) => sum + item.total_pairs * item.unit_price, 0);
+      .filter(item => item.discount_selected)
+      .reduce((sum, item) => sum + (item.total_pairs * item.unit_price), 0);
     const discount_amount = (discountableAmount * discountPercent) / 100;
-
+    
     const grand_total = subtotal + tax_total - discount_amount;
     return { subtotal, tax_total, discount_amount, grand_total };
   };
@@ -351,15 +351,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       const { subtotal, tax_total, discount_amount, grand_total } = calculateTotals();
 
       // Get user's company_id
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("company_id")
-        .eq("id", user.id)
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
         .maybeSingle();
 
       if (profileError) throw new Error(`Profile error: ${profileError.message}`);
@@ -368,7 +366,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
       // Build items map for both invoices and orders
       const itemsMap = new Map();
-      items.forEach((i) => {
+      items.forEach(i => {
         const key = `${i.code}-${i.color}`;
         itemsMap.set(key, i.id);
       });
@@ -378,11 +376,11 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       if (useManualEntry && data.customer_name) {
         // Check if customer exists with same name
         const { data: existingCustomer } = await supabase
-          .from("contacts")
-          .select("id")
-          .eq("company_id", profile.company_id)
-          .eq("name", data.customer_name)
-          .eq("contact_type", "customer")
+          .from('contacts')
+          .select('id')
+          .eq('company_id', profile.company_id)
+          .eq('name', data.customer_name)
+          .eq('contact_type', 'customer')
           .single();
 
         if (existingCustomer) {
@@ -390,13 +388,13 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         } else {
           // Create new customer
           const { data: newCustomer, error: customerError } = await supabase
-            .from("contacts")
+            .from('contacts')
             .insert({
               company_id: profile.company_id,
               name: data.customer_name,
               area: data.customer_area,
               phone: data.customer_mobile,
-              contact_type: "customer",
+              contact_type: 'customer',
               code: `CUST-${Date.now()}`,
             })
             .select()
@@ -410,12 +408,12 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
       if (!customerId) throw new Error("Customer is required");
 
       // Save as Order or Invoice based on selection
-      if (documentType === "order") {
+      if (documentType === 'order') {
         // Create Order
         const order_no = `ORD-${Date.now()}`;
-
+        
         const { data: newOrder, error: orderError } = await supabase
-          .from("sales_orders")
+          .from('sales_orders')
           .insert({
             company_id: profile.company_id,
             customer_id: customerId,
@@ -427,11 +425,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
             tax_total,
             discount: discount_amount,
             grand_total,
-            status: "pending",
-            terms:
-              data.payment_method === "cheque"
-                ? JSON.stringify({ payment_method: "cheque", cheques })
-                : data.payment_method,
+            status: 'pending',
+            terms: data.payment_method === 'cheque' 
+              ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+              : data.payment_method,
           })
           .select()
           .single();
@@ -440,7 +437,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         // Insert order lines with size columns
         const itemsMap = new Map();
-        items.forEach((i) => {
+        items.forEach(i => {
           const key = `${i.code}-${i.color}`;
           itemsMap.set(key, i.id);
         });
@@ -448,7 +445,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         const lines: any[] = lineItems.map((item, index) => {
           const itemKey = `${item.art_no}-${item.color}`;
           const itemId = itemsMap.get(itemKey);
-
+          
           return {
             order_id: newOrder.id,
             item_id: itemId || null,
@@ -469,7 +466,9 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
           };
         });
 
-        const { error: linesError } = await supabase.from("sales_order_lines").insert(lines);
+        const { error: linesError } = await supabase
+          .from('sales_order_lines')
+          .insert(lines);
 
         if (linesError) throw linesError;
 
@@ -480,43 +479,45 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
           if (itemId) {
             const sizes = [
-              { size: "39", qty: lineItem.size_39 || 0 },
-              { size: "40", qty: lineItem.size_40 || 0 },
-              { size: "41", qty: lineItem.size_41 || 0 },
-              { size: "42", qty: lineItem.size_42 || 0 },
-              { size: "43", qty: lineItem.size_43 || 0 },
-              { size: "44", qty: lineItem.size_44 || 0 },
-              { size: "45", qty: lineItem.size_45 || 0 },
+              { size: '39', qty: lineItem.size_39 || 0 },
+              { size: '40', qty: lineItem.size_40 || 0 },
+              { size: '41', qty: lineItem.size_41 || 0 },
+              { size: '42', qty: lineItem.size_42 || 0 },
+              { size: '43', qty: lineItem.size_43 || 0 },
+              { size: '44', qty: lineItem.size_44 || 0 },
+              { size: '45', qty: lineItem.size_45 || 0 },
             ];
 
             for (const { size, qty } of sizes) {
               if (qty > 0) {
                 const { data: currentStock } = await supabase
-                  .from("stock_by_size")
-                  .select("quantity, id")
-                  .eq("item_id", itemId)
-                  .eq("size", size)
-                  .eq("company_id", profile.company_id)
+                  .from('stock_by_size')
+                  .select('quantity, id')
+                  .eq('item_id', itemId)
+                  .eq('size', size)
+                  .eq('company_id', profile.company_id)
                   .maybeSingle();
 
                 if (currentStock) {
                   await supabase
-                    .from("stock_by_size")
-                    .update({
+                    .from('stock_by_size')
+                    .update({ 
                       quantity: currentStock.quantity - qty,
-                      updated_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
                     })
-                    .eq("item_id", itemId)
-                    .eq("size", size)
-                    .eq("company_id", profile.company_id);
+                    .eq('item_id', itemId)
+                    .eq('size', size)
+                    .eq('company_id', profile.company_id);
                 } else {
                   // Create new stock record with negative quantity
-                  await supabase.from("stock_by_size").insert({
-                    company_id: profile.company_id,
-                    item_id: itemId,
-                    size: size,
-                    quantity: -qty,
-                  });
+                  await supabase
+                    .from('stock_by_size')
+                    .insert({
+                      company_id: profile.company_id,
+                      item_id: itemId,
+                      size: size,
+                      quantity: -qty
+                    });
                 }
               }
             }
@@ -533,103 +534,103 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         let invoice_no: string;
 
         if (invoice) {
-          // Update existing invoice
-          invoice_no = data.invoice_no;
-          invoiceId = invoice.id;
+        // Update existing invoice
+        invoice_no = data.invoice_no;
+        invoiceId = invoice.id;
 
-          const { error: invoiceError } = await supabase
-            .from("invoices")
-            .update({
-              invoice_no: data.invoice_no,
-              customer_id: customerId,
-              invoice_date: data.invoice_date,
-              due_date: data.due_date,
-              notes: data.notes,
-              subtotal,
-              tax_total,
-              discount: discount_amount,
-              grand_total,
-              terms:
-                data.payment_method === "cheque"
-                  ? JSON.stringify({ payment_method: "cheque", cheques })
-                  : data.payment_method,
-            })
-            .eq("id", invoice.id);
+        const { error: invoiceError } = await supabase
+          .from('invoices')
+          .update({
+            invoice_no: data.invoice_no,
+            customer_id: customerId,
+            invoice_date: data.invoice_date,
+            due_date: data.due_date,
+            notes: data.notes,
+            subtotal,
+            tax_total,
+            discount: discount_amount,
+            grand_total,
+            terms: data.payment_method === 'cheque' 
+              ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+              : data.payment_method,
+          })
+          .eq('id', invoice.id);
 
-          if (invoiceError) throw invoiceError;
+        if (invoiceError) throw invoiceError;
 
-          // Delete existing lines
-          const { error: deleteLinesError } = await supabase
-            .from("invoice_lines")
-            .delete()
-            .eq("invoice_id", invoice.id);
+        // Delete existing lines
+        const { error: deleteLinesError } = await supabase
+          .from('invoice_lines')
+          .delete()
+          .eq('invoice_id', invoice.id);
 
-          if (deleteLinesError) throw deleteLinesError;
-        } else {
-          // Use provided invoice number
-          invoice_no = data.invoice_no;
+        if (deleteLinesError) throw deleteLinesError;
+      } else {
+        // Use provided invoice number
+        invoice_no = data.invoice_no;
 
-          // Insert new invoice (initially as draft)
-          const { data: newInvoice, error: invoiceError } = await supabase
-            .from("invoices")
-            .insert({
-              company_id: profile.company_id,
-              customer_id: customerId,
-              invoice_no,
-              invoice_date: data.invoice_date,
-              due_date: data.due_date,
-              notes: data.notes,
-              subtotal,
-              tax_total,
-              discount: discount_amount,
-              grand_total,
-              status: "draft",
-              posted: false,
-              terms:
-                data.payment_method === "cheque"
-                  ? JSON.stringify({ payment_method: "cheque", cheques })
-                  : data.payment_method,
-            })
-            .select()
-            .single();
+        // Insert new invoice (initially as draft)
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert({
+            company_id: profile.company_id,
+            customer_id: customerId,
+            invoice_no,
+            invoice_date: data.invoice_date,
+            due_date: data.due_date,
+            notes: data.notes,
+            subtotal,
+            tax_total,
+            discount: discount_amount,
+            grand_total,
+            status: 'draft',
+            posted: false,
+            terms: data.payment_method === 'cheque' 
+              ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+              : data.payment_method,
+          })
+          .select()
+          .single();
 
-          if (invoiceError) throw invoiceError;
-          invoiceId = newInvoice.id;
-        }
+        if (invoiceError) throw invoiceError;
+        invoiceId = newInvoice.id;
+      }
 
-        // Insert invoice lines with size columns
-        // First, find the item_id for each line based on art_no and color
-        const itemsMap = new Map();
-        items.forEach((i) => {
-          const key = `${i.code}-${i.color}`;
-          itemsMap.set(key, i.id);
-        });
+      // Insert invoice lines with size columns
+      // First, find the item_id for each line based on art_no and color
+      const itemsMap = new Map();
+      items.forEach(i => {
+        const key = `${i.code}-${i.color}`;
+        itemsMap.set(key, i.id);
+      });
 
-        const lines: any[] = lineItems.map((item, index) => {
-          const itemKey = `${item.art_no}-${item.color}`;
-          const itemId = itemsMap.get(itemKey);
+      const lines: any[] = lineItems.map((item, index) => {
+        const itemKey = `${item.art_no}-${item.color}`;
+        const itemId = itemsMap.get(itemKey);
+        
+        return {
+          invoice_id: invoiceId,
+          item_id: itemId || null,
+          line_no: index + 1,
+          description: `${item.art_no} - ${item.color}`,
+          quantity: item.total_pairs,
+          size_39: item.size_39,
+          size_40: item.size_40,
+          size_41: item.size_41,
+          size_42: item.size_42,
+          size_43: item.size_43,
+          size_44: item.size_44,
+          size_45: item.size_45,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
+          tax_amount: item.tax_amount,
+          line_total: item.line_total,
+        };
+      });
 
-          return {
-            invoice_id: invoiceId,
-            item_id: itemId || null,
-            line_no: index + 1,
-            description: `${item.art_no} - ${item.color}`,
-            quantity: item.total_pairs,
-            size_39: item.size_39,
-            size_40: item.size_40,
-            size_41: item.size_41,
-            size_42: item.size_42,
-            size_43: item.size_43,
-            size_44: item.size_44,
-            size_45: item.size_45,
-            unit_price: item.unit_price,
-            tax_rate: item.tax_rate,
-            tax_amount: item.tax_amount,
-            line_total: item.line_total,
-          };
-        });
-
-        const { error: linesError } = await supabase.from("invoice_lines").insert(lines);
+      const { error: linesError } = await supabase
+        .from('invoice_lines')
+        .insert(lines);
 
         if (linesError) throw linesError;
 
@@ -640,43 +641,45 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
           if (itemId) {
             const sizes = [
-              { size: "39", qty: lineItem.size_39 || 0 },
-              { size: "40", qty: lineItem.size_40 || 0 },
-              { size: "41", qty: lineItem.size_41 || 0 },
-              { size: "42", qty: lineItem.size_42 || 0 },
-              { size: "43", qty: lineItem.size_43 || 0 },
-              { size: "44", qty: lineItem.size_44 || 0 },
-              { size: "45", qty: lineItem.size_45 || 0 },
+              { size: '39', qty: lineItem.size_39 || 0 },
+              { size: '40', qty: lineItem.size_40 || 0 },
+              { size: '41', qty: lineItem.size_41 || 0 },
+              { size: '42', qty: lineItem.size_42 || 0 },
+              { size: '43', qty: lineItem.size_43 || 0 },
+              { size: '44', qty: lineItem.size_44 || 0 },
+              { size: '45', qty: lineItem.size_45 || 0 },
             ];
 
             for (const { size, qty } of sizes) {
               if (qty > 0) {
                 const { data: currentStock } = await supabase
-                  .from("stock_by_size")
-                  .select("quantity, id")
-                  .eq("item_id", itemId)
-                  .eq("size", size)
-                  .eq("company_id", profile.company_id)
+                  .from('stock_by_size')
+                  .select('quantity, id')
+                  .eq('item_id', itemId)
+                  .eq('size', size)
+                  .eq('company_id', profile.company_id)
                   .maybeSingle();
 
                 if (currentStock) {
                   await supabase
-                    .from("stock_by_size")
-                    .update({
+                    .from('stock_by_size')
+                    .update({ 
                       quantity: currentStock.quantity - qty,
-                      updated_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
                     })
-                    .eq("item_id", itemId)
-                    .eq("size", size)
-                    .eq("company_id", profile.company_id);
+                    .eq('item_id', itemId)
+                    .eq('size', size)
+                    .eq('company_id', profile.company_id);
                 } else {
                   // Create new stock record with negative quantity
-                  await supabase.from("stock_by_size").insert({
-                    company_id: profile.company_id,
-                    item_id: itemId,
-                    size: size,
-                    quantity: -qty,
-                  });
+                  await supabase
+                    .from('stock_by_size')
+                    .insert({
+                      company_id: profile.company_id,
+                      item_id: itemId,
+                      size: size,
+                      quantity: -qty
+                    });
                 }
               }
             }
@@ -686,14 +689,14 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
         // Now post the invoice to trigger stock deduction
         if (!invoice) {
           const { error: postError } = await supabase
-            .from("invoices")
+            .from('invoices')
             .update({
               posted: true,
               posted_at: new Date().toISOString(),
               posted_by: user.id,
-              status: "approved",
+              status: 'approved',
             })
-            .eq("id", invoiceId);
+            .eq('id', invoiceId);
 
           if (postError) throw postError;
         }
@@ -726,7 +729,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{invoice ? "Edit Invoice" : "Create New Document"}</DialogTitle>
+          <DialogTitle>{invoice ? 'Edit Invoice' : 'Create New Document'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -739,8 +742,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     type="radio"
                     name="documentType"
                     value="invoice"
-                    checked={documentType === "invoice"}
-                    onChange={(e) => setDocumentType(e.target.value as "invoice" | "order")}
+                    checked={documentType === 'invoice'}
+                    onChange={(e) => setDocumentType(e.target.value as 'invoice' | 'order')}
                     className="h-4 w-4"
                   />
                   <span className="font-medium">Invoice</span>
@@ -750,8 +753,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                     type="radio"
                     name="documentType"
                     value="order"
-                    checked={documentType === "order"}
-                    onChange={(e) => setDocumentType(e.target.value as "invoice" | "order")}
+                    checked={documentType === 'order'}
+                    onChange={(e) => setDocumentType(e.target.value as 'invoice' | 'order')}
                     className="h-4 w-4"
                   />
                   <span className="font-medium">Order</span>
@@ -762,12 +765,15 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
           <div className="space-y-2">
             <Label htmlFor="invoice_no">Invoice Number *</Label>
-            <Input {...form.register("invoice_no")} placeholder="Enter invoice number" />
+            <Input
+              {...form.register("invoice_no")}
+              placeholder="Enter invoice number"
+            />
             {form.formState.errors.invoice_no && (
               <p className="text-sm text-destructive">{form.formState.errors.invoice_no.message}</p>
             )}
           </div>
-
+        
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label>Customer Details</Label>
@@ -833,18 +839,27 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               <div className="grid grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/30">
                 <div className="space-y-2">
                   <Label htmlFor="customer_name">Customer Name *</Label>
-                  <Input {...form.register("customer_name")} placeholder="Enter customer name" />
+                  <Input
+                    {...form.register("customer_name")}
+                    placeholder="Enter customer name"
+                  />
                   {form.formState.errors.customer_name && (
                     <p className="text-sm text-destructive">{form.formState.errors.customer_name.message}</p>
                   )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="customer_area">Area</Label>
-                  <Input {...form.register("customer_area")} placeholder="Enter area" />
+                  <Input
+                    {...form.register("customer_area")}
+                    placeholder="Enter area"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="customer_mobile">Mobile Number</Label>
-                  <Input {...form.register("customer_mobile")} placeholder="Enter mobile number" />
+                  <Input
+                    {...form.register("customer_mobile")}
+                    placeholder="Enter mobile number"
+                  />
                 </div>
               </div>
             )}
@@ -853,12 +868,18 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="invoice_date">Invoice Date</Label>
-              <Input type="date" {...form.register("invoice_date")} />
+              <Input
+                type="date"
+                {...form.register("invoice_date")}
+              />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="due_date">Due Date</Label>
-              <Input type="date" {...form.register("due_date")} />
+              <Input
+                type="date"
+                {...form.register("due_date")}
+              />
             </div>
 
             <div className="space-y-2">
@@ -888,7 +909,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                   Add Cheque
                 </Button>
               </div>
-
+              
               <div className="space-y-3">
                 {cheques.map((cheque) => (
                   <div key={cheque.id} className="grid grid-cols-4 gap-3 p-3 border rounded-lg bg-background">
@@ -918,13 +939,18 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       />
                     </div>
                     <div className="flex items-end">
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeCheque(cheque.id)}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCheque(cheque.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
                 ))}
-
+                
                 {cheques.length === 0 && (
                   <p className="text-sm text-muted-foreground text-center py-4">
                     No cheques added. Click "Add Cheque" to add one.
@@ -965,11 +991,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
                 {/* Line Items */}
                 {lineItems.map((line) => (
-                  <div
-                    key={line.id}
-                    className="grid grid-cols-[40px_100px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 items-center p-2 border rounded-lg mb-2 bg-background"
-                  >
-                    <div className="flex items-center justify-center">
+                  <div key={line.id} className="grid grid-cols-[40px_100px_80px_repeat(7,60px)_60px_80px_80px_60px] gap-1 items-center p-2 border rounded-lg mb-2 bg-background">
+                     <div className="flex items-center justify-center">
                       <input
                         type="checkbox"
                         checked={line.discount_selected}
@@ -984,10 +1007,8 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                         className="h-8 text-xs w-full border rounded px-2"
                       >
                         <option value="">Select Art No</option>
-                        {Array.from(new Set(items.map((i) => i.code))).map((code) => (
-                          <option key={code} value={code}>
-                            {code}
-                          </option>
+                        {Array.from(new Set(items.map(i => i.code))).map(code => (
+                          <option key={code} value={code}>{code}</option>
                         ))}
                       </select>
                     </div>
@@ -1000,23 +1021,23 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       >
                         <option value="">Select Color</option>
                         {items
-                          .filter((i) => i.code === line.art_no)
-                          .map((i) => (
-                            <option key={i.id} value={i.color}>
-                              {i.color}
-                            </option>
+                          .filter(i => i.code === line.art_no)
+                          .map(i => (
+                            <option key={i.id} value={i.color}>{i.color}</option>
                           ))}
                       </select>
-                      {line.art_no &&
-                        line.color &&
-                        (() => {
-                          const stock = getAvailableStock(line.art_no, line.color);
-                          return stock && (stock.total as number) > 0 ? (
-                            <div className="text-[10px] text-muted-foreground">Stock: {stock.total as number}</div>
-                          ) : (
-                            <div className="text-[10px] text-destructive">No stock</div>
-                          );
-                        })()}
+                      {line.art_no && line.color && (() => {
+                        const stock = getAvailableStock(line.art_no, line.color);
+                        return stock && (stock.total as number) > 0 ? (
+                          <div className="text-[10px] text-muted-foreground">
+                            Stock: {stock.total as number}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-destructive">
+                            No stock
+                          </div>
+                        );
+                      })()}
                     </div>
                     <Input
                       type="number"
@@ -1074,7 +1095,9 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       className="h-8 text-xs text-center"
                       placeholder="0"
                     />
-                    <div className="text-center font-semibold text-sm">{line.total_pairs}</div>
+                    <div className="text-center font-semibold text-sm">
+                      {line.total_pairs}
+                    </div>
                     <Input
                       type="number"
                       min="0"
@@ -1084,7 +1107,9 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                       className="h-8 text-xs text-right"
                       placeholder="0.00"
                     />
-                    <div className="text-right font-semibold text-sm">{line.line_total.toFixed(2)}</div>
+                    <div className="text-right font-semibold text-sm">
+                      {line.line_total.toFixed(2)}
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
@@ -1102,14 +1127,16 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea {...form.register("notes")} placeholder="Additional notes..." rows={3} />
+            <Textarea
+              {...form.register("notes")}
+              placeholder="Additional notes..."
+              rows={3}
+            />
           </div>
 
           <div className="border-t pt-4 space-y-3">
             <div className="flex items-center gap-4">
-              <Label htmlFor="discount_percent" className="whitespace-nowrap">
-                % Discount:
-              </Label>
+              <Label htmlFor="discount_percent" className="whitespace-nowrap">% Discount:</Label>
               <Input
                 id="discount_percent"
                 type="number"
@@ -1121,10 +1148,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
                 placeholder="0"
               />
               <span className="text-sm text-muted-foreground">
-                (Applied to {lineItems.filter((i) => i.discount_selected).length} selected items)
+                (Applied to {lineItems.filter(i => i.discount_selected).length} selected items)
               </span>
             </div>
-
+            
             <div className="space-y-2 pt-2">
               <div className="flex justify-between text-sm">
                 <span>Subtotal:</span>
@@ -1152,13 +1179,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading
-                ? "Creating..."
-                : invoice
-                  ? "Update Invoice"
-                  : documentType === "invoice"
-                    ? "Create Invoice"
-                    : "Create Order"}
+              {loading ? "Creating..." : invoice ? "Update Invoice" : documentType === 'invoice' ? "Create Invoice" : "Create Order"}
             </Button>
           </div>
         </form>
