@@ -42,6 +42,7 @@ export function AppSidebar() {
   const salesItems = [
     { title: 'Orders', url: '/sales/orders' },
     { title: t('sales.invoices'), url: '/sales/invoices' },
+    { title: 'Return Notes', url: '/sales/return-notes' },
     { title: t('sales.receipts'), url: '/sales/receipts' },
     { title: 'Cheques', url: '/sales/cheques' },
   ];
