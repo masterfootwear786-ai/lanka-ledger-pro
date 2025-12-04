@@ -298,7 +298,6 @@ export default function Invoices() {
               <div class="info-box">
                 <div class="info-title">Bill To:</div>
                 <div class="customer-name">${invoice.customer?.name || 'N/A'}</div>
-                ${invoice.customer?.address ? `<div class="customer-detail">${invoice.customer.address}</div>` : ''}
                 ${invoice.customer?.area ? `<div class="customer-detail">${invoice.customer.area}${invoice.customer?.district ? `, ${invoice.customer.district}` : ''}</div>` : ''}
                 ${invoice.customer?.phone ? `<div class="customer-phone"><span>Tel:</span> <strong>${invoice.customer.phone}</strong></div>` : ''}
               </div>
@@ -672,9 +671,6 @@ export default function Invoices() {
                   <div className="text-sm font-semibold text-primary mb-3">BILL TO:</div>
                   <div className="space-y-2">
                     <div className="font-semibold text-lg">{selectedInvoice.customer?.name || "N/A"}</div>
-                    {selectedInvoice.customer?.address && (
-                      <div className="text-sm text-muted-foreground">{selectedInvoice.customer.address}</div>
-                    )}
                     {selectedInvoice.customer?.area && (
                       <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}{selectedInvoice.customer?.district ? `, ${selectedInvoice.customer.district}` : ''}</div>
                     )}
@@ -682,12 +678,6 @@ export default function Invoices() {
                       <div className="text-sm flex items-center gap-2">
                         <span className="text-muted-foreground">Tel:</span>
                         <span className="font-medium">{selectedInvoice.customer.phone}</span>
-                      </div>
-                    )}
-                    {selectedInvoice.customer?.whatsapp && selectedInvoice.customer?.whatsapp !== selectedInvoice.customer?.phone && (
-                      <div className="text-sm flex items-center gap-2">
-                        <span className="text-muted-foreground">WhatsApp:</span>
-                        <span className="font-medium">{selectedInvoice.customer.whatsapp}</span>
                       </div>
                     )}
                     <div className="mt-3 pt-2 border-t border-border">
