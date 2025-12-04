@@ -220,6 +220,8 @@ export default function ReturnNotes() {
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; margin: 0; }
             .header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+            .company-left { display: flex; align-items: flex-start; gap: 15px; }
+            .company-logo { width: 60px; height: 60px; object-fit: contain; }
             .company-info h1 { margin: 0 0 5px 0; font-size: 24px; }
             .company-info p { margin: 2px 0; font-size: 12px; color: #666; }
             .document-info { text-align: right; }
@@ -242,10 +244,13 @@ export default function ReturnNotes() {
         </head>
         <body>
           <div class="header">
-            <div class="company-info">
-              <h1>${companyData?.name || 'Company Name'}</h1>
-              <p>${companyData?.address || ''}</p>
-              <p>Tel: ${companyData?.phone || ''} | Email: ${companyData?.email || ''}</p>
+            <div class="company-left">
+              ${companyData?.logo_url ? `<img src="${companyData.logo_url}" alt="Company Logo" class="company-logo" />` : ''}
+              <div class="company-info">
+                <h1>${companyData?.name || 'Company Name'}</h1>
+                <p>${companyData?.address || ''}</p>
+                <p>Tel: ${companyData?.phone || ''} | Email: ${companyData?.email || ''}</p>
+              </div>
             </div>
             <div class="document-info">
               <h2>RETURN NOTE</h2>
@@ -307,21 +312,42 @@ export default function ReturnNotes() {
     printWindow.print();
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!selectedNote) return;
     
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     
+    let headerStartX = 14;
+    
+    // Add company logo if available
+    if (companyData?.logo_url) {
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => {
+            doc.addImage(img, "PNG", 14, 12, 20, 20);
+            resolve();
+          };
+          img.onerror = () => resolve();
+          img.src = companyData.logo_url;
+        });
+        headerStartX = 38;
+      } catch (error) {
+        console.error("Error loading logo:", error);
+      }
+    }
+    
     // Company Header
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text(companyData?.name || "Company Name", 14, 20);
+    doc.text(companyData?.name || "Company Name", headerStartX, 20);
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(companyData?.address || "", 14, 27);
-    doc.text(`Tel: ${companyData?.phone || ""} | Email: ${companyData?.email || ""}`, 14, 32);
+    doc.text(companyData?.address || "", headerStartX, 27);
+    doc.text(`Tel: ${companyData?.phone || ""} | Email: ${companyData?.email || ""}`, headerStartX, 32);
     
     // Return Note Title
     doc.setFontSize(16);
