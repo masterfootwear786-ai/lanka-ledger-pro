@@ -2484,6 +2484,7 @@ export type Database = {
           expense_other: number | null
           expenses: number
           id: string
+          km: number | null
           notes: string | null
           route: string
           turn_date: string
@@ -2503,6 +2504,7 @@ export type Database = {
           expense_other?: number | null
           expenses?: number
           id?: string
+          km?: number | null
           notes?: string | null
           route: string
           turn_date?: string
@@ -2522,6 +2524,7 @@ export type Database = {
           expense_other?: number | null
           expenses?: number
           id?: string
+          km?: number | null
           notes?: string | null
           route?: string
           turn_date?: string
