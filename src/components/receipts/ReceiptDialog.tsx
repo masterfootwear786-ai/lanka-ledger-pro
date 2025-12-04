@@ -501,40 +501,54 @@ export function ReceiptDialog({ open, onOpenChange, onSuccess, receipt }: Receip
                 </div>
 
                 {cheques.length > 0 && (
-                  <div className="col-span-2 space-y-2">
-                    <Label>Added Cheques ({cheques.length})</Label>
-                    <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                  <div className="col-span-2 space-y-3">
+                    <Label className="text-base font-semibold">Added Cheques ({cheques.length})</Label>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
                       {cheques.map((cheque, index) => (
-                        <div key={index} className="p-3 flex justify-between items-start hover:bg-muted/50">
-                          <div className="space-y-1 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono font-medium">{cheque.cheque_no}</span>
-                              <span className="text-sm text-muted-foreground">
-                                {new Date(cheque.cheque_date).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {cheque.cheque_bank && `${cheque.cheque_bank}`}
-                              {cheque.cheque_branch && ` - ${cheque.cheque_branch}`}
-                            </div>
-                            {cheque.cheque_holder && (
-                              <div className="text-sm text-muted-foreground">
-                                Holder: {cheque.cheque_holder}
+                        <div key={index} className="border rounded-lg p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1 grid grid-cols-3 gap-3">
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">Cheque No</p>
+                                <p className="font-mono font-semibold text-orange-600">{cheque.cheque_no}</p>
                               </div>
-                            )}
-                            <div className="font-semibold text-primary">
-                              Rs. {cheque.amount.toLocaleString()}
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">Date</p>
+                                <p className="font-medium">{new Date(cheque.cheque_date).toLocaleDateString()}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">Amount</p>
+                                <p className="font-bold text-green-600">Rs. {cheque.amount.toLocaleString()}</p>
+                              </div>
+                              {cheque.cheque_bank && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Bank</p>
+                                  <p className="font-medium">{cheque.cheque_bank}</p>
+                                </div>
+                              )}
+                              {cheque.cheque_branch && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Branch</p>
+                                  <p className="font-medium">{cheque.cheque_branch}</p>
+                                </div>
+                              )}
+                              {cheque.cheque_holder && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Holder</p>
+                                  <p className="font-medium">{cheque.cheque_holder}</p>
+                                </div>
+                              )}
                             </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeCheque(index)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeCheque(index)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       ))}
                     </div>
