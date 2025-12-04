@@ -351,6 +351,9 @@ export default function CreateInvoice() {
   };
 
   const onSubmit = async (data: InvoiceFormData) => {
+    // Prevent double submission
+    if (loading) return;
+    
     try {
       setLoading(true);
       const { subtotal, tax_total, discount_amount, grand_total } = calculateTotals();
