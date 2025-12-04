@@ -9,6 +9,7 @@ import {
   Settings,
   ChevronDown,
   Send,
+  Users,
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +44,9 @@ export function AppSidebar() {
     { title: t('sales.invoices'), url: '/sales/invoices' },
     { title: t('sales.receipts'), url: '/sales/receipts' },
     { title: 'Cheques', url: '/sales/cheques' },
+  ];
+
+  const customerItems = [
     { title: t('sales.customers'), url: '/sales/customers' },
   ];
 
@@ -103,6 +107,35 @@ export function AppSidebar() {
               <SidebarGroupContent>
                 <SidebarMenu>
                   {salesItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton asChild>
+                        <NavLink to={item.url} className={({ isActive }) => isActive ? 'bg-accent' : ''}>
+                          {!collapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </CollapsibleContent>
+          </SidebarGroup>
+        </Collapsible>
+
+        <Collapsible defaultOpen className="group/collapsible">
+          <SidebarGroup>
+            <SidebarGroupLabel asChild>
+              <CollapsibleTrigger className="flex w-full items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  {!collapsed && <span>Customers</span>}
+                </div>
+                {!collapsed && <ChevronDown className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />}
+              </CollapsibleTrigger>
+            </SidebarGroupLabel>
+            <CollapsibleContent>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {customerItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
                         <NavLink to={item.url} className={({ isActive }) => isActive ? 'bg-accent' : ''}>
