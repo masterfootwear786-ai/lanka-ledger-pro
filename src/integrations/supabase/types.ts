@@ -2477,6 +2477,10 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
+          expense_accommodation: number | null
+          expense_food: number | null
+          expense_fuel: number | null
+          expense_other: number | null
           expenses: number
           id: string
           notes: string | null
@@ -2491,6 +2495,10 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
+          expense_accommodation?: number | null
+          expense_food?: number | null
+          expense_fuel?: number | null
+          expense_other?: number | null
           expenses?: number
           id?: string
           notes?: string | null
@@ -2505,6 +2513,10 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
+          expense_accommodation?: number | null
+          expense_food?: number | null
+          expense_fuel?: number | null
+          expense_other?: number | null
           expenses?: number
           id?: string
           notes?: string | null
