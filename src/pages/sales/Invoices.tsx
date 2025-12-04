@@ -362,7 +362,7 @@ export default function Invoices() {
               </div>
             </div>
 
-            <div style="clear: both; margin-top: 200px; display: flex; justify-content: space-between;">
+            <div style="clear: both; margin-top: 280px; display: flex; justify-content: space-between;">
               <div style="flex: 1; text-align: center; padding: 0 20px;">
                 <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto 8px auto;"></div>
                 <div style="font-size: 12px; color: #666;">Customer Signature</div>
