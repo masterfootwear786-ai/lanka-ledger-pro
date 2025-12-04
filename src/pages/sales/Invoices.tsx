@@ -831,7 +831,7 @@ export default function Invoices() {
               )}
 
               {/* Signature Section */}
-              <div className="flex justify-between mt-16 pt-8">
+              <div className="flex justify-between mt-24 pt-12">
                 <div className="flex-1 text-center px-4">
                   <div className="border-b border-foreground w-4/5 mx-auto mb-2"></div>
                   <div className="text-sm text-muted-foreground">Customer Signature</div>
