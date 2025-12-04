@@ -32,22 +32,27 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
   useEffect(() => {
     if (open) {
       fetchItems();
+      // Always reset size quantities to 0 when dialog opens
+      const resetSizes = {
+        size_39: 0,
+        size_40: 0,
+        size_41: 0,
+        size_42: 0,
+        size_43: 0,
+        size_44: 0,
+        size_45: 0,
+      };
+      
       if (preSelectedItem) {
-        setFormData(prev => ({
-          ...prev,
+        setFormData({
+          ...resetSizes,
           item_id: preSelectedItem.id,
-        }));
+        });
         fetchCurrentStock(preSelectedItem.id);
       } else {
         setFormData({
           item_id: "",
-          size_39: 0,
-          size_40: 0,
-          size_41: 0,
-          size_42: 0,
-          size_43: 0,
-          size_44: 0,
-          size_45: 0,
+          ...resetSizes,
         });
         setCurrentStock({});
       }
