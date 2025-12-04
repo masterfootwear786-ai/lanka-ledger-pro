@@ -64,9 +64,21 @@ export default function ReturnNotes() {
 
   const fetchCompanyData = async () => {
     try {
-      const { data: profile } = await supabase.from('profiles').select('company_id').single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .maybeSingle();
+        
       if (profile?.company_id) {
-        const { data: company } = await supabase.from('companies').select('*').eq('id', profile.company_id).single();
+        const { data: company } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', profile.company_id)
+          .maybeSingle();
         setCompanyData(company);
       }
     } catch (error) {
