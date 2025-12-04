@@ -166,6 +166,25 @@ export default function Trash() {
         );
       }
 
+      // Fetch deleted return notes
+      const { data: returnNotes } = await supabase
+        .from("return_notes")
+        .select("id, return_note_no, deleted_at, deleted_by")
+        .not("deleted_at", "is", null)
+        .order("deleted_at", { ascending: false });
+
+      if (returnNotes) {
+        items.push(
+          ...returnNotes.map((rn) => ({
+            id: rn.id,
+            type: "return_note",
+            name: rn.return_note_no,
+            deleted_at: rn.deleted_at!,
+            deleted_by: rn.deleted_by,
+          }))
+        );
+      }
+
       // Sort by deleted_at descending
       return items.sort((a, b) => 
         new Date(b.deleted_at).getTime() - new Date(a.deleted_at).getTime()
@@ -185,6 +204,7 @@ export default function Trash() {
         item: "items",
         receipt: "receipts",
         payment: "bill_payments",
+        return_note: "return_notes",
       };
 
       const table = tableMap[type];
@@ -293,6 +313,7 @@ export default function Trash() {
         item: "items",
         receipt: "receipts",
         payment: "bill_payments",
+        return_note: "return_notes",
       };
 
       const table = tableMap[type];
@@ -338,6 +359,7 @@ export default function Trash() {
       item: "Items",
       receipt: "Receipts",
       payment: "Payments",
+      return_note: "Return Notes",
     };
     return labels[type] || type;
   };
@@ -352,6 +374,7 @@ export default function Trash() {
       item: "bg-yellow-500",
       receipt: "bg-cyan-500",
       payment: "bg-pink-500",
+      return_note: "bg-amber-500",
     };
     return colors[type] || "bg-gray-500";
   };
