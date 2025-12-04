@@ -830,6 +830,18 @@ export default function Invoices() {
                 </div>
               )}
 
+              {/* Signature Section */}
+              <div className="flex justify-between mt-8 pt-4">
+                <div className="flex-1 text-center px-4">
+                  <div className="text-sm text-muted-foreground mb-2">Customer Signature</div>
+                  <div className="border-b border-foreground w-4/5 mx-auto"></div>
+                </div>
+                <div className="flex-1 text-center px-4">
+                  <div className="text-sm text-muted-foreground mb-2">Sales Rep Signature</div>
+                  <div className="border-b border-foreground w-4/5 mx-auto"></div>
+                </div>
+              </div>
+
               {/* Footer */}
               <div className="text-center text-xs text-muted-foreground pt-4 border-t">
                 Thank you for your business!
