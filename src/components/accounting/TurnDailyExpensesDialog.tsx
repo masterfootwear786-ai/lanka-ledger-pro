@@ -315,7 +315,7 @@ export function TurnDailyExpensesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh]">
+      <DialogContent className="w-full max-w-[95vw] sm:max-w-4xl lg:max-w-6xl max-h-[90vh] p-3 sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
@@ -369,22 +369,26 @@ export function TurnDailyExpensesDialog({
         </div>
 
         {/* Add Expense by Date */}
-        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
-          <span className="text-sm font-medium">Add Expense:</span>
+        <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/30 rounded-lg">
+          <span className="text-sm font-medium whitespace-nowrap">Add Expense:</span>
           <Input
             type="date"
             value={newExpenseDate}
             onChange={(e) => setNewExpenseDate(e.target.value)}
-            className="w-40 h-8"
+            className="w-36 sm:w-40 h-9"
           />
-          <Button variant="outline" size="sm" onClick={handleAddExpenseByDate}>
-            <Plus className="mr-1 h-4 w-4" />
-            Add for Date
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleAddNextDay}>
-            <Plus className="mr-1 h-4 w-4" />
-            Add Next Day
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleAddExpenseByDate} className="h-9">
+              <Plus className="mr-1 h-4 w-4" />
+              <span className="hidden sm:inline">Add for Date</span>
+              <span className="sm:hidden">Add</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleAddNextDay} className="h-9">
+              <Plus className="mr-1 h-4 w-4" />
+              <span className="hidden sm:inline">Add Next Day</span>
+              <span className="sm:hidden">Next</span>
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -392,32 +396,33 @@ export function TurnDailyExpensesDialog({
             <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
           </div>
         ) : (
-          <ScrollArea className="max-h-[45vh]">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-[120px]">Date</TableHead>
-                  <TableHead className="text-right w-[100px]">
-                    <span className="flex items-center justify-end gap-1">
-                      <Fuel className="h-4 w-4 text-amber-500" /> Fuel
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right w-[80px]">
-                    <span className="flex items-center justify-end gap-1">
-                      <MapPin className="h-4 w-4" /> KM
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right w-[100px]">
-                    <span className="flex items-center justify-end gap-1">
-                      <UtensilsCrossed className="h-4 w-4 text-orange-500" /> Food
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right w-[100px]">
-                    <span className="flex items-center justify-end gap-1">
-                      <Hotel className="h-4 w-4 text-purple-500" /> Accom.
-                    </span>
-                  </TableHead>
-                  <TableHead className="w-[100px]">City</TableHead>
+          <ScrollArea className="max-h-[40vh] sm:max-h-[45vh]">
+            <div className="overflow-x-auto">
+              <Table className="min-w-[700px]">
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-[110px] sticky left-0 bg-muted/50 z-10">Date</TableHead>
+                    <TableHead className="text-right w-[90px]">
+                      <span className="flex items-center justify-end gap-1">
+                        <Fuel className="h-4 w-4 text-amber-500" /> Fuel
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right w-[70px]">
+                      <span className="flex items-center justify-end gap-1">
+                        <MapPin className="h-4 w-4" /> KM
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right w-[90px]">
+                      <span className="flex items-center justify-end gap-1">
+                        <UtensilsCrossed className="h-4 w-4 text-orange-500" /> Food
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-right w-[90px]">
+                      <span className="flex items-center justify-end gap-1">
+                        <Hotel className="h-4 w-4 text-purple-500" /> Accom.
+                      </span>
+                    </TableHead>
+                    <TableHead className="w-[90px]">City</TableHead>
                   <TableHead className="text-right w-[100px]">
                     <span className="flex items-center justify-end gap-1">
                       <MoreHorizontal className="h-4 w-4" /> Other
@@ -530,7 +535,8 @@ export function TurnDailyExpensesDialog({
                   <TableCell></TableCell>
                 </TableRow>
               </TableBody>
-            </Table>
+              </Table>
+            </div>
           </ScrollArea>
         )}
 
