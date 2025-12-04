@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ interface LineItem {
   unit_price: number;
   tax_rate: number;
   line_total: number;
+  discount_selected: boolean;
 }
 
 interface BillDialogProps {
@@ -45,6 +47,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
 
   const form = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
@@ -64,7 +67,8 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
         form.reset({
           bill_date: new Date().toISOString().split('T')[0],
         });
-        setLineItems([{ id: '1', description: '', quantity: 1, unit_price: 0, tax_rate: 0, line_total: 0 }]);
+        setLineItems([{ id: '1', description: '', quantity: 1, unit_price: 0, tax_rate: 0, line_total: 0, discount_selected: false }]);
+        setDiscountAmount(0);
       }
     }
   }, [open, bill]);
@@ -98,6 +102,8 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
       notes: bill.notes || '',
     });
 
+    setDiscountAmount(bill.discount || 0);
+
     const { data: lines } = await supabase
       .from('bill_lines')
       .select('*')
@@ -112,6 +118,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
         unit_price: line.unit_price,
         tax_rate: line.tax_rate || 0,
         line_total: line.line_total,
+        discount_selected: false,
       })));
     }
   };
@@ -124,6 +131,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
       unit_price: 0,
       tax_rate: 0,
       line_total: 0,
+      discount_selected: false,
     }]);
   };
 
@@ -153,11 +161,21 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
     }
   };
 
+  const toggleSelectAll = (checked: boolean) => {
+    setLineItems(lineItems.map(item => ({ ...item, discount_selected: checked })));
+  };
+
+  const getSelectedItemsTotal = () => {
+    return lineItems
+      .filter(item => item.discount_selected)
+      .reduce((sum, item) => sum + item.line_total, 0);
+  };
+
   const calculateTotals = () => {
     const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const tax_total = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price * item.tax_rate / 100), 0);
-    const grand_total = subtotal + tax_total;
-    return { subtotal, tax_total, grand_total };
+    const grand_total = subtotal + tax_total - discountAmount;
+    return { subtotal, tax_total, discount: discountAmount, grand_total };
   };
 
   const onSubmit = async (data: BillFormData) => {
@@ -168,7 +186,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
 
     try {
       setLoading(true);
-      const { subtotal, tax_total, grand_total } = calculateTotals();
+      const { subtotal, tax_total, discount, grand_total } = calculateTotals();
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -197,6 +215,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
             notes: data.notes,
             subtotal,
             tax_total,
+            discount,
             grand_total,
           })
           .eq('id', bill.id);
@@ -224,6 +243,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
             notes: data.notes,
             subtotal,
             tax_total,
+            discount,
             grand_total,
             status: 'draft',
           })
@@ -263,7 +283,9 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
     }
   };
 
-  const { subtotal, tax_total, grand_total } = calculateTotals();
+  const { subtotal, tax_total, discount, grand_total } = calculateTotals();
+  const allSelected = lineItems.length > 0 && lineItems.every(item => item.discount_selected);
+  const selectedTotal = getSelectedItemsTotal();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -346,6 +368,12 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={(checked) => toggleSelectAll(!!checked)}
+                      />
+                    </TableHead>
                     <TableHead>Item</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead className="w-24">Qty</TableHead>
@@ -358,6 +386,12 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                 <TableBody>
                   {lineItems.map((line) => (
                     <TableRow key={line.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={line.discount_selected}
+                          onCheckedChange={(checked) => updateLineItem(line.id, 'discount_selected', !!checked)}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Select onValueChange={(value) => selectItem(line.id, value)}>
                           <SelectTrigger className="w-32">
@@ -428,7 +462,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
           </div>
 
           <div className="flex justify-end">
-            <div className="w-64 space-y-2">
+            <div className="w-72 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span className="font-medium">{subtotal.toFixed(2)}</span>
@@ -437,7 +471,27 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                 <span>Tax:</span>
                 <span className="font-medium">{tax_total.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-lg font-bold">
+              <div className="flex justify-between items-center">
+                <span>Discount:</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={discountAmount}
+                    onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)}
+                    className="w-28 text-right"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              {selectedTotal > 0 && (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Selected Items Total:</span>
+                  <span>{selectedTotal.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-lg font-bold pt-2 border-t">
                 <span>Total:</span>
                 <span>{grand_total.toFixed(2)}</span>
               </div>
