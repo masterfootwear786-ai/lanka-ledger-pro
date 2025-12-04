@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Trash2, RotateCcw, Search } from "lucide-react";
+import { Trash2, RotateCcw, Search, Eye } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
+import { TrashPreviewDialog } from "@/components/trash/TrashPreviewDialog";
 
 type DeletedItem = {
   id: string;
@@ -26,6 +27,7 @@ export default function Trash() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [previewItem, setPreviewItem] = useState<DeletedItem | null>(null);
 
   // Fetch deleted items from all tables
   const { data: deletedItems = [], isLoading } = useQuery({
@@ -540,6 +542,14 @@ export default function Trash() {
                     </div>
                     <div className="flex gap-2">
                       <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setPreviewItem(item)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Preview
+                      </Button>
+                      <Button
                         variant="outline"
                         size="sm"
                         onClick={() =>
@@ -595,6 +605,14 @@ export default function Trash() {
                       </div>
                       <div className="flex gap-2">
                         <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPreviewItem(item)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Preview
+                        </Button>
+                        <Button
                           variant="outline"
                           size="sm"
                           onClick={() =>
@@ -631,6 +649,14 @@ export default function Trash() {
           ))}
         </Tabs>
       )}
+
+      <TrashPreviewDialog
+        open={!!previewItem}
+        onOpenChange={(open) => !open && setPreviewItem(null)}
+        itemId={previewItem?.id || ''}
+        itemType={previewItem?.type || ''}
+        itemName={previewItem?.name || ''}
+      />
     </div>
   );
 }
