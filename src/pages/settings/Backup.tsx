@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Download, Upload, Database, FileJson, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Download, Upload, Database, FileJson, FileSpreadsheet, Loader2, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { createBackup, exportBackupAsJSON, exportBackupAsExcel } from '@/lib/backup';
+import { createBackup, exportBackupAsJSON, exportBackupAsExcel, restoreFromBackup, parseBackupFile, BackupData } from '@/lib/backup';
 import { supabase } from '@/integrations/supabase/client';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 export default function Backup() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState<'json' | 'excel' | 'both'>('both');
+  const [selectedBackup, setSelectedBackup] = useState<BackupData | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBackup = async () => {
     if (!user) return;
@@ -54,6 +59,65 @@ export default function Backup() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileContent = await file.text();
+      const backupData = parseBackupFile(fileContent);
+      setSelectedBackup(backupData);
+      setShowRestoreConfirm(true);
+    } catch (error) {
+      toast({
+        title: "Invalid File",
+        description: error instanceof Error ? error.message : "Failed to read backup file",
+        variant: "destructive",
+      });
+    }
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!user || !selectedBackup) return;
+
+    setRestoreLoading(true);
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.company_id) {
+        throw new Error('Company not found');
+      }
+
+      await restoreFromBackup(selectedBackup, profile.company_id);
+
+      toast({
+        title: "Restore Successful",
+        description: "Your data has been restored from the backup file",
+      });
+
+      setShowRestoreConfirm(false);
+      setSelectedBackup(null);
+    } catch (error) {
+      console.error('Restore error:', error);
+      toast({
+        title: "Restore Failed",
+        description: error instanceof Error ? error.message : "Failed to restore data",
+        variant: "destructive",
+      });
+    } finally {
+      setRestoreLoading(false);
     }
   };
 
@@ -143,25 +207,35 @@ export default function Backup() {
               Restore from Backup
             </CardTitle>
             <CardDescription>
-              Restore your system data from a previous backup file
+              Restore your system data from a previous backup file (JSON format)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept=".json"
+              className="hidden"
+            />
+            <div 
+              className="rounded-lg border-2 border-dashed border-muted-foreground/25 p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
               <Upload className="h-8 w-8 mx-auto mb-4 text-muted-foreground" />
               <p className="text-sm text-muted-foreground mb-4">
-                Restore feature coming soon
+                Click to select a JSON backup file
               </p>
-              <Button disabled variant="outline">
+              <Button variant="outline" type="button">
                 Select Backup File
               </Button>
             </div>
 
             <div className="text-xs text-muted-foreground space-y-1">
               <p className="font-medium text-foreground">⚠️ Important Notes:</p>
-              <p>• Restoring will overwrite current data</p>
+              <p>• Restoring will merge with current data</p>
               <p>• Create a backup before restoring</p>
-              <p>• Verify backup file before proceeding</p>
+              <p>• Only JSON backup files are supported</p>
             </div>
           </CardContent>
         </Card>
@@ -178,6 +252,50 @@ export default function Backup() {
           <p>✓ <strong>Draft recovery:</strong> Unsaved work is stored locally and recovered automatically</p>
         </CardContent>
       </Card>
+
+      {/* Restore Confirmation Dialog */}
+      <AlertDialog open={showRestoreConfirm} onOpenChange={setShowRestoreConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirm Restore
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>You are about to restore data from a backup file.</p>
+              {selectedBackup && (
+                <div className="bg-muted p-3 rounded-lg text-sm mt-2">
+                  <p><strong>Backup Date:</strong> {new Date(selectedBackup.timestamp).toLocaleString()}</p>
+                  <p><strong>Version:</strong> {selectedBackup.version}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Records: {Object.entries(selectedBackup.data).filter(([_, v]) => Array.isArray(v) && v.length > 0).map(([k, v]) => `${k}: ${(v as any[]).length}`).join(', ')}
+                  </p>
+                </div>
+              )}
+              <p className="text-amber-600 font-medium mt-2">
+                This will merge the backup data with your current data. Existing records with the same IDs will be updated.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={restoreLoading}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRestore}
+              disabled={restoreLoading}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {restoreLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Restoring...
+                </>
+              ) : (
+                'Restore Data'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
