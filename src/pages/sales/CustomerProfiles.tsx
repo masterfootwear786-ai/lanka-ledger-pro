@@ -311,33 +311,30 @@ export default function CustomerProfiles() {
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(customer.totalInvoiced)}</TableCell>
                       <TableCell className="text-right text-green-600">{formatCurrency(customer.totalPaid)}</TableCell>
-                      <TableCell className="text-right text-orange-600">
+                      <TableCell className="text-orange-600">
                         {customer.pendingChequesCount > 0 ? (
-                          <HoverCard>
-                            <HoverCardTrigger asChild>
-                              <span className="cursor-pointer underline decoration-dotted">
-                                {formatCurrency(customer.pendingCheques)} ({customer.pendingChequesCount})
-                              </span>
-                            </HoverCardTrigger>
-                            <HoverCardContent className="w-80">
-                              <div className="space-y-2">
-                                <h4 className="font-semibold text-sm">Pending Cheques</h4>
-                                <div className="space-y-1">
-                                  {customer.pendingChequesList.map((cheque, idx) => (
-                                    <div key={idx} className="text-xs flex justify-between border-b pb-1">
-                                      <div>
-                                        <span className="font-medium">{cheque.chequeNo}</span>
-                                        <span className="text-muted-foreground ml-2">{cheque.bank}</span>
-                                      </div>
-                                      <span className="font-medium">{formatCurrency(cheque.amount)}</span>
-                                    </div>
-                                  ))}
+                          <div className="space-y-1">
+                            <div className="font-semibold text-right">
+                              {formatCurrency(customer.pendingCheques)} ({customer.pendingChequesCount})
+                            </div>
+                            <div className="space-y-0.5">
+                              {customer.pendingChequesList.slice(0, 3).map((cheque, idx) => (
+                                <div key={idx} className="text-xs flex justify-between gap-2">
+                                  <span className="text-muted-foreground truncate max-w-[100px]">
+                                    {cheque.chequeNo} - {cheque.bank}
+                                  </span>
+                                  <span>{formatCurrency(cheque.amount)}</span>
                                 </div>
-                              </div>
-                            </HoverCardContent>
-                          </HoverCard>
+                              ))}
+                              {customer.pendingChequesCount > 3 && (
+                                <div className="text-xs text-muted-foreground text-right">
+                                  +{customer.pendingChequesCount - 3} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         ) : (
-                          '-'
+                          <span className="text-right block">-</span>
                         )}
                       </TableCell>
                       <TableCell className={`text-right font-semibold ${customer.outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
