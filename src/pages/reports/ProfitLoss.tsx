@@ -75,9 +75,15 @@ export default function ProfitLoss() {
     date: inv.invoice_date
   })) || [];
 
-  // Separate COGS from other expenses (from transactions)
+  // Separate COGS, regular expenses, and creditor/debtor from transactions
   const cogsTransactions = transactionsData?.filter(t => t.transaction_type === 'COGS') || [];
-  const expenseTransactions = transactionsData?.filter(t => t.transaction_type !== 'COGS') || [];
+  const creditTransactions = transactionsData?.filter(t => t.transaction_type === 'credit') || [];
+  const debitTransactions = transactionsData?.filter(t => t.transaction_type === 'debit') || [];
+  const regularExpenseTransactions = transactionsData?.filter(t => 
+    t.transaction_type !== 'COGS' && 
+    t.transaction_type !== 'credit' && 
+    t.transaction_type !== 'debit'
+  ) || [];
 
   // COGS details from transactions
   const cogsDetails = cogsTransactions.map(txn => ({
@@ -86,12 +92,26 @@ export default function ProfitLoss() {
     date: txn.transaction_date
   }));
 
-  // Operating expense details (all non-COGS transactions)
-  const expenseDetails = expenseTransactions.map(exp => ({
+  // Operating expense details (non-COGS, non-creditor/debtor)
+  const expenseDetails = regularExpenseTransactions.map(exp => ({
     name: `${exp.transaction_no} - ${exp.description || exp.transaction_type} (${format(new Date(exp.transaction_date), 'MMM dd, yyyy')})`,
     amount: exp.amount || 0,
     date: exp.transaction_date,
     type: exp.transaction_type
+  }));
+
+  // Creditor details (reduces expenses)
+  const creditorDetails = creditTransactions.map(t => ({
+    name: `${t.transaction_no} - ${t.description || 'Creditor'} (${format(new Date(t.transaction_date), 'MMM dd, yyyy')})`,
+    amount: t.amount || 0,
+    date: t.transaction_date
+  }));
+
+  // Debtor details (adds to expenses)
+  const debtorDetails = debitTransactions.map(t => ({
+    name: `${t.transaction_no} - ${t.description || 'Debtor'} (${format(new Date(t.transaction_date), 'MMM dd, yyyy')})`,
+    amount: t.amount || 0,
+    date: t.transaction_date
   }));
 
   // Group expenses by category
@@ -108,7 +128,14 @@ export default function ProfitLoss() {
   const totalRevenue = revenueDetails.reduce((sum, item) => sum + item.amount, 0);
   const totalCOGS = cogsDetails.reduce((sum, item) => sum + item.amount, 0);
   const grossProfit = totalRevenue - totalCOGS;
-  const totalOperatingExpenses = expenseDetails.reduce((sum, item) => sum + item.amount, 0);
+  
+  // Calculate totals for creditors and debtors
+  const totalCreditors = creditorDetails.reduce((sum, item) => sum + item.amount, 0);
+  const totalDebtors = debtorDetails.reduce((sum, item) => sum + item.amount, 0);
+  const regularOperatingExpenses = expenseDetails.reduce((sum, item) => sum + item.amount, 0);
+  
+  // Net Operating Expenses = Regular Expenses + Debtors - Creditors
+  const totalOperatingExpenses = regularOperatingExpenses + totalDebtors - totalCreditors;
   const totalExpenses = totalCOGS + totalOperatingExpenses;
   const netProfit = totalRevenue - totalExpenses;
 
@@ -130,7 +157,17 @@ export default function ProfitLoss() {
       [""],
       ["OPERATING EXPENSES (from Expenses & Other)"],
       ...expenseDetails.map(item => [`${item.type}: ${item.name}`, item.amount]),
-      ["Total Operating Expenses", totalOperatingExpenses],
+      ["Subtotal Expenses", regularOperatingExpenses],
+      [""],
+      ["DEBTORS (+) - Adds to Expenses"],
+      ...debtorDetails.map(item => [item.name, item.amount]),
+      ["Total Debtors", totalDebtors],
+      [""],
+      ["CREDITORS (-) - Reduces from Expenses"],
+      ...creditorDetails.map(item => [item.name, `-${item.amount}`]),
+      ["Total Creditors", `-${totalCreditors}`],
+      [""],
+      ["Net Operating Expenses (Expenses + Debtors - Creditors)", totalOperatingExpenses],
       [""],
       ["Total Expenses", totalExpenses],
       [""],
@@ -166,7 +203,17 @@ export default function ProfitLoss() {
       [""],
       ["OPERATING EXPENSES (from Expenses & Other)"],
       ...expenseDetails.map(item => [`${item.type}: ${item.name}`, item.amount]),
-      ["Total Operating Expenses", totalOperatingExpenses],
+      ["Subtotal Expenses", regularOperatingExpenses],
+      [""],
+      ["DEBTORS (+) - Adds to Expenses"],
+      ...debtorDetails.map(item => [item.name, item.amount]),
+      ["Total Debtors", totalDebtors],
+      [""],
+      ["CREDITORS (-) - Reduces from Expenses"],
+      ...creditorDetails.map(item => [item.name, -item.amount]),
+      ["Total Creditors", -totalCreditors],
+      [""],
+      ["Net Operating Expenses (Expenses + Debtors - Creditors)", totalOperatingExpenses],
       [""],
       ["Total Expenses", totalExpenses],
       [""],
@@ -225,7 +272,7 @@ export default function ProfitLoss() {
       </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-sm text-muted-foreground">Total Revenue</div>
@@ -246,8 +293,20 @@ export default function ProfitLoss() {
         </Card>
         <Card>
           <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground">Operating Expenses</div>
-            <div className="text-2xl font-bold text-red-600">{totalOperatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-sm text-muted-foreground">Expenses</div>
+            <div className="text-2xl font-bold text-red-600">{regularOperatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-sky-200">
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Debtors (+)</div>
+            <div className="text-2xl font-bold text-sky-600">+{totalDebtors.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card className="border-rose-200">
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Creditors (-)</div>
+            <div className="text-2xl font-bold text-rose-600">-{totalCreditors.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
           </CardContent>
         </Card>
         <Card>
@@ -359,7 +418,55 @@ export default function ProfitLoss() {
                   ))
                 )}
                 <TableRow className="font-bold">
-                  <TableCell>Total Operating Expenses</TableCell>
+                  <TableCell>Subtotal Expenses</TableCell>
+                  <TableCell className="text-right">{regularOperatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                </TableRow>
+
+                {/* Debtors Section - Adds to Expenses */}
+                <TableRow className="bg-sky-50 dark:bg-sky-950 font-bold">
+                  <TableCell colSpan={2} className="pt-4">DEBTORS (+) - Money Owed to Us (Adds to Expenses)</TableCell>
+                </TableRow>
+                {debtorDetails.length === 0 ? (
+                  <TableRow>
+                    <TableCell className="pl-8 text-muted-foreground" colSpan={2}>No debtors</TableCell>
+                  </TableRow>
+                ) : (
+                  debtorDetails.map((item, idx) => (
+                    <TableRow key={`debtor-${idx}`}>
+                      <TableCell className="pl-8">{item.name}</TableCell>
+                      <TableCell className="text-right text-sky-600">+{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+                <TableRow className="font-bold">
+                  <TableCell>Total Debtors</TableCell>
+                  <TableCell className="text-right text-sky-600">+{totalDebtors.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                </TableRow>
+
+                {/* Creditors Section - Reduces from Expenses */}
+                <TableRow className="bg-rose-50 dark:bg-rose-950 font-bold">
+                  <TableCell colSpan={2} className="pt-4">CREDITORS (-) - Money We Owe (Reduces from Expenses)</TableCell>
+                </TableRow>
+                {creditorDetails.length === 0 ? (
+                  <TableRow>
+                    <TableCell className="pl-8 text-muted-foreground" colSpan={2}>No creditors</TableCell>
+                  </TableRow>
+                ) : (
+                  creditorDetails.map((item, idx) => (
+                    <TableRow key={`creditor-${idx}`}>
+                      <TableCell className="pl-8">{item.name}</TableCell>
+                      <TableCell className="text-right text-rose-600">-{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+                <TableRow className="font-bold">
+                  <TableCell>Total Creditors</TableCell>
+                  <TableCell className="text-right text-rose-600">-{totalCreditors.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                </TableRow>
+
+                {/* Net Operating Expenses */}
+                <TableRow className="font-bold">
+                  <TableCell>Net Operating Expenses (Subtotal + Debtors - Creditors)</TableCell>
                   <TableCell className="text-right">{totalOperatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
                 
