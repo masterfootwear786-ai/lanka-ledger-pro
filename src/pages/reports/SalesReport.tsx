@@ -23,12 +23,24 @@ interface SalesData {
   status: string;
 }
 
+interface ChequeDetail {
+  chequeNo: string;
+  chequeDate: string;
+  amount: number;
+  bank: string;
+  branch: string;
+  holder: string;
+  status?: string;
+}
+
 interface ReceiptData {
   receipt_no: string;
   receipt_date: string;
   customer_name: string;
   amount: number;
   reference: string;
+  paymentMethod: 'Cash' | 'Cheque' | 'Multiple Cheques';
+  cheques: ChequeDetail[];
 }
 
 interface ReturnData {
@@ -38,6 +50,33 @@ interface ReturnData {
   grand_total: number;
   reason: string;
 }
+
+// Helper function to parse cheque details from reference
+const parseChequeReference = (reference: string | null): { paymentMethod: 'Cash' | 'Cheque' | 'Multiple Cheques'; cheques: ChequeDetail[] } => {
+  if (!reference) return { paymentMethod: 'Cash', cheques: [] };
+  
+  try {
+    const parsed = JSON.parse(reference);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const cheques: ChequeDetail[] = parsed.map((c: any) => ({
+        chequeNo: c.chequeNo || '',
+        chequeDate: c.chequeDate || '',
+        amount: c.amount || 0,
+        bank: c.bank || '',
+        branch: c.branch || '',
+        holder: c.holder || '',
+        status: c.status || 'pending'
+      }));
+      return {
+        paymentMethod: cheques.length > 1 ? 'Multiple Cheques' : 'Cheque',
+        cheques
+      };
+    }
+  } catch {
+    // Not JSON, treat as cash payment
+  }
+  return { paymentMethod: 'Cash', cheques: [] };
+};
 
 export default function SalesReport() {
   const { user } = useAuth();
@@ -139,13 +178,18 @@ export default function SalesReport() {
         status: inv.status || 'draft'
       })) || []);
 
-      setReceiptsData(receiptsRes.data?.map(rec => ({
-        receipt_no: rec.receipt_no,
-        receipt_date: rec.receipt_date,
-        customer_name: rec.contacts?.name || 'Unknown',
-        amount: rec.amount || 0,
-        reference: rec.reference || ''
-      })) || []);
+      setReceiptsData(receiptsRes.data?.map(rec => {
+        const { paymentMethod, cheques } = parseChequeReference(rec.reference);
+        return {
+          receipt_no: rec.receipt_no,
+          receipt_date: rec.receipt_date,
+          customer_name: rec.contacts?.name || 'Unknown',
+          amount: rec.amount || 0,
+          reference: rec.reference || '',
+          paymentMethod,
+          cheques
+        };
+      }) || []);
 
       setReturnsData(returnsRes.data?.map(ret => ({
         return_note_no: ret.return_note_no,
@@ -208,11 +252,11 @@ export default function SalesReport() {
       'Document No': rec.receipt_no,
       'Date': rec.receipt_date,
       'Customer': rec.customer_name,
-      'Subtotal': '',
-      'Tax': '',
-      'Discount': '',
       'Total': rec.amount,
-      'Status': rec.reference
+      'Payment Method': rec.paymentMethod,
+      'Cheque Details': rec.cheques.length > 0 
+        ? rec.cheques.map(c => `#${c.chequeNo} - ${c.bank} (${c.amount}) [${c.status || 'pending'}]`).join('; ')
+        : '-'
     }));
 
     const returnExport = returnsData.map(ret => ({
@@ -249,11 +293,11 @@ export default function SalesReport() {
       'Document No': rec.receipt_no,
       'Date': rec.receipt_date,
       'Customer': rec.customer_name,
-      'Subtotal': '',
-      'Tax': '',
-      'Discount': '',
       'Total': rec.amount,
-      'Status': rec.reference
+      'Payment Method': rec.paymentMethod,
+      'Cheque Details': rec.cheques.length > 0 
+        ? rec.cheques.map(c => `#${c.chequeNo} - ${c.bank} (${c.amount}) [${c.status || 'pending'}]`).join('; ')
+        : '-'
     }));
 
     const returnExport = returnsData.map(ret => ({
@@ -310,15 +354,18 @@ export default function SalesReport() {
     
     autoTable(doc, {
       startY: finalY1 + 5,
-      head: [['Receipt No', 'Date', 'Customer', 'Amount', 'Reference']],
+      head: [['Receipt No', 'Date', 'Customer', 'Amount', 'Payment Method', 'Cheque Details']],
       body: receiptsData.map(rec => [
         rec.receipt_no,
         rec.receipt_date,
         rec.customer_name,
         rec.amount.toFixed(2),
-        rec.reference
+        rec.paymentMethod,
+        rec.cheques.length > 0 
+          ? rec.cheques.map(c => `${c.chequeNo} - ${c.bank} (${c.amount.toFixed(2)})`).join(', ')
+          : '-'
       ]),
-      foot: [['', '', 'TOTAL', receiptTotal.toFixed(2), '']],
+      foot: [['', '', 'TOTAL', receiptTotal.toFixed(2), '', '']],
       theme: 'striped',
       headStyles: { fillColor: [39, 174, 96] },
       footStyles: { fillColor: [46, 204, 113], fontStyle: 'bold' }
@@ -534,13 +581,14 @@ export default function SalesReport() {
                   <TableHead>Date</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Reference</TableHead>
+                  <TableHead>Payment Method</TableHead>
+                  <TableHead>Cheque Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {receiptsData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                       No receipts found
                     </TableCell>
                   </TableRow>
@@ -552,13 +600,54 @@ export default function SalesReport() {
                         <TableCell>{rec.receipt_date}</TableCell>
                         <TableCell>{rec.customer_name}</TableCell>
                         <TableCell className="text-right font-medium">{rec.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell>{rec.reference}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            rec.paymentMethod === 'Cash' 
+                              ? 'bg-green-100 text-green-700' 
+                              : rec.paymentMethod === 'Cheque'
+                              ? 'bg-blue-100 text-blue-700'
+                              : 'bg-purple-100 text-purple-700'
+                          }`}>
+                            {rec.paymentMethod}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {rec.cheques.length > 0 ? (
+                            <div className="space-y-1">
+                              {rec.cheques.map((cheque, cIdx) => (
+                                <div key={cIdx} className="text-xs bg-muted/50 rounded p-2 border">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-foreground">#{cheque.chequeNo}</span>
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      cheque.status === 'passed' ? 'bg-green-100 text-green-700' :
+                                      cheque.status === 'returned' ? 'bg-red-100 text-red-700' :
+                                      'bg-orange-100 text-orange-700'
+                                    }`}>
+                                      {cheque.status || 'pending'}
+                                    </span>
+                                  </div>
+                                  <div className="text-muted-foreground mt-1 grid grid-cols-2 gap-x-2">
+                                    <span>Date: {cheque.chequeDate}</span>
+                                    <span>Amount: {cheque.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    <span>Bank: {cheque.bank}</span>
+                                    <span>Branch: {cheque.branch}</span>
+                                  </div>
+                                  {cheque.holder && (
+                                    <div className="text-muted-foreground">Holder: {cheque.holder}</div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="font-bold bg-muted">
                       <TableCell colSpan={3}>TOTAL</TableCell>
                       <TableCell className="text-right">{receiptTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                      <TableCell></TableCell>
+                      <TableCell colSpan={2}></TableCell>
                     </TableRow>
                   </>
                 )}
