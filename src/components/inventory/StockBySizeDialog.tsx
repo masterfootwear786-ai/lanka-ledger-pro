@@ -88,6 +88,10 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (loading) return;
+    
     setLoading(true);
 
     try {
