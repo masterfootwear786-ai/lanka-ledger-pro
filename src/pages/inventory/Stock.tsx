@@ -43,50 +43,47 @@ export default function Stock() {
   const syncStockFromInvoices = async () => {
     setSyncing(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
 
       if (!profile?.company_id) throw new Error("No company assigned");
 
-      // Get all items
-      const { data: items, error: itemsError } = await supabase
-        .from("items")
-        .select("id, code, color")
-        .eq("company_id", profile.company_id)
-        .eq("track_inventory", true);
+      // Fetch invoice lines and existing stock in parallel for speed
+      const [invoiceLinesResult, existingStockResult] = await Promise.all([
+        supabase
+          .from("invoice_lines")
+          .select("item_id, size_39, size_40, size_41, size_42, size_43, size_44, size_45")
+          .is("deleted_at", null),
+        supabase
+          .from("stock_by_size")
+          .select("id, item_id, size, quantity")
+          .eq("company_id", profile.company_id)
+      ]);
 
-      if (itemsError) throw itemsError;
+      if (invoiceLinesResult.error) throw invoiceLinesResult.error;
+      if (existingStockResult.error) throw existingStockResult.error;
 
-      // Create a map of code-color to item_id
-      const itemsMap = new Map();
-      items?.forEach((item) => {
-        const key = `${item.code}-${item.color}`;
-        itemsMap.set(key, item.id);
+      const invoiceLines = invoiceLinesResult.data || [];
+      const existingStock = existingStockResult.data || [];
+
+      // Create lookup map for existing stock records
+      const stockLookup = new Map<string, { id: string; quantity: number }>();
+      existingStock.forEach((stock) => {
+        const key = `${stock.item_id}-${stock.size}`;
+        stockLookup.set(key, { id: stock.id, quantity: stock.quantity });
       });
 
-      // Get all invoice lines
-      const { data: invoiceLines, error: linesError } = await supabase
-        .from("invoice_lines")
-        .select("item_id, size_39, size_40, size_41, size_42, size_43, size_44, size_45")
-        .is("deleted_at", null);
+      // Aggregate all invoice quantities by item_id and size
+      const aggregated = new Map<string, { item_id: string; size: string; totalSold: number }>();
 
-      if (linesError) throw linesError;
-
-      // Aggregate quantities by item and size
-      const stockAdjustments = new Map<string, Map<string, number>>();
-
-      invoiceLines?.forEach((line) => {
+      invoiceLines.forEach((line) => {
         if (!line.item_id) return;
-
-        if (!stockAdjustments.has(line.item_id)) {
-          stockAdjustments.set(line.item_id, new Map());
-        }
-
-        const itemSizes = stockAdjustments.get(line.item_id)!;
 
         const sizes = [
           { size: "39", qty: line.size_39 || 0 },
@@ -100,44 +97,69 @@ export default function Stock() {
 
         sizes.forEach(({ size, qty }) => {
           if (qty > 0) {
-            const current = itemSizes.get(size) || 0;
-            itemSizes.set(size, current + qty);
+            const key = `${line.item_id}-${size}`;
+            const existing = aggregated.get(key);
+            if (existing) {
+              existing.totalSold += qty;
+            } else {
+              aggregated.set(key, { item_id: line.item_id, size, totalSold: qty });
+            }
           }
         });
       });
 
-      // Update stock_by_size table
-      let updatedCount = 0;
-      for (const [itemId, sizes] of stockAdjustments.entries()) {
-        for (const [size, totalSold] of sizes.entries()) {
-          // Get current stock record
-          const { data: stockRecord } = await supabase
-            .from("stock_by_size")
-            .select("quantity, id")
-            .eq("item_id", itemId)
-            .eq("size", size)
-            .eq("company_id", profile.company_id)
-            .maybeSingle();
+      // Prepare batch updates and inserts
+      const updates: { id: string; quantity: number }[] = [];
+      const inserts: { company_id: string; item_id: string; size: string; quantity: number }[] = [];
 
-          if (stockRecord) {
-            // Calculate what the stock should be (assuming initial stock was higher)
-            // We'll just set it to negative if needed
-            const newQuantity = -totalSold;
+      aggregated.forEach(({ item_id, size, totalSold }, key) => {
+        const existingRecord = stockLookup.get(key);
+        const newQuantity = -totalSold;
 
-            await supabase
-              .from("stock_by_size")
-              .update({
-                quantity: newQuantity,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", stockRecord.id);
-
-            updatedCount++;
-          }
+        if (existingRecord) {
+          updates.push({ id: existingRecord.id, quantity: newQuantity });
+        } else {
+          inserts.push({
+            company_id: profile.company_id,
+            item_id,
+            size,
+            quantity: newQuantity,
+          });
         }
+      });
+
+      // Execute batch operations in parallel
+      const batchPromises: Promise<any>[] = [];
+
+      // Batch updates (groups of 50 for performance)
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+        const batch = updates.slice(i, i + BATCH_SIZE);
+        batch.forEach((update) => {
+          batchPromises.push(
+            (async () => {
+              await supabase
+                .from("stock_by_size")
+                .update({ quantity: update.quantity, updated_at: new Date().toISOString() })
+                .eq("id", update.id);
+            })()
+          );
+        });
       }
 
-      toast.success(`Stock synchronized! Updated ${updatedCount} size records based on invoice data.`);
+      // Batch inserts
+      if (inserts.length > 0) {
+        batchPromises.push(
+          (async () => {
+            await supabase.from("stock_by_size").insert(inserts);
+          })()
+        );
+      }
+
+      await Promise.all(batchPromises);
+
+      const totalUpdated = updates.length + inserts.length;
+      toast.success(`Stock synchronized! Updated ${totalUpdated} size records from ${invoiceLines.length} invoice lines.`);
       fetchStock();
     } catch (error: any) {
       toast.error(`Sync failed: ${error.message}`);
