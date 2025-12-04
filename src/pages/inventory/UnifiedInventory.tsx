@@ -115,7 +115,7 @@ export default function UnifiedInventory() {
           size_44,
           size_45,
           totalStock,
-          stockValue: totalStock * (item.purchase_price || 0),
+          stockValue: totalStock * (item.sale_price || 0),
           hasLowStock
         };
       }) || [];
