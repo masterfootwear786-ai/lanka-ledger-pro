@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -17,10 +16,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Calendar, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, MapPin } from "lucide-react";
+import { Plus, Trash2, Calendar, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, MapPin, Copy } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface DailyExpense {
   id?: string;
@@ -43,6 +42,7 @@ interface TurnDailyExpensesDialogProps {
     turn_start_date: string | null;
     turn_end_date: string | null;
     turn_date: string;
+    route?: string;
   } | null;
   companyId: string;
   onExpensesUpdated: () => void;
@@ -58,6 +58,7 @@ export function TurnDailyExpensesDialog({
   const [dailyExpenses, setDailyExpenses] = useState<DailyExpense[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [newExpenseDate, setNewExpenseDate] = useState("");
   const { toast } = useToast();
 
   const fetchDailyExpenses = async () => {
@@ -87,7 +88,6 @@ export function TurnDailyExpensesDialog({
           }))
         );
       } else {
-        // Generate empty rows for date range
         generateDateRows();
       }
     } catch (error: any) {
@@ -130,10 +130,67 @@ export function TurnDailyExpensesDialog({
   useEffect(() => {
     if (open && turn) {
       fetchDailyExpenses();
+      setNewExpenseDate(new Date().toISOString().split("T")[0]);
     }
   }, [open, turn]);
 
-  const handleAddDay = () => {
+  // Add new row for same date (for multiple fuel entries)
+  const handleDuplicateRow = (index: number) => {
+    const sourceRow = dailyExpenses[index];
+    const newRow: DailyExpense = {
+      expense_date: sourceRow.expense_date,
+      expense_fuel: 0,
+      km: 0,
+      expense_food: 0,
+      expense_accommodation: 0,
+      accommodation_city: "",
+      expense_other: 0,
+      notes: "",
+    };
+    
+    const updated = [...dailyExpenses];
+    updated.splice(index + 1, 0, newRow);
+    setDailyExpenses(updated);
+  };
+
+  // Add new expense entry with specific date
+  const handleAddExpenseByDate = () => {
+    if (!newExpenseDate) {
+      toast({
+        title: "Error",
+        description: "Please select a date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newRow: DailyExpense = {
+      expense_date: newExpenseDate,
+      expense_fuel: 0,
+      km: 0,
+      expense_food: 0,
+      expense_accommodation: 0,
+      accommodation_city: "",
+      expense_other: 0,
+      notes: "",
+    };
+
+    // Insert at correct position to maintain date order
+    const updated = [...dailyExpenses];
+    let insertIndex = updated.findIndex(e => e.expense_date > newExpenseDate);
+    if (insertIndex === -1) {
+      insertIndex = updated.length;
+    }
+    updated.splice(insertIndex, 0, newRow);
+    setDailyExpenses(updated);
+
+    toast({
+      title: "Row Added",
+      description: `Expense row added for ${newExpenseDate}`,
+    });
+  };
+
+  const handleAddNextDay = () => {
     const lastDate = dailyExpenses.length > 0 
       ? new Date(dailyExpenses[dailyExpenses.length - 1].expense_date)
       : new Date();
@@ -172,6 +229,16 @@ export function TurnDailyExpensesDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Calculate new date range from expenses
+      let minDate = turn.turn_start_date || turn.turn_date;
+      let maxDate = turn.turn_end_date || turn.turn_date;
+      
+      if (dailyExpenses.length > 0) {
+        const dates = dailyExpenses.map(e => e.expense_date).sort();
+        minDate = dates[0];
+        maxDate = dates[dates.length - 1];
+      }
+
       // Delete existing daily expenses for this turn
       await supabase
         .from("turn_daily_expenses")
@@ -201,7 +268,7 @@ export function TurnDailyExpensesDialog({
         if (error) throw error;
       }
 
-      // Calculate totals and update turn
+      // Calculate totals and update turn (including date range)
       const totalFuel = dailyExpenses.reduce((sum, e) => sum + (e.expense_fuel || 0), 0);
       const totalKm = dailyExpenses.reduce((sum, e) => sum + (e.km || 0), 0);
       const totalFood = dailyExpenses.reduce((sum, e) => sum + (e.expense_food || 0), 0);
@@ -216,6 +283,8 @@ export function TurnDailyExpensesDialog({
           expense_food: totalFood,
           expense_accommodation: totalAccommodation,
           expense_other: totalOther,
+          turn_start_date: minDate,
+          turn_end_date: maxDate,
         })
         .eq("id", turn.id);
 
@@ -241,22 +310,89 @@ export function TurnDailyExpensesDialog({
     other: dailyExpenses.reduce((sum, e) => sum + (e.expense_other || 0), 0),
   };
 
+  const grandTotal = totals.fuel + totals.food + totals.accommodation + totals.other;
+  const totalDays = new Set(dailyExpenses.map(e => e.expense_date)).size;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh]">
+      <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="h-5 w-5" />
             Daily Expenses - {turn?.turn_no}
+            {turn?.route && <span className="text-muted-foreground font-normal">({turn.route})</span>}
           </DialogTitle>
         </DialogHeader>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200">
+            <CardContent className="p-3">
+              <div className="text-xs text-amber-700 dark:text-amber-300">Total Fuel</div>
+              <div className="text-lg font-bold text-amber-900 dark:text-amber-100">
+                {totals.fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-orange-50 dark:bg-orange-950/30 border-orange-200">
+            <CardContent className="p-3">
+              <div className="text-xs text-orange-700 dark:text-orange-300">Total Food</div>
+              <div className="text-lg font-bold text-orange-900 dark:text-orange-100">
+                {totals.food.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-purple-50 dark:bg-purple-950/30 border-purple-200">
+            <CardContent className="p-3">
+              <div className="text-xs text-purple-700 dark:text-purple-300">Total Accommodation</div>
+              <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                {totals.accommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-slate-50 dark:bg-slate-950/30 border-slate-200">
+            <CardContent className="p-3">
+              <div className="text-xs text-slate-700 dark:text-slate-300">Total Other</div>
+              <div className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                {totals.other.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-primary/10 border-primary/30">
+            <CardContent className="p-3">
+              <div className="text-xs text-primary">Grand Total ({totalDays} days)</div>
+              <div className="text-lg font-bold text-primary">
+                {grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Add Expense by Date */}
+        <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg">
+          <span className="text-sm font-medium">Add Expense:</span>
+          <Input
+            type="date"
+            value={newExpenseDate}
+            onChange={(e) => setNewExpenseDate(e.target.value)}
+            className="w-40 h-8"
+          />
+          <Button variant="outline" size="sm" onClick={handleAddExpenseByDate}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add for Date
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleAddNextDay}>
+            <Plus className="mr-1 h-4 w-4" />
+            Add Next Day
+          </Button>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
           </div>
         ) : (
-          <ScrollArea className="max-h-[60vh]">
+          <ScrollArea className="max-h-[45vh]">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -287,7 +423,7 @@ export function TurnDailyExpensesDialog({
                       <MoreHorizontal className="h-4 w-4" /> Other
                     </span>
                   </TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -360,20 +496,31 @@ export function TurnDailyExpensesDialog({
                       />
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveDay(index)}
-                        className="h-8 w-8"
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDuplicateRow(index)}
+                          className="h-7 w-7"
+                          title="Add another entry for same date"
+                        >
+                          <Copy className="h-3 w-3 text-muted-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveDay(index)}
+                          className="h-7 w-7"
+                        >
+                          <Trash2 className="h-3 w-3 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {/* Totals Row */}
                 <TableRow className="bg-muted/30 font-semibold">
-                  <TableCell>Total</TableCell>
+                  <TableCell>Total ({totalDays} days)</TableCell>
                   <TableCell className="text-right">{totals.fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-right">{totals.km.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-right">{totals.food.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
@@ -387,19 +534,13 @@ export function TurnDailyExpensesDialog({
           </ScrollArea>
         )}
 
-        <div className="flex justify-between items-center pt-4 border-t">
-          <Button variant="outline" onClick={handleAddDay}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Day
+        <div className="flex justify-end items-center gap-2 pt-4 border-t">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
           </Button>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
-            </Button>
-          </div>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
