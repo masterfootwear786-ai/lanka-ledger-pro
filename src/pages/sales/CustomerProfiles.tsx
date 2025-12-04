@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Eye, TrendingUp, TrendingDown, DollarSign, Users } from "lucide-react";
+import { Search, Eye, TrendingUp, TrendingDown, DollarSign, Users, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -33,10 +33,12 @@ interface CustomerProfile {
   updated_at: string | null;
   totalInvoiced: number;
   totalPaid: number;
+  totalReturns: number;
   pendingCheques: number;
   pendingChequesCount: number;
   pendingChequesList: PendingCheque[];
   outstanding: number;
+  creditBalance: number;
 }
 
 export default function CustomerProfiles() {
@@ -49,6 +51,7 @@ export default function CustomerProfiles() {
     totalOutstanding: 0,
     totalPendingCheques: 0,
     activeCustomers: 0,
+    totalCreditBalance: 0,
   });
 
   useEffect(() => {
@@ -84,13 +87,23 @@ export default function CustomerProfiles() {
 
       if (receiptsError) throw receiptsError;
 
+      // Fetch return notes for all customers
+      const { data: returnNotesData, error: returnNotesError } = await supabase
+        .from("return_notes")
+        .select("customer_id, grand_total")
+        .is('deleted_at', null);
+
+      if (returnNotesError) throw returnNotesError;
+
       // Process data
       const customerProfiles: CustomerProfile[] = (customersData || []).map(customer => {
         // Calculate totals for this customer
         const customerInvoices = (invoicesData || []).filter(inv => inv.customer_id === customer.id);
         const customerReceipts = (receiptsData || []).filter(rec => rec.customer_id === customer.id);
+        const customerReturns = (returnNotesData || []).filter(rn => rn.customer_id === customer.id);
 
         const totalInvoiced = customerInvoices.reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
+        const totalReturns = customerReturns.reduce((sum, rn) => sum + (rn.grand_total || 0), 0);
         
         // Calculate paid amount and pending cheques
         let cashPayments = 0;
@@ -131,8 +144,12 @@ export default function CustomerProfiles() {
           }
         });
 
-        const totalPaid = cashPayments + passedCheques;
-        const outstanding = totalInvoiced - totalPaid;
+        // Total paid includes cash + passed cheques + returns (returns act as credit)
+        const totalPaid = cashPayments + passedCheques + totalReturns;
+        const rawOutstanding = totalInvoiced - totalPaid;
+        // Credit balance = when customer has overpaid (outstanding is negative)
+        const creditBalance = rawOutstanding < 0 ? Math.abs(rawOutstanding) : 0;
+        const outstanding = Math.max(0, rawOutstanding);
 
         return {
           id: customer.id,
@@ -146,10 +163,12 @@ export default function CustomerProfiles() {
           updated_at: customer.updated_at,
           totalInvoiced,
           totalPaid,
+          totalReturns,
           pendingCheques: pendingChequesTotal,
           pendingChequesCount: pendingChequesList.length,
           pendingChequesList,
           outstanding,
+          creditBalance,
         };
       });
 
@@ -161,6 +180,7 @@ export default function CustomerProfiles() {
         totalOutstanding: customerProfiles.reduce((sum, c) => sum + c.outstanding, 0),
         totalPendingCheques: customerProfiles.reduce((sum, c) => sum + c.pendingCheques, 0),
         activeCustomers: customerProfiles.filter(c => c.active).length,
+        totalCreditBalance: customerProfiles.reduce((sum, c) => sum + c.creditBalance, 0),
       });
 
     } catch (error: any) {
@@ -200,7 +220,7 @@ export default function CustomerProfiles() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
@@ -256,6 +276,20 @@ export default function CustomerProfiles() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className={stats.totalCreditBalance > 0 ? "border-2 border-green-500/30" : ""}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-green-600/10">
+                <CreditCard className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Credit Balance</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(stats.totalCreditBalance)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search */}
@@ -293,9 +327,10 @@ export default function CustomerProfiles() {
                   <TableHead>Location</TableHead>
                   <TableHead className="text-right">Total Invoiced</TableHead>
                   <TableHead className="text-right">Total Paid</TableHead>
+                  <TableHead className="text-right">Returns</TableHead>
                   <TableHead className="text-right">Pending Cheques</TableHead>
                   <TableHead className="text-right">Outstanding</TableHead>
-                  <TableHead>Last Updated</TableHead>
+                  <TableHead className="text-right">Credit Balance</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -303,7 +338,7 @@ export default function CustomerProfiles() {
               <TableBody>
                 {filteredCustomers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center">
+                    <TableCell colSpan={12} className="text-center">
                       No customer profiles found
                     </TableCell>
                   </TableRow>
@@ -319,6 +354,9 @@ export default function CustomerProfiles() {
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(customer.totalInvoiced)}</TableCell>
                       <TableCell className="text-right text-green-600">{formatCurrency(customer.totalPaid)}</TableCell>
+                      <TableCell className="text-right text-purple-600">
+                        {customer.totalReturns > 0 ? formatCurrency(customer.totalReturns) : '-'}
+                      </TableCell>
                       <TableCell className="text-orange-600">
                         {customer.pendingChequesCount > 0 ? (
                           <div className="space-y-1">
@@ -348,10 +386,12 @@ export default function CustomerProfiles() {
                           <span className="text-right block">-</span>
                         )}
                       </TableCell>
-                      <TableCell className={`text-right font-semibold ${customer.outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatCurrency(customer.outstanding)}
+                      <TableCell className={`text-right font-semibold ${customer.outstanding > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+                        {customer.outstanding > 0 ? formatCurrency(customer.outstanding) : '-'}
                       </TableCell>
-                      <TableCell>{formatDate(customer.updated_at)}</TableCell>
+                      <TableCell className={`text-right font-semibold ${customer.creditBalance > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                        {customer.creditBalance > 0 ? formatCurrency(customer.creditBalance) : '-'}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={customer.active ? "default" : "secondary"}>
                           {customer.active ? "Active" : "Inactive"}

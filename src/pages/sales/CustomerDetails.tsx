@@ -31,6 +31,7 @@ export default function CustomerDetails() {
     outstanding: 0,
     toCollect: 0,
     totalReturns: 0,
+    creditBalance: 0,
   });
   const [showStatementDialog, setShowStatementDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
@@ -102,7 +103,10 @@ export default function CustomerDetails() {
       // Total paid = cash + passed cheques + returns (returns act as credit)
       const totalPaid = cashPayments + passedCheques + totalReturns;
       // Outstanding = invoiced - paid (pending cheques don't reduce outstanding)
-      const outstanding = totalInvoiced - totalPaid;
+      const rawOutstanding = totalInvoiced - totalPaid;
+      // Credit balance = when customer has overpaid (outstanding is negative)
+      const creditBalance = rawOutstanding < 0 ? Math.abs(rawOutstanding) : 0;
+      const outstanding = Math.max(0, rawOutstanding);
       // Amount to collect = outstanding - pending cheques (if positive, more needs to be collected)
       const toCollect = Math.max(0, outstanding - pendingCheques);
 
@@ -113,6 +117,7 @@ export default function CustomerDetails() {
         outstanding,
         toCollect,
         totalReturns,
+        creditBalance,
       });
     } catch (error: any) {
       toast.error(error.message);
@@ -396,7 +401,7 @@ export default function CustomerDetails() {
       </div>
 
       {/* Customer Info Cards */}
-      <div className="grid gap-4 md:grid-cols-6">
+      <div className="grid gap-4 md:grid-cols-7">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Invoiced</CardTitle>
@@ -451,6 +456,22 @@ export default function CustomerDetails() {
           </CardContent>
         </Card>
 
+        {/* Credit Balance Card - shows when customer has overpaid */}
+        <Card className={stats.creditBalance > 0 ? "border-2 border-green-500/50 bg-green-500/10" : ""}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Credit Balance</CardTitle>
+            <CreditCard className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${stats.creditBalance > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+              {stats.creditBalance.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {stats.creditBalance > 0 ? "Customer overpaid" : "No credit"}
+            </p>
+          </CardContent>
+        </Card>
+
         <Card className="border-2 border-primary/20 bg-primary/5">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">To Collect</CardTitle>
@@ -459,7 +480,7 @@ export default function CustomerDetails() {
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.toCollect.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {stats.toCollect > 0 ? "Cash/Cheque needed" : "Fully covered"}
+              {stats.creditBalance > 0 ? "Has credit balance" : stats.toCollect > 0 ? "Cash/Cheque needed" : "Fully covered"}
             </p>
           </CardContent>
         </Card>
