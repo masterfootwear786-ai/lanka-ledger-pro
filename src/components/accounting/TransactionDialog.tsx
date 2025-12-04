@@ -204,6 +204,7 @@ export default function TransactionDialog({ open, onOpenChange, transaction, onS
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="COGS">COGS (Cost of Goods Sold)</SelectItem>
                   <SelectItem value="Salary">Salary</SelectItem>
                   <SelectItem value="Rent">Rent</SelectItem>
                   <SelectItem value="Fuel">Fuel</SelectItem>

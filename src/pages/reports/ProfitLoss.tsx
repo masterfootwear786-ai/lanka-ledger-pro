@@ -42,9 +42,9 @@ export default function ProfitLoss() {
     },
   });
 
-  // Fetch expenses from transactions
-  const { data: expensesData, isLoading: loadingExpenses } = useQuery({
-    queryKey: ["profit-loss-expenses", fromDate, toDate],
+  // Fetch ALL transactions from Expenses module
+  const { data: transactionsData, isLoading: loadingTransactions } = useQuery({
+    queryKey: ["profit-loss-transactions", fromDate, toDate],
     queryFn: async () => {
       let query = supabase
         .from("transactions")
@@ -54,10 +54,8 @@ export default function ProfitLoss() {
           transaction_date,
           transaction_type,
           amount,
-          description,
-          account:chart_of_accounts(name)
-        `)
-        .in("transaction_type", ["expense", "cash_out", "withdrawal"]);
+          description
+        `);
 
       if (fromDate) query = query.gte("transaction_date", fromDate);
       if (toDate) query = query.lte("transaction_date", toDate);
@@ -68,63 +66,50 @@ export default function ProfitLoss() {
     },
   });
 
-  // Fetch bills for cost of goods sold
-  const { data: billsData, isLoading: loadingBills } = useQuery({
-    queryKey: ["profit-loss-bills", fromDate, toDate],
-    queryFn: async () => {
-      let query = supabase
-        .from("bills")
-        .select(`
-          id,
-          bill_no,
-          bill_date,
-          grand_total,
-          supplier:contacts(name)
-        `)
-        .eq("posted", true)
-        .is('deleted_at', null);
+  const isLoading = loadingInvoices || loadingTransactions;
 
-      if (fromDate) query = query.gte("bill_date", fromDate);
-      if (toDate) query = query.lte("bill_date", toDate);
-
-      const { data, error } = await query.order("bill_date", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const isLoading = loadingInvoices || loadingExpenses || loadingBills;
-
-  // Calculate revenue details
+  // Calculate revenue details from invoices
   const revenueDetails = invoicesData?.map(inv => ({
     name: `${inv.invoice_no} - ${inv.customer?.name || 'N/A'} (${format(new Date(inv.invoice_date), 'MMM dd, yyyy')})`,
     amount: inv.grand_total || 0,
     date: inv.invoice_date
   })) || [];
 
-  // Calculate expense details
-  const expenseDetails = expensesData?.map(exp => ({
-    name: `${exp.transaction_no} - ${exp.description || exp.account?.name || 'N/A'} (${format(new Date(exp.transaction_date), 'MMM dd, yyyy')})`,
+  // Separate COGS from other expenses (from transactions)
+  const cogsTransactions = transactionsData?.filter(t => t.transaction_type === 'COGS') || [];
+  const expenseTransactions = transactionsData?.filter(t => t.transaction_type !== 'COGS') || [];
+
+  // COGS details from transactions
+  const cogsDetails = cogsTransactions.map(txn => ({
+    name: `${txn.transaction_no} - ${txn.description || 'COGS'} (${format(new Date(txn.transaction_date), 'MMM dd, yyyy')})`,
+    amount: txn.amount || 0,
+    date: txn.transaction_date
+  }));
+
+  // Operating expense details (all non-COGS transactions)
+  const expenseDetails = expenseTransactions.map(exp => ({
+    name: `${exp.transaction_no} - ${exp.description || exp.transaction_type} (${format(new Date(exp.transaction_date), 'MMM dd, yyyy')})`,
     amount: exp.amount || 0,
     date: exp.transaction_date,
     type: exp.transaction_type
-  })) || [];
+  }));
 
-  // Calculate cost of goods sold from bills
-  const cogsDetails = billsData?.map(bill => ({
-    name: `${bill.bill_no} - ${bill.supplier?.name || 'N/A'} (${format(new Date(bill.bill_date), 'MMM dd, yyyy')})`,
-    amount: bill.grand_total || 0,
-    date: bill.bill_date
-  })) || [];
-
-  // Combine all expenses
-  const allExpenses = [...expenseDetails, ...cogsDetails].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  // Group expenses by category
+  const expensesByCategory: Record<string, { items: typeof expenseDetails; total: number }> = {};
+  expenseDetails.forEach(exp => {
+    const category = exp.type || 'Other';
+    if (!expensesByCategory[category]) {
+      expensesByCategory[category] = { items: [], total: 0 };
+    }
+    expensesByCategory[category].items.push(exp);
+    expensesByCategory[category].total += exp.amount;
+  });
 
   const totalRevenue = revenueDetails.reduce((sum, item) => sum + item.amount, 0);
-  const totalExpenses = allExpenses.reduce((sum, item) => sum + item.amount, 0);
-  const grossProfit = totalRevenue;
+  const totalCOGS = cogsDetails.reduce((sum, item) => sum + item.amount, 0);
+  const grossProfit = totalRevenue - totalCOGS;
+  const totalOperatingExpenses = expenseDetails.reduce((sum, item) => sum + item.amount, 0);
+  const totalExpenses = totalCOGS + totalOperatingExpenses;
   const netProfit = totalRevenue - totalExpenses;
 
   const handleExportCSV = () => {
@@ -137,15 +122,15 @@ export default function ProfitLoss() {
       ...revenueDetails.map(item => [item.name, item.amount]),
       ["Total Revenue", totalRevenue],
       [""],
-      ["COST OF GOODS SOLD"],
+      ["COST OF GOODS SOLD (from Expenses & Other)"],
       ...cogsDetails.map(item => [item.name, item.amount]),
-      ["Total COGS", cogsDetails.reduce((sum, item) => sum + item.amount, 0)],
+      ["Total COGS", totalCOGS],
       [""],
-      ["Gross Profit", totalRevenue - cogsDetails.reduce((sum, item) => sum + item.amount, 0)],
+      ["Gross Profit", grossProfit],
       [""],
-      ["OPERATING EXPENSES"],
-      ...expenseDetails.map(item => [item.name, item.amount]),
-      ["Total Operating Expenses", expenseDetails.reduce((sum, item) => sum + item.amount, 0)],
+      ["OPERATING EXPENSES (from Expenses & Other)"],
+      ...expenseDetails.map(item => [`${item.type}: ${item.name}`, item.amount]),
+      ["Total Operating Expenses", totalOperatingExpenses],
       [""],
       ["Total Expenses", totalExpenses],
       [""],
@@ -173,15 +158,15 @@ export default function ProfitLoss() {
       ...revenueDetails.map(item => [item.name, item.amount]),
       ["Total Revenue", totalRevenue],
       [""],
-      ["COST OF GOODS SOLD"],
+      ["COST OF GOODS SOLD (from Expenses & Other)"],
       ...cogsDetails.map(item => [item.name, item.amount]),
-      ["Total COGS", cogsDetails.reduce((sum, item) => sum + item.amount, 0)],
+      ["Total COGS", totalCOGS],
       [""],
-      ["Gross Profit", totalRevenue - cogsDetails.reduce((sum, item) => sum + item.amount, 0)],
+      ["Gross Profit", grossProfit],
       [""],
-      ["OPERATING EXPENSES"],
-      ...expenseDetails.map(item => [item.name, item.amount]),
-      ["Total Operating Expenses", expenseDetails.reduce((sum, item) => sum + item.amount, 0)],
+      ["OPERATING EXPENSES (from Expenses & Other)"],
+      ...expenseDetails.map(item => [`${item.type}: ${item.name}`, item.amount]),
+      ["Total Operating Expenses", totalOperatingExpenses],
       [""],
       ["Total Expenses", totalExpenses],
       [""],
@@ -197,7 +182,6 @@ export default function ProfitLoss() {
 
   const handlePrint = () => {
     window.print();
-    toast.success("Print dialog opened");
   };
 
   return (
@@ -205,7 +189,7 @@ export default function ProfitLoss() {
       <div>
         <h1 className="text-3xl font-bold">{t('reports.profitLoss')}</h1>
         <p className="text-muted-foreground mt-2">
-          Income statement showing revenue, expenses, and net profit
+          Income statement showing revenue, COGS, expenses, and net profit (data from Expenses & Other module)
         </p>
       </div>
 
@@ -240,6 +224,42 @@ export default function ProfitLoss() {
         </CardContent>
       </Card>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Revenue</div>
+            <div className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">COGS</div>
+            <div className="text-2xl font-bold text-orange-600">{totalCOGS.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Gross Profit</div>
+            <div className="text-2xl font-bold text-blue-600">{grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Operating Expenses</div>
+            <div className="text-2xl font-bold text-red-600">{totalOperatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Net {netProfit >= 0 ? 'Profit' : 'Loss'}</div>
+            <div className={`text-2xl font-bold ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {netProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Profit & Loss Statement</CardTitle>
@@ -268,7 +288,7 @@ export default function ProfitLoss() {
               <TableBody>
                 {/* Revenue Section */}
                 <TableRow className="bg-muted font-bold">
-                  <TableCell colSpan={2}>REVENUE</TableCell>
+                  <TableCell colSpan={2}>REVENUE (from Invoices)</TableCell>
                 </TableRow>
                 {revenueDetails.length === 0 ? (
                   <TableRow>
@@ -278,73 +298,81 @@ export default function ProfitLoss() {
                   revenueDetails.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="pl-8">{item.name}</TableCell>
-                      <TableCell className="text-right">{item.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                     </TableRow>
                   ))
                 )}
                 <TableRow className="font-bold">
                   <TableCell>Total Revenue</TableCell>
-                  <TableCell className="text-right">{totalRevenue.toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
                 
                 {/* Cost of Goods Sold Section */}
                 <TableRow className="bg-muted font-bold">
-                  <TableCell colSpan={2} className="pt-6">COST OF GOODS SOLD</TableCell>
+                  <TableCell colSpan={2} className="pt-6">COST OF GOODS SOLD (from Expenses & Other - COGS category)</TableCell>
                 </TableRow>
                 {cogsDetails.length === 0 ? (
                   <TableRow>
-                    <TableCell className="pl-8 text-muted-foreground" colSpan={2}>No COGS data</TableCell>
+                    <TableCell className="pl-8 text-muted-foreground" colSpan={2}>No COGS data - Add COGS entries in Expenses & Other</TableCell>
                   </TableRow>
                 ) : (
                   cogsDetails.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="pl-8">{item.name}</TableCell>
-                      <TableCell className="text-right">{item.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                     </TableRow>
                   ))
                 )}
                 <TableRow className="font-bold">
                   <TableCell>Total COGS</TableCell>
-                  <TableCell className="text-right">{cogsDetails.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{totalCOGS.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
                 
                 {/* Gross Profit */}
                 <TableRow className="font-bold bg-blue-50 dark:bg-blue-950">
                   <TableCell className="pt-4">Gross Profit</TableCell>
-                  <TableCell className="text-right pt-4">{(totalRevenue - cogsDetails.reduce((sum, item) => sum + item.amount, 0)).toLocaleString()}</TableCell>
+                  <TableCell className="text-right pt-4">{grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
                 
-                {/* Operating Expenses Section */}
+                {/* Operating Expenses Section - Grouped by Category */}
                 <TableRow className="bg-muted font-bold">
-                  <TableCell colSpan={2} className="pt-6">OPERATING EXPENSES</TableCell>
+                  <TableCell colSpan={2} className="pt-6">OPERATING EXPENSES (from Expenses & Other)</TableCell>
                 </TableRow>
-                {expenseDetails.length === 0 ? (
+                {Object.keys(expensesByCategory).length === 0 ? (
                   <TableRow>
                     <TableCell className="pl-8 text-muted-foreground" colSpan={2}>No operating expenses</TableCell>
                   </TableRow>
                 ) : (
-                  expenseDetails.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="pl-8">{item.name}</TableCell>
-                      <TableCell className="text-right">{item.amount.toLocaleString()}</TableCell>
-                    </TableRow>
+                  Object.entries(expensesByCategory).map(([category, data]) => (
+                    <>
+                      <TableRow key={category} className="bg-gray-50 dark:bg-gray-900">
+                        <TableCell className="pl-4 font-medium">{category}</TableCell>
+                        <TableCell className="text-right font-medium">{data.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      </TableRow>
+                      {data.items.map((item, idx) => (
+                        <TableRow key={`${category}-${idx}`}>
+                          <TableCell className="pl-12 text-sm">{item.name}</TableCell>
+                          <TableCell className="text-right text-sm">{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        </TableRow>
+                      ))}
+                    </>
                   ))
                 )}
                 <TableRow className="font-bold">
                   <TableCell>Total Operating Expenses</TableCell>
-                  <TableCell className="text-right">{expenseDetails.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}</TableCell>
+                  <TableCell className="text-right">{totalOperatingExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
                 
                 {/* Total Expenses */}
                 <TableRow className="font-bold">
-                  <TableCell className="pt-4">Total Expenses</TableCell>
-                  <TableCell className="text-right pt-4">{totalExpenses.toLocaleString()}</TableCell>
+                  <TableCell className="pt-4">Total Expenses (COGS + Operating)</TableCell>
+                  <TableCell className="text-right pt-4">{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
                 
                 {/* Net Profit/Loss */}
                 <TableRow className={`font-bold text-lg ${netProfit >= 0 ? 'bg-green-50 dark:bg-green-950' : 'bg-red-50 dark:bg-red-950'}`}>
                   <TableCell className="pt-6">NET {netProfit >= 0 ? 'PROFIT' : 'LOSS'}</TableCell>
-                  <TableCell className="text-right pt-6">{netProfit.toLocaleString()}</TableCell>
+                  <TableCell className="text-right pt-6">{netProfit.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
