@@ -154,12 +154,12 @@ export default function Expenses() {
     setIsViewDialogOpen(true);
   };
 
-  // Separate creditor/debtor from expenses
-  const expenseTransactions = transactions.filter(t => t.transaction_type !== 'credit' && t.transaction_type !== 'debit');
+  // Separate creditor/debtor from regular expenses
+  const regularExpenses = transactions.filter(t => t.transaction_type !== 'credit' && t.transaction_type !== 'debit');
   const creditorDebtorTransactions = transactions.filter(t => t.transaction_type === 'credit' || t.transaction_type === 'debit');
 
   // Calculate totals by category (excluding creditor/debtor)
-  const categoryTotals = expenseTransactions.reduce((acc, t) => {
+  const categoryTotals = regularExpenses.reduce((acc, t) => {
     const category = t.transaction_type;
     acc[category] = (acc[category] || 0) + t.amount;
     return acc;
@@ -169,11 +169,14 @@ export default function Expenses() {
   const operatingExpenses = Object.entries(categoryTotals)
     .filter(([key]) => key !== 'COGS')
     .reduce((acc, [, val]) => acc + val, 0);
-  const totalExpenses = cogsTotal + operatingExpenses;
-
+  
   // Creditor/Debtor totals
   const creditorsTotal = creditorDebtorTransactions.filter(t => t.transaction_type === 'credit').reduce((acc, t) => acc + t.amount, 0);
   const debtorsTotal = creditorDebtorTransactions.filter(t => t.transaction_type === 'debit').reduce((acc, t) => acc + t.amount, 0);
+
+  // Total Expenses = Regular Expenses + Debtors - Creditors
+  const baseExpenses = cogsTotal + operatingExpenses;
+  const totalExpenses = baseExpenses + debtorsTotal - creditorsTotal;
 
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch = 
@@ -260,15 +263,15 @@ export default function Expenses() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Wallet className="h-4 w-4" />
-              Total Expenses
+              Net Total
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
+            <div className={`text-2xl font-bold ${totalExpenses >= 0 ? 'text-purple-600' : 'text-green-600'}`}>
               {totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {expenseTransactions.length} entries
+              Expenses + Debtors - Creditors
             </p>
           </CardContent>
         </Card>
@@ -277,15 +280,15 @@ export default function Expenses() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <UserMinus className="h-4 w-4" />
-              Total Creditors
+              Creditors (-) 
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-rose-600">
-              {creditorsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              -{creditorsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Money we owe
+              Reduces from expenses
             </p>
           </CardContent>
         </Card>
@@ -294,15 +297,15 @@ export default function Expenses() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <UserPlus className="h-4 w-4" />
-              Total Debtors
+              Debtors (+)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-sky-600">
-              {debtorsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              +{debtorsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Money owed to us
+              Adds to expenses
             </p>
           </CardContent>
         </Card>
