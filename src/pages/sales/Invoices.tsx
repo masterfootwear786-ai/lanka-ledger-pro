@@ -298,7 +298,7 @@ export default function Invoices() {
               <div class="info-box">
                 <div class="info-title">Bill To:</div>
                 <div class="customer-name">${invoice.customer?.name || 'N/A'}</div>
-                ${invoice.customer?.area ? `<div class="customer-detail">${invoice.customer.area}${invoice.customer?.district ? `, ${invoice.customer.district}` : ''}</div>` : ''}
+                ${invoice.customer?.area ? `<div class="customer-detail">${invoice.customer.area}</div>` : ''}
                 ${invoice.customer?.phone ? `<div class="customer-phone"><span>Tel:</span> <strong>${invoice.customer.phone}</strong></div>` : ''}
               </div>
               <div class="info-box">
@@ -672,7 +672,7 @@ export default function Invoices() {
                   <div className="space-y-2">
                     <div className="font-semibold text-lg">{selectedInvoice.customer?.name || "N/A"}</div>
                     {selectedInvoice.customer?.area && (
-                      <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}{selectedInvoice.customer?.district ? `, ${selectedInvoice.customer.district}` : ''}</div>
+                      <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}</div>
                     )}
                     {selectedInvoice.customer?.phone && (
                       <div className="text-sm flex items-center gap-2">
