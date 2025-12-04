@@ -425,39 +425,66 @@ export default function CustomerDetails() {
           <CardTitle>Contact Information</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-3">
-              {customer.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{customer.email}</span>
-                </div>
-              )}
-              {customer.phone && (
-                <div className="flex items-center gap-2">
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="space-y-4">
+              <div>
+                <span className="text-sm text-muted-foreground">Shop Name</span>
+                <div className="font-medium text-lg">{customer.name}</div>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Contact No</span>
+                <div className="flex items-center gap-2 font-medium">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{customer.phone}</span>
+                  {customer.phone || "N/A"}
                 </div>
-              )}
-              {customer.address && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <span>{customer.address}</span>
+              </div>
+              {customer.whatsapp && (
+                <div>
+                  <span className="text-sm text-muted-foreground">WhatsApp</span>
+                  <div className="font-medium">{customer.whatsapp}</div>
                 </div>
               )}
             </div>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <span className="text-sm text-muted-foreground">Credit Limit:</span>
+                <span className="text-sm text-muted-foreground">City</span>
+                <div className="font-medium">{customer.area || "N/A"}</div>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">District</span>
+                <div className="font-medium">{customer.district || "N/A"}</div>
+              </div>
+              {customer.address && (
+                <div>
+                  <span className="text-sm text-muted-foreground">Address</span>
+                  <div className="flex items-center gap-2 font-medium">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    {customer.address}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="space-y-4">
+              {customer.email && (
+                <div>
+                  <span className="text-sm text-muted-foreground">Email</span>
+                  <div className="flex items-center gap-2 font-medium">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    {customer.email}
+                  </div>
+                </div>
+              )}
+              <div>
+                <span className="text-sm text-muted-foreground">Credit Limit</span>
                 <div className="font-medium">{customer.credit_limit?.toLocaleString() || "N/A"}</div>
               </div>
               <div>
-                <span className="text-sm text-muted-foreground">Payment Terms:</span>
+                <span className="text-sm text-muted-foreground">Payment Terms</span>
                 <div className="font-medium">{customer.payment_terms || 0} days</div>
               </div>
               {customer.tax_number && (
                 <div>
-                  <span className="text-sm text-muted-foreground">Tax Number:</span>
+                  <span className="text-sm text-muted-foreground">Tax Number</span>
                   <div className="font-medium">{customer.tax_number}</div>
                 </div>
               )}
