@@ -315,12 +315,32 @@ export default function Receipts() {
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">Loading...</TableCell>
                 </TableRow>
-              ) : receipts.length === 0 ? (
+              ) : receipts.filter((receipt) => {
+                if (!searchTerm) return true;
+                const search = searchTerm.toLowerCase();
+                return (
+                  receipt.receipt_no?.toLowerCase().includes(search) ||
+                  receipt.customer?.name?.toLowerCase().includes(search) ||
+                  receipt.customer?.area?.toLowerCase().includes(search) ||
+                  receipt.reference?.toLowerCase().includes(search) ||
+                  receipt.amount?.toString().includes(search)
+                );
+              }).length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center">No receipts found</TableCell>
                 </TableRow>
               ) : (
-                receipts.map((receipt) => (
+                receipts.filter((receipt) => {
+                  if (!searchTerm) return true;
+                  const search = searchTerm.toLowerCase();
+                  return (
+                    receipt.receipt_no?.toLowerCase().includes(search) ||
+                    receipt.customer?.name?.toLowerCase().includes(search) ||
+                    receipt.customer?.area?.toLowerCase().includes(search) ||
+                    receipt.reference?.toLowerCase().includes(search) ||
+                    receipt.amount?.toString().includes(search)
+                  );
+                }).map((receipt) => (
                   <TableRow key={receipt.id}>
                     <TableCell className="font-mono font-medium">{receipt.receipt_no}</TableCell>
                     <TableCell>{new Date(receipt.receipt_date).toLocaleDateString()}</TableCell>
