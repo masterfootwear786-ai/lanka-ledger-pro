@@ -61,9 +61,17 @@ export default function Orders() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Not authenticated");
+        return;
+      }
+      
       const { data: profileData } = await supabase
         .from('profiles')
         .select('company_id')
+        .eq('id', user.id)
         .single();
 
       if (!profileData?.company_id) {
@@ -79,7 +87,7 @@ export default function Orders() {
         `)
         .eq('company_id', profileData.company_id)
         .is('deleted_at', null)
-        .order('order_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setOrders(data || []);
