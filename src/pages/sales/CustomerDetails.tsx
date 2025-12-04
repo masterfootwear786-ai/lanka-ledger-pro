@@ -26,6 +26,7 @@ export default function CustomerDetails() {
   const [stats, setStats] = useState({
     totalInvoiced: 0,
     totalPaid: 0,
+    pendingCheques: 0,
     outstanding: 0,
   });
   const [showStatementDialog, setShowStatementDialog] = useState(false);
@@ -60,28 +61,45 @@ export default function CustomerDetails() {
       setInvoices(invoicesData || []);
       setReceipts(receiptsData || []);
 
-      // Calculate statistics considering returned cheques
+      // Calculate statistics considering cheque statuses
       const totalInvoiced = invoicesData?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
       
-      // Calculate total paid, deducting returned cheques
-      let totalReturnedCheques = 0;
+      // Calculate payments by type
+      let cashPayments = 0;
+      let passedCheques = 0;
+      let pendingCheques = 0;
+      let returnedCheques = 0;
+      
       receiptsData?.forEach((rec) => {
         const cheques = parseChequeDetails(rec.reference);
-        if (cheques) {
+        if (cheques && cheques.length > 0) {
+          // Receipt has cheque payments
           cheques.forEach((cheque: any) => {
-            if (cheque.status === 'returned') {
-              totalReturnedCheques += cheque.amount || 0;
+            const amount = cheque.amount || 0;
+            if (cheque.status === 'passed') {
+              passedCheques += amount;
+            } else if (cheque.status === 'returned') {
+              returnedCheques += amount;
+            } else {
+              // Pending
+              pendingCheques += amount;
             }
           });
+        } else {
+          // Cash payment
+          cashPayments += rec.amount || 0;
         }
       });
       
-      const totalPaid = (receiptsData?.reduce((sum, rec) => sum + (rec.amount || 0), 0) || 0) - totalReturnedCheques;
+      // Total paid = only cash + passed cheques
+      const totalPaid = cashPayments + passedCheques;
+      // Outstanding = invoiced - paid (pending cheques don't reduce outstanding)
       const outstanding = totalInvoiced - totalPaid;
 
       setStats({
         totalInvoiced,
         totalPaid,
+        pendingCheques,
         outstanding,
       });
     } catch (error: any) {
@@ -143,39 +161,56 @@ export default function CustomerDetails() {
   };
 
   const getTransactions = () => {
-    const allTransactions = [
+    const allTransactions: any[] = [
       ...invoices.map((inv) => ({
         date: inv.invoice_date,
         type: "Invoice",
         reference: inv.invoice_no,
         debit: inv.grand_total || 0,
         credit: 0,
+        status: null,
+        details: null,
       })),
       ...receipts.flatMap((rec) => {
         const cheques = parseChequeDetails(rec.reference);
-        const transactions = [];
+        const transactions: any[] = [];
         
-        // Add the receipt transaction
-        transactions.push({
-          date: rec.receipt_date,
-          type: "Receipt",
-          reference: rec.receipt_no,
-          debit: 0,
-          credit: rec.amount || 0,
-        });
-        
-        // Add returned cheques as separate debit transactions
-        if (cheques) {
+        if (cheques && cheques.length > 0) {
+          // Add individual cheque transactions
           cheques.forEach((cheque: any) => {
-            if (cheque.status === 'returned') {
-              transactions.push({
-                date: rec.receipt_date,
-                type: "Returned Cheque",
-                reference: `${rec.receipt_no} - Cheque #${cheque.cheque_no}`,
-                debit: cheque.amount || 0,
-                credit: 0,
-              });
-            }
+            const status = cheque.status || 'pending';
+            const isPassed = status === 'passed';
+            const isReturned = status === 'returned';
+            const isPending = !isPassed && !isReturned;
+            
+            transactions.push({
+              date: cheque.cheque_date || rec.receipt_date,
+              type: isPending ? "Cheque (Pending)" : isReturned ? "Cheque (Returned)" : "Cheque (Cleared)",
+              reference: `${rec.receipt_no} - #${cheque.cheque_no}`,
+              debit: isReturned ? (cheque.amount || 0) : 0,
+              credit: isPassed ? (cheque.amount || 0) : (isPending ? 0 : 0),
+              status: status,
+              details: {
+                chequeNo: cheque.cheque_no,
+                bank: cheque.cheque_bank,
+                branch: cheque.cheque_branch,
+                holder: cheque.cheque_holder,
+                date: cheque.cheque_date,
+                amount: cheque.amount,
+              },
+              pendingAmount: isPending ? (cheque.amount || 0) : 0,
+            });
+          });
+        } else {
+          // Cash payment
+          transactions.push({
+            date: rec.receipt_date,
+            type: "Cash Payment",
+            reference: rec.receipt_no,
+            debit: 0,
+            credit: rec.amount || 0,
+            status: 'cash',
+            details: null,
           });
         }
         
@@ -339,7 +374,7 @@ export default function CustomerDetails() {
       </div>
 
       {/* Customer Info Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Invoiced</CardTitle>
@@ -356,7 +391,19 @@ export default function CustomerDetails() {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalPaid.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.totalPaid.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">Cash + Cleared Cheques</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Cheques</CardTitle>
+            <Clock className="h-4 w-4 text-orange-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-500">{stats.pendingCheques.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting clearance</p>
           </CardContent>
         </Card>
 
@@ -366,7 +413,8 @@ export default function CustomerDetails() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.outstanding.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-600">{stats.outstanding.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">Invoiced - Paid</p>
           </CardContent>
         </Card>
       </div>
