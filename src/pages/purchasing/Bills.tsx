@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BillDialog } from "@/components/bills/BillDialog";
+import { BillPreviewDialog } from "@/components/bills/BillPreviewDialog";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useActionPassword } from "@/hooks/useActionPassword";
 import {
@@ -31,6 +33,8 @@ export default function Bills() {
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState<any>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewBill, setPreviewBill] = useState<any>(null);
   const {
     isPasswordDialogOpen,
     setIsPasswordDialogOpen,
@@ -242,6 +246,26 @@ export default function Bills() {
     bill.supplier_ref?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleStatusChange = async (billId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("bills")
+        .update({ status: newStatus as any })
+        .eq("id", billId);
+      
+      if (error) throw error;
+      toast.success("Status updated");
+      fetchBills();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handlePreview = (bill: any) => {
+    setPreviewBill(bill);
+    setPreviewOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -313,12 +337,27 @@ export default function Bills() {
                         {bill.grand_total?.toLocaleString() || '-'}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={bill.status === "paid" ? "default" : "secondary"}>
-                          {bill.status || 'draft'}
-                        </Badge>
+                        <Select
+                          value={bill.status || 'draft'}
+                          onValueChange={(value) => handleStatusChange(bill.id, value)}
+                        >
+                          <SelectTrigger className="w-28 h-8">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="draft">Draft</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                            <SelectItem value="void">Void</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => handlePreview(bill)} title="Preview">
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(bill)} title="Edit">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -379,6 +418,12 @@ export default function Bills() {
         onPasswordVerify={verifyPassword}
         title="Delete Bill"
         description="Please enter the action password to delete this bill."
+      />
+
+      <BillPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        bill={previewBill}
       />
     </div>
   );
