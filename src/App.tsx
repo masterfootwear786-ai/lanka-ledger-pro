@@ -30,6 +30,7 @@ import Customers from "./pages/sales/Customers";
 import CustomerDetails from "./pages/sales/CustomerDetails";
 import CustomerProfiles from "./pages/sales/CustomerProfiles";
 import CustomerOutstanding from "./pages/sales/CustomerOutstanding";
+import ReturnNotes from "./pages/sales/ReturnNotes";
 import Orders from "./pages/sales/Orders";
 import Receipts from "./pages/sales/Receipts";
 import Cheques from "./pages/sales/Cheques";
@@ -105,6 +106,7 @@ const App = () => (
               <Route path="/sales/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
               <Route path="/sales/customer-profiles" element={<ProtectedRoute><CustomerProfiles /></ProtectedRoute>} />
               <Route path="/sales/customer-outstanding" element={<ProtectedRoute><CustomerOutstanding /></ProtectedRoute>} />
+              <Route path="/sales/return-notes" element={<ProtectedRoute><ReturnNotes /></ProtectedRoute>} />
               {/* Purchasing routes */}
               <Route path="/purchasing/bills" element={<ProtectedRoute><Bills /></ProtectedRoute>} />
               <Route path="/purchasing/debit-notes" element={<ProtectedRoute><DebitNotes /></ProtectedRoute>} />

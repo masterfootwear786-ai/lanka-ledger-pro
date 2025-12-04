@@ -1802,6 +1802,184 @@ export type Database = {
           },
         ]
       }
+      return_note_lines: {
+        Row: {
+          created_at: string | null
+          description: string
+          id: string
+          item_id: string | null
+          line_no: number
+          line_total: number
+          quantity: number
+          return_note_id: string
+          size_39: number | null
+          size_40: number | null
+          size_41: number | null
+          size_42: number | null
+          size_43: number | null
+          size_44: number | null
+          size_45: number | null
+          tax_amount: number | null
+          tax_code: string | null
+          tax_rate: number | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description: string
+          id?: string
+          item_id?: string | null
+          line_no: number
+          line_total?: number
+          quantity?: number
+          return_note_id: string
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
+          tax_amount?: number | null
+          tax_code?: string | null
+          tax_rate?: number | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string
+          id?: string
+          item_id?: string | null
+          line_no?: number
+          line_total?: number
+          quantity?: number
+          return_note_id?: string
+          size_39?: number | null
+          size_40?: number | null
+          size_41?: number | null
+          size_42?: number | null
+          size_43?: number | null
+          size_44?: number | null
+          size_45?: number | null
+          tax_amount?: number | null
+          tax_code?: string | null
+          tax_rate?: number | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_note_lines_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_note_lines_return_note_id_fkey"
+            columns: ["return_note_id"]
+            isOneToOne: false
+            referencedRelation: "return_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      return_notes: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          currency_code: string | null
+          customer_id: string
+          deleted_at: string | null
+          deleted_by: string | null
+          exchange_rate: number | null
+          grand_total: number | null
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          posted: boolean | null
+          posted_at: string | null
+          reason: string | null
+          return_date: string
+          return_note_no: string
+          status: Database["public"]["Enums"]["document_status"] | null
+          subtotal: number | null
+          tax_total: number | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          currency_code?: string | null
+          customer_id: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          exchange_rate?: number | null
+          grand_total?: number | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          posted?: boolean | null
+          posted_at?: string | null
+          reason?: string | null
+          return_date?: string
+          return_note_no: string
+          status?: Database["public"]["Enums"]["document_status"] | null
+          subtotal?: number | null
+          tax_total?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          currency_code?: string | null
+          customer_id?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          exchange_rate?: number | null
+          grand_total?: number | null
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          posted?: boolean | null
+          posted_at?: string | null
+          reason?: string | null
+          return_date?: string
+          return_note_no?: string
+          status?: Database["public"]["Enums"]["document_status"] | null
+          subtotal?: number | null
+          tax_total?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_notes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_notes_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_notes_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_order_lines: {
         Row: {
           account_id: string | null
