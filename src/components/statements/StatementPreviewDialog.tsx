@@ -33,6 +33,7 @@ interface StatsData {
   totalPaid: number;
   pendingCheques?: number;
   outstanding: number;
+  toCollect?: number;
 }
 
 interface StatementPreviewDialogProps {
@@ -189,7 +190,7 @@ export default function StatementPreviewDialog({
                 <CardTitle className="text-lg">Account Summary</CardTitle>
               </CardHeader>
               <CardContent className="pt-4">
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-5 gap-4">
                   <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
                     <p className="text-xs uppercase text-blue-600 font-semibold mb-1">Total Invoiced</p>
                     <p className="text-xl font-bold text-blue-700">
@@ -212,6 +213,15 @@ export default function StatementPreviewDialog({
                     <p className="text-xs uppercase text-red-600 font-semibold mb-1">Outstanding</p>
                     <p className="text-xl font-bold text-red-700">
                       {stats.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg border-2 border-purple-300">
+                    <p className="text-xs uppercase text-purple-600 font-semibold mb-1">To Collect</p>
+                    <p className="text-xl font-bold text-purple-700">
+                      {(stats.toCollect || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-purple-500 mt-1">
+                      {(stats.toCollect || 0) > 0 ? "Cash/Cheque" : "Covered"}
                     </p>
                   </div>
                 </div>

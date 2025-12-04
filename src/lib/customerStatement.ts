@@ -17,6 +17,7 @@ interface StatsData {
   totalPaid: number;
   pendingCheques?: number;
   outstanding: number;
+  toCollect?: number;
 }
 
 interface Transaction {
@@ -139,6 +140,7 @@ export const generateCustomerStatement = (
       ["Total Paid (Cash + Cleared Cheques)", stats.totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Pending Cheques", (stats.pendingCheques || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Outstanding Balance", stats.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })],
+      ["To Collect (Cash/Cheque)", (stats.toCollect || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
     ];
     
     autoTable(doc, {
@@ -173,6 +175,12 @@ export const generateCustomerStatement = (
         if (data.row.index === 1 && data.section === 'body') {
           data.cell.styles.fillColor = [240, 253, 244];
           data.cell.styles.textColor = [22, 101, 52];
+        }
+        // Highlight to collect row (purple)
+        if (data.row.index === 4 && data.section === 'body') {
+          data.cell.styles.fillColor = [243, 232, 255];
+          data.cell.styles.textColor = [126, 34, 206];
+          data.cell.styles.fontStyle = 'bold';
         }
       }
     });
