@@ -190,6 +190,74 @@ export default function Trash() {
       const table = tableMap[type];
       if (!table) throw new Error("Invalid item type");
 
+      // For invoices, we need to deduct stock again since it was restored when deleted
+      if (type === "invoice") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('company_id')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (!profile?.company_id) throw new Error("No company assigned to user");
+
+        // Fetch invoice lines
+        const { data: invoiceLines } = await supabase
+          .from("invoice_lines")
+          .select("*")
+          .eq("invoice_id", id);
+
+        // Deduct stock for each line item
+        if (invoiceLines && invoiceLines.length > 0) {
+          for (const line of invoiceLines) {
+            if (!line.item_id) continue;
+
+            const sizes = [
+              { size: '39', qty: line.size_39 || 0 },
+              { size: '40', qty: line.size_40 || 0 },
+              { size: '41', qty: line.size_41 || 0 },
+              { size: '42', qty: line.size_42 || 0 },
+              { size: '43', qty: line.size_43 || 0 },
+              { size: '44', qty: line.size_44 || 0 },
+              { size: '45', qty: line.size_45 || 0 },
+            ];
+
+            for (const { size, qty } of sizes) {
+              if (qty <= 0) continue;
+
+              const { data: existingStock } = await supabase
+                .from('stock_by_size')
+                .select('id, quantity')
+                .eq('item_id', line.item_id)
+                .eq('size', size)
+                .eq('company_id', profile.company_id)
+                .maybeSingle();
+
+              if (existingStock) {
+                // Deduct the quantity
+                const newQuantity = (existingStock.quantity || 0) - qty;
+                await supabase
+                  .from('stock_by_size')
+                  .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
+                  .eq('id', existingStock.id);
+              } else {
+                // Create stock record with negative quantity
+                await supabase
+                  .from('stock_by_size')
+                  .insert({
+                    company_id: profile.company_id,
+                    item_id: line.item_id,
+                    size,
+                    quantity: -qty,
+                  });
+              }
+            }
+          }
+        }
+      }
+
       const { error } = await supabase
         .from(table as any)
         .update({ deleted_at: null, deleted_by: null })
