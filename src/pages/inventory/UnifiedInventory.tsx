@@ -394,22 +394,23 @@ export default function UnifiedInventory() {
                       <TableRow>
                         <TableHead className="w-32">Art No</TableHead>
                         <TableHead className="w-32">Color</TableHead>
-                        <TableHead className="w-48">Name</TableHead>
-                        <TableHead className="text-center w-20">39</TableHead>
-                        <TableHead className="text-center w-20">40</TableHead>
-                        <TableHead className="text-center w-20">41</TableHead>
-                        <TableHead className="text-center w-20">42</TableHead>
-                        <TableHead className="text-center w-20">43</TableHead>
-                        <TableHead className="text-center w-20">44</TableHead>
-                        <TableHead className="text-center w-20">45</TableHead>
-                        <TableHead className="text-right w-24">Total</TableHead>
+                        <TableHead className="w-40">Name</TableHead>
+                        <TableHead className="text-center w-16">39</TableHead>
+                        <TableHead className="text-center w-16">40</TableHead>
+                        <TableHead className="text-center w-16">41</TableHead>
+                        <TableHead className="text-center w-16">42</TableHead>
+                        <TableHead className="text-center w-16">43</TableHead>
+                        <TableHead className="text-center w-16">44</TableHead>
+                        <TableHead className="text-center w-16">45</TableHead>
+                        <TableHead className="text-right w-20">Total</TableHead>
+                        <TableHead className="text-right w-28">Value (LKR)</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredInventory.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={13} className="text-center">
+                          <TableCell colSpan={14} className="text-center">
                             No items found
                           </TableCell>
                         </TableRow>
@@ -503,8 +504,11 @@ export default function UnifiedInventory() {
                               />
                               {item.size_45 > 0 && item.size_45 < item.low_stock_threshold && ' ⚠️'}
                             </TableCell>
-                            <TableCell className={`text-right font-semibold ${item.hasLowStock ? 'text-destructive' : ''}`}>
+                            <TableCell className={`text-right font-semibold ${item.totalStock < 0 ? 'text-red-600' : item.hasLowStock ? 'text-destructive' : ''}`}>
                               {item.totalStock}
+                            </TableCell>
+                            <TableCell className={`text-right font-semibold ${item.stockValue < 0 ? 'text-red-600' : ''}`}>
+                              {item.stockValue < 0 ? '-' : ''}{Math.abs(item.stockValue).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="text-right">
                               <Button
