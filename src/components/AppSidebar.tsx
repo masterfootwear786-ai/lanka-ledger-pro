@@ -68,6 +68,7 @@ export function AppSidebar() {
 
   const accountingItems = [
     { title: 'Expenses and Other', url: '/accounting/expenses' },
+    { title: 'Turns', url: '/accounting/turns' },
   ];
 
   const reportItems = [
