@@ -234,18 +234,35 @@ export default function Receipts() {
     
     if (cheques) {
       return (
-        <div className="flex flex-wrap items-center gap-1">
-          <span className="text-sm text-muted-foreground">Cheque:</span>
+        <div className="space-y-1">
           {cheques.map((cheque: any, index: number) => (
-            <Badge
-              key={index}
-              variant="outline"
-              className="cursor-pointer hover:bg-accent"
+            <div 
+              key={index} 
+              className="text-xs border-b border-border/50 pb-1 last:border-0 cursor-pointer hover:bg-accent/50 rounded px-1"
               onClick={() => handleChequeClick(receipt.reference)}
             >
-              <CreditCard className="h-3 w-3 mr-1" />
-              {cheque.cheque_no}
-            </Badge>
+              <div className="flex justify-between gap-2">
+                <span className="font-medium flex items-center gap-1">
+                  <CreditCard className="h-3 w-3 text-orange-500" />
+                  {cheque.cheque_no}
+                </span>
+                <span className="text-orange-600 font-semibold">
+                  {Number(cheque.amount || 0).toLocaleString()}
+                </span>
+              </div>
+              <div className="text-muted-foreground">
+                {cheque.cheque_date ? new Date(cheque.cheque_date).toLocaleDateString() : '-'}
+                {cheque.cheque_bank ? ` • ${cheque.cheque_bank}` : ''}
+                {cheque.status && cheque.status !== 'pending' && (
+                  <Badge 
+                    variant={cheque.status === 'passed' ? 'default' : 'destructive'} 
+                    className="ml-2 text-[10px] px-1 py-0"
+                  >
+                    {cheque.status}
+                  </Badge>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       );
