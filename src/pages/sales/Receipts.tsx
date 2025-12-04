@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit, Trash2, CreditCard, Printer } from "lucide-react";
+import { Plus, Search, Edit, Trash2, CreditCard, Printer, Eye, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReceiptDialog } from "@/components/receipts/ReceiptDialog";
+import { ReceiptPreviewDialog } from "@/components/receipts/ReceiptPreviewDialog";
 import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,6 +25,8 @@ export default function Receipts() {
   const [receiptToDelete, setReceiptToDelete] = useState<any>(null);
   const [chequeDetailsOpen, setChequeDetailsOpen] = useState(false);
   const [selectedCheques, setSelectedCheques] = useState<any[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewReceipt, setPreviewReceipt] = useState<any>(null);
 
   useEffect(() => {
     fetchReceipts();
@@ -365,7 +368,18 @@ export default function Receipts() {
                     <TableCell>{renderReference(receipt)}</TableCell>
                     <TableCell className="text-right">{receipt.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => {
+                            setPreviewReceipt(receipt);
+                            setPreviewOpen(true);
+                          }}
+                          title="Preview"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
                         <Button 
                           variant="ghost" 
                           size="sm"
@@ -456,6 +470,12 @@ export default function Receipts() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ReceiptPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        receipt={previewReceipt}
+      />
     </div>
   );
 }
