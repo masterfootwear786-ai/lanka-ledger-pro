@@ -637,9 +637,6 @@ export default function Invoices() {
                       {companyData?.phone && <span>Tel: {companyData.phone}</span>}
                       {companyData?.email && <span>Email: {companyData.email}</span>}
                     </div>
-                    {companyData?.tax_number && (
-                      <div className="text-sm text-muted-foreground">Tax No: {companyData.tax_number}</div>
-                    )}
                   </div>
                 </div>
                 <div className="text-right">
