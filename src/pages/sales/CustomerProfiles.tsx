@@ -327,11 +327,14 @@ export default function CustomerProfiles() {
                             </div>
                             <div className="space-y-0.5">
                               {customer.pendingChequesList.slice(0, 3).map((cheque, idx) => (
-                                <div key={idx} className="text-xs flex justify-between gap-2">
-                                  <span className="text-muted-foreground truncate max-w-[100px]">
-                                    {cheque.chequeNo} - {cheque.bank}
-                                  </span>
-                                  <span>{formatCurrency(cheque.amount)}</span>
+                                <div key={idx} className="text-xs border-b border-border/50 pb-1">
+                                  <div className="flex justify-between gap-2">
+                                    <span className="font-medium">{cheque.chequeNo}</span>
+                                    <span>{formatCurrency(cheque.amount)}</span>
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    {cheque.date !== '-' ? formatDate(cheque.date) : '-'} {cheque.bank && cheque.bank !== '-' ? `• ${cheque.bank}` : ''}
+                                  </div>
                                 </div>
                               ))}
                               {customer.pendingChequesCount > 3 && (
