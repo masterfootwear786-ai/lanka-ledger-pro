@@ -28,6 +28,8 @@ interface Turn {
   id: string;
   turn_no: string;
   turn_date: string;
+  turn_start_date: string | null;
+  turn_end_date: string | null;
   vehicle_number: string;
   route: string;
   expenses: number;
@@ -49,7 +51,8 @@ export default function Turns() {
   const [turnToDelete, setTurnToDelete] = useState<Turn | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
-    turn_date: new Date().toISOString().split("T")[0],
+    turn_start_date: new Date().toISOString().split("T")[0],
+    turn_end_date: "",
     vehicle_number: "",
     route: "",
     expense_fuel: "",
@@ -105,7 +108,8 @@ export default function Turns() {
     if (turn) {
       setSelectedTurn(turn);
       setFormData({
-        turn_date: turn.turn_date,
+        turn_start_date: turn.turn_start_date || turn.turn_date,
+        turn_end_date: turn.turn_end_date || "",
         vehicle_number: turn.vehicle_number,
         route: turn.route,
         expense_fuel: (turn.expense_fuel || 0).toString(),
@@ -119,7 +123,8 @@ export default function Turns() {
     } else {
       setSelectedTurn(null);
       setFormData({
-        turn_date: new Date().toISOString().split("T")[0],
+        turn_start_date: new Date().toISOString().split("T")[0],
+        turn_end_date: "",
         vehicle_number: "",
         route: "",
         expense_fuel: "",
@@ -171,7 +176,9 @@ export default function Turns() {
       const turnData = {
         company_id: profile.company_id,
         turn_no: turnNo,
-        turn_date: formData.turn_date,
+        turn_date: formData.turn_start_date,
+        turn_start_date: formData.turn_start_date,
+        turn_end_date: formData.turn_end_date || null,
         vehicle_number: formData.vehicle_number,
         route: formData.route,
         expense_fuel: parseFloat(formData.expense_fuel) || 0,
@@ -374,7 +381,8 @@ export default function Turns() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Date</TableHead>
+                <TableHead className="font-semibold">Start Date</TableHead>
+                <TableHead className="font-semibold">End Date</TableHead>
                 <TableHead className="font-semibold">Turn No</TableHead>
                 <TableHead className="font-semibold">Vehicle</TableHead>
                 <TableHead className="font-semibold">Route</TableHead>
@@ -389,7 +397,7 @@ export default function Turns() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8">
+                  <TableCell colSpan={11} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
                       Loading...
@@ -398,7 +406,7 @@ export default function Turns() {
                 </TableRow>
               ) : filteredTurns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                     No turns found
                   </TableCell>
                 </TableRow>
@@ -406,7 +414,10 @@ export default function Turns() {
                 filteredTurns.map((turn) => (
                   <TableRow key={turn.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium">
-                      {new Date(turn.turn_date).toLocaleDateString()}
+                      {turn.turn_start_date ? new Date(turn.turn_start_date).toLocaleDateString() : new Date(turn.turn_date).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {turn.turn_end_date ? new Date(turn.turn_end_date).toLocaleDateString() : '-'}
                     </TableCell>
                     <TableCell className="font-mono text-sm">{turn.turn_no}</TableCell>
                     <TableCell>
@@ -463,15 +474,27 @@ export default function Turns() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="turn_date">Date</Label>
+                <Label htmlFor="turn_start_date">Start Date</Label>
                 <Input
-                  id="turn_date"
+                  id="turn_start_date"
                   type="date"
-                  value={formData.turn_date}
-                  onChange={(e) => setFormData({ ...formData, turn_date: e.target.value })}
+                  value={formData.turn_start_date}
+                  onChange={(e) => setFormData({ ...formData, turn_start_date: e.target.value })}
                   required
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="turn_end_date">End Date</Label>
+                <Input
+                  id="turn_end_date"
+                  type="date"
+                  value={formData.turn_end_date}
+                  onChange={(e) => setFormData({ ...formData, turn_end_date: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vehicle_number">Vehicle Number</Label>
                 <Input
@@ -482,17 +505,6 @@ export default function Turns() {
                   required
                 />
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="route">Route</Label>
-              <Input
-                id="route"
-                value={formData.route}
-                onChange={(e) => setFormData({ ...formData, route: e.target.value })}
-                placeholder="e.g. Colombo - Kandy"
-                required
-              />
             </div>
 
             <div className="space-y-3">

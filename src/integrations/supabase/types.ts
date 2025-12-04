@@ -2488,7 +2488,9 @@ export type Database = {
           notes: string | null
           route: string
           turn_date: string
+          turn_end_date: string | null
           turn_no: string
+          turn_start_date: string | null
           updated_at: string | null
           updated_by: string | null
           vehicle_number: string
@@ -2508,7 +2510,9 @@ export type Database = {
           notes?: string | null
           route: string
           turn_date?: string
+          turn_end_date?: string | null
           turn_no: string
+          turn_start_date?: string | null
           updated_at?: string | null
           updated_by?: string | null
           vehicle_number: string
@@ -2528,7 +2532,9 @@ export type Database = {
           notes?: string | null
           route?: string
           turn_date?: string
+          turn_end_date?: string | null
           turn_no?: string
+          turn_start_date?: string | null
           updated_at?: string | null
           updated_by?: string | null
           vehicle_number?: string
