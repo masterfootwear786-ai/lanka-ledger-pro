@@ -216,11 +216,13 @@ export function ReceiptPreviewDialog({ open, onOpenChange, receipt }: ReceiptPre
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const contentWidth = pageWidth - margin * 2;
     let y = 20;
 
-    // Company header
+    // Company header with border bottom
     if (company?.name) {
-      doc.setFontSize(18);
+      doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
       doc.text(company.name, pageWidth / 2, y, { align: "center" });
       y += 8;
@@ -228,105 +230,204 @@ export function ReceiptPreviewDialog({ open, onOpenChange, receipt }: ReceiptPre
     if (company?.address) {
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
       doc.text(company.address, pageWidth / 2, y, { align: "center" });
       y += 5;
     }
     if (company?.phone || company?.email) {
-      doc.text(`${company?.phone || ''} ${company?.email ? '| ' + company.email : ''}`, pageWidth / 2, y, { align: "center" });
-      y += 10;
+      doc.text(`${company?.phone ? 'Tel: ' + company.phone : ''} ${company?.email ? '| ' + company.email : ''}`, pageWidth / 2, y, { align: "center" });
+      y += 8;
     }
 
     // Title
-    doc.setFontSize(20);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(24);
     doc.setFont("helvetica", "bold");
     doc.text("RECEIPT", pageWidth / 2, y, { align: "center" });
-    y += 15;
-
-    // Receipt details
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    
-    const leftCol = 20;
-    const rightCol = pageWidth / 2 + 10;
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Receipt No:", leftCol, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(receipt?.receipt_no || '', leftCol + 35, y);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Date:", rightCol, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(new Date(receipt?.receipt_date).toLocaleDateString(), rightCol + 20, y);
     y += 8;
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Customer:", leftCol, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(receipt?.customer?.name || '', leftCol + 35, y);
-
-    doc.setFont("helvetica", "bold");
-    doc.text("Payment:", rightCol, y);
-    doc.setFont("helvetica", "normal");
-    doc.text(getPaymentMethod(), rightCol + 25, y);
+    // Header border line
+    doc.setDrawColor(51, 51, 51);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y, pageWidth - margin, y);
     y += 15;
 
-    // Amount box
-    doc.setFillColor(245, 245, 245);
-    doc.rect(leftCol, y - 5, pageWidth - 40, 20, "F");
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Amount Received:", leftCol + 5, y + 5);
-    doc.setFontSize(16);
-    doc.setTextColor(34, 197, 94);
-    doc.text(`Rs. ${receipt?.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, pageWidth - 25, y + 5, { align: "right" });
-    doc.setTextColor(0, 0, 0);
-    y += 25;
+    // Info boxes - 2x2 grid
+    const boxWidth = (contentWidth - 10) / 2;
+    const boxHeight = 20;
 
-    // Cheque details
+    // Box 1 - Receipt No
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.3);
+    doc.rect(margin, y, boxWidth, boxHeight);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("Receipt No", margin + 5, y + 7);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(receipt?.receipt_no || '', margin + 5, y + 15);
+
+    // Box 2 - Date
+    doc.setDrawColor(220, 220, 220);
+    doc.rect(margin + boxWidth + 10, y, boxWidth, boxHeight);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("Date", margin + boxWidth + 15, y + 7);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(new Date(receipt?.receipt_date).toLocaleDateString(), margin + boxWidth + 15, y + 15);
+
+    y += boxHeight + 5;
+
+    // Box 3 - Customer
+    doc.setDrawColor(220, 220, 220);
+    doc.rect(margin, y, boxWidth, boxHeight);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("Customer", margin + 5, y + 7);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(receipt?.customer?.name || '', margin + 5, y + 15);
+
+    // Box 4 - Payment Method
+    doc.setDrawColor(220, 220, 220);
+    doc.rect(margin + boxWidth + 10, y, boxWidth, boxHeight);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("Payment Method", margin + boxWidth + 15, y + 7);
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(getPaymentMethod(), margin + boxWidth + 15, y + 15);
+
+    y += boxHeight + 10;
+
+    // Amount box with background
+    doc.setFillColor(245, 245, 245);
+    doc.rect(margin, y, contentWidth, 28, "F");
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 100, 100);
+    doc.text("Amount Received", pageWidth / 2, y + 10, { align: "center" });
+    doc.setFontSize(26);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(34, 197, 94);
+    doc.text(`Rs. ${receipt?.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth / 2, y + 22, { align: "center" });
+    doc.setTextColor(0, 0, 0);
+    y += 38;
+
+    // Cheque details section
     if (cheques.length > 0) {
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("Cheque Details", leftCol, y);
+      doc.text("Cheque Details", margin, y);
+      y += 3;
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, pageWidth - margin, y);
       y += 8;
 
       cheques.forEach((cheque: any) => {
-        doc.setFontSize(10);
+        // Cheque card with border
+        const chequeBoxHeight = 30;
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.3);
+        doc.rect(margin, y, contentWidth, chequeBoxHeight);
+
+        // 3 columns per row
+        const colWidth = contentWidth / 3;
+        
+        // Row 1
+        doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        doc.text(`Cheque No: ${cheque.cheque_no}  |  Date: ${new Date(cheque.cheque_date).toLocaleDateString()}  |  Amount: Rs. ${Number(cheque.amount).toLocaleString()}`, leftCol, y);
-        y += 5;
-        doc.text(`Bank: ${cheque.cheque_bank || '-'}  |  Branch: ${cheque.cheque_branch || '-'}  |  Holder: ${cheque.cheque_holder || '-'}`, leftCol, y);
-        y += 8;
+        doc.setTextColor(100, 100, 100);
+        doc.text("Cheque No", margin + 5, y + 6);
+        doc.text("Date", margin + colWidth + 5, y + 6);
+        doc.text("Amount", margin + colWidth * 2 + 5, y + 6);
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        doc.text(cheque.cheque_no || '', margin + 5, y + 12);
+        doc.text(new Date(cheque.cheque_date).toLocaleDateString(), margin + colWidth + 5, y + 12);
+        doc.text(`Rs. ${Number(cheque.amount).toLocaleString()}`, margin + colWidth * 2 + 5, y + 12);
+
+        // Row 2
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 100, 100);
+        doc.text("Bank", margin + 5, y + 20);
+        doc.text("Branch", margin + colWidth + 5, y + 20);
+        doc.text("Holder", margin + colWidth * 2 + 5, y + 20);
+
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text(cheque.cheque_bank || '-', margin + 5, y + 26);
+        doc.text(cheque.cheque_branch || '-', margin + colWidth + 5, y + 26);
+        doc.text(cheque.cheque_holder || '-', margin + colWidth * 2 + 5, y + 26);
+
+        y += chequeBoxHeight + 5;
       });
       y += 5;
     }
 
-    // Invoice allocations
+    // Invoice allocations table
     if (allocations.length > 0) {
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setFont("helvetica", "bold");
-      doc.text("Invoice Allocations", leftCol, y);
+      doc.text("Invoice Allocations", margin, y);
+      y += 3;
+      doc.setDrawColor(220, 220, 220);
+      doc.line(margin, y, pageWidth - margin, y);
       y += 8;
 
+      // Table header
+      doc.setFillColor(245, 245, 245);
+      doc.rect(margin, y, contentWidth, 10, "F");
+      doc.setDrawColor(220, 220, 220);
+      doc.rect(margin, y, contentWidth, 10);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Invoice No", margin + 5, y + 7);
+      doc.text("Date", margin + 70, y + 7);
+      doc.text("Amount", pageWidth - margin - 5, y + 7, { align: "right" });
+      y += 10;
+
+      // Table rows
       allocations.forEach((alloc: any) => {
+        doc.setDrawColor(220, 220, 220);
+        doc.rect(margin, y, contentWidth, 10);
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
-        doc.text(`${alloc.invoices?.invoice_no || ''} - ${alloc.invoices?.invoice_date ? new Date(alloc.invoices.invoice_date).toLocaleDateString() : ''} - Rs. ${alloc.amount?.toLocaleString()}`, leftCol, y);
-        y += 6;
+        doc.text(alloc.invoices?.invoice_no || '', margin + 5, y + 7);
+        doc.text(alloc.invoices?.invoice_date ? new Date(alloc.invoices.invoice_date).toLocaleDateString() : '', margin + 70, y + 7);
+        doc.text(`Rs. ${alloc.amount?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, pageWidth - margin - 5, y + 7, { align: "right" });
+        y += 10;
       });
+      y += 10;
     }
 
-    // Notes
+    // Notes section
     if (receipt?.notes) {
-      y += 10;
+      doc.setFillColor(249, 249, 249);
+      const notesLines = doc.splitTextToSize(receipt.notes, contentWidth - 10);
+      const notesHeight = 15 + notesLines.length * 5;
+      doc.rect(margin, y, contentWidth, notesHeight, "F");
+      
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      doc.text("Notes:", leftCol, y);
-      y += 6;
+      doc.text("Notes", margin + 5, y + 8);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
-      const splitNotes = doc.splitTextToSize(receipt.notes, pageWidth - 40);
-      doc.text(splitNotes, leftCol, y);
+      doc.text(notesLines, margin + 5, y + 15);
     }
 
     doc.save(`Receipt-${receipt?.receipt_no}.pdf`);
