@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,22 +12,40 @@ import { useAuth } from "@/contexts/AuthContext";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-interface PurchaseData {
+interface BillData {
   bill_no: string;
   bill_date: string;
   supplier_name: string;
   subtotal: number;
   tax_total: number;
+  discount: number;
   grand_total: number;
   status: string;
 }
 
+interface PaymentData {
+  payment_no: string;
+  payment_date: string;
+  supplier_name: string;
+  amount: number;
+  reference: string;
+}
+
+interface DebitNoteData {
+  debit_note_no: string;
+  debit_date: string;
+  supplier_name: string;
+  grand_total: number;
+  reason: string;
+}
+
 export default function PurchasingReport() {
-  const { t } = useTranslation();
   const { user } = useAuth();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [purchaseData, setPurchaseData] = useState<PurchaseData[]>([]);
+  const [billsData, setBillsData] = useState<BillData[]>([]);
+  const [paymentsData, setPaymentsData] = useState<PaymentData[]>([]);
+  const [debitNotesData, setDebitNotesData] = useState<DebitNoteData[]>([]);
   const [loading, setLoading] = useState(false);
 
   const generateReport = async () => {
@@ -47,46 +64,96 @@ export default function PurchasingReport() {
         return;
       }
 
-      let query = supabase
+      // Fetch Bills
+      let billQuery = supabase
         .from('bills')
         .select(`
           bill_no,
           bill_date,
           subtotal,
           tax_total,
+          discount,
           grand_total,
           status,
-          contacts!bills_supplier_id_fkey (
-            name
-          )
+          contacts!bills_supplier_id_fkey (name)
         `)
         .eq('company_id', profile.company_id)
-        .eq('posted', true)
         .is('deleted_at', null)
         .order('bill_date', { ascending: false });
 
-      if (startDate) {
-        query = query.gte('bill_date', startDate);
-      }
-      if (endDate) {
-        query = query.lte('bill_date', endDate);
-      }
+      if (startDate) billQuery = billQuery.gte('bill_date', startDate);
+      if (endDate) billQuery = billQuery.lte('bill_date', endDate);
 
-      const { data, error } = await query;
+      // Fetch Payments
+      let paymentQuery = supabase
+        .from('bill_payments')
+        .select(`
+          payment_no,
+          payment_date,
+          amount,
+          reference,
+          contacts!bill_payments_supplier_id_fkey (name)
+        `)
+        .eq('company_id', profile.company_id)
+        .is('deleted_at', null)
+        .order('payment_date', { ascending: false });
 
-      if (error) throw error;
+      if (startDate) paymentQuery = paymentQuery.gte('payment_date', startDate);
+      if (endDate) paymentQuery = paymentQuery.lte('payment_date', endDate);
 
-      const formatted = data?.map(bill => ({
+      // Fetch Debit Notes
+      let debitNoteQuery = supabase
+        .from('debit_notes')
+        .select(`
+          debit_note_no,
+          debit_date,
+          grand_total,
+          reason,
+          contacts!debit_notes_supplier_id_fkey (name)
+        `)
+        .eq('company_id', profile.company_id)
+        .order('debit_date', { ascending: false });
+
+      if (startDate) debitNoteQuery = debitNoteQuery.gte('debit_date', startDate);
+      if (endDate) debitNoteQuery = debitNoteQuery.lte('debit_date', endDate);
+
+      const [billsRes, paymentsRes, debitNotesRes] = await Promise.all([
+        billQuery,
+        paymentQuery,
+        debitNoteQuery
+      ]);
+
+      if (billsRes.error) throw billsRes.error;
+      if (paymentsRes.error) throw paymentsRes.error;
+      if (debitNotesRes.error) throw debitNotesRes.error;
+
+      setBillsData(billsRes.data?.map(bill => ({
         bill_no: bill.bill_no,
         bill_date: bill.bill_date,
         supplier_name: bill.contacts?.name || 'Unknown',
         subtotal: bill.subtotal || 0,
         tax_total: bill.tax_total || 0,
+        discount: bill.discount || 0,
         grand_total: bill.grand_total || 0,
         status: bill.status || 'draft'
-      })) || [];
+      })) || []);
 
-      setPurchaseData(formatted);
+      setPaymentsData(paymentsRes.data?.map(pay => ({
+        payment_no: pay.payment_no,
+        payment_date: pay.payment_date,
+        supplier_name: pay.contacts?.name || 'Unknown',
+        amount: pay.amount || 0,
+        reference: pay.reference || ''
+      })) || []);
+
+      setDebitNotesData(debitNotesRes.data?.map(dn => ({
+        debit_note_no: dn.debit_note_no,
+        debit_date: dn.debit_date,
+        supplier_name: dn.contacts?.name || 'Unknown',
+        grand_total: dn.grand_total || 0,
+        reason: dn.reason || ''
+      })) || []);
+
       toast.success('Purchasing report generated successfully');
     } catch (error) {
       console.error('Error generating report:', error);
@@ -104,47 +171,103 @@ export default function PurchasingReport() {
   }, []);
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (startDate && endDate && user) {
       generateReport();
     }
-  }, []);
+  }, [startDate, endDate, user]);
 
-  const totals = purchaseData.reduce(
-    (acc, purchase) => ({
-      subtotal: acc.subtotal + purchase.subtotal,
-      tax: acc.tax + purchase.tax_total,
-      total: acc.total + purchase.grand_total
+  const billTotals = billsData.reduce(
+    (acc, bill) => ({
+      subtotal: acc.subtotal + bill.subtotal,
+      tax: acc.tax + bill.tax_total,
+      discount: acc.discount + bill.discount,
+      total: acc.total + bill.grand_total
     }),
-    { subtotal: 0, tax: 0, total: 0 }
+    { subtotal: 0, tax: 0, discount: 0, total: 0 }
   );
 
+  const paymentTotal = paymentsData.reduce((acc, pay) => acc + pay.amount, 0);
+  const debitNoteTotal = debitNotesData.reduce((acc, dn) => acc + dn.grand_total, 0);
+
   const handleExportCSV = () => {
-    const data = purchaseData.map(purchase => ({
-      'Bill No': purchase.bill_no,
-      'Date': purchase.bill_date,
-      'Supplier': purchase.supplier_name,
-      'Subtotal': purchase.subtotal,
-      'Tax': purchase.tax_total,
-      'Total': purchase.grand_total,
-      'Status': purchase.status
+    const billExport = billsData.map(bill => ({
+      'Type': 'Bill',
+      'Document No': bill.bill_no,
+      'Date': bill.bill_date,
+      'Supplier': bill.supplier_name,
+      'Subtotal': bill.subtotal,
+      'Tax': bill.tax_total,
+      'Discount': bill.discount,
+      'Total': bill.grand_total,
+      'Status': bill.status
     }));
 
-    exportToCSV('Purchasing_Report', data);
+    const paymentExport = paymentsData.map(pay => ({
+      'Type': 'Payment',
+      'Document No': pay.payment_no,
+      'Date': pay.payment_date,
+      'Supplier': pay.supplier_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': pay.amount,
+      'Status': pay.reference
+    }));
+
+    const debitNoteExport = debitNotesData.map(dn => ({
+      'Type': 'Debit Note',
+      'Document No': dn.debit_note_no,
+      'Date': dn.debit_date,
+      'Supplier': dn.supplier_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': dn.grand_total,
+      'Status': dn.reason
+    }));
+
+    exportToCSV('Purchasing_Report', [...billExport, ...paymentExport, ...debitNoteExport]);
     toast.success('Report exported to CSV');
   };
 
   const handleExportExcel = () => {
-    const data = purchaseData.map(purchase => ({
-      'Bill No': purchase.bill_no,
-      'Date': purchase.bill_date,
-      'Supplier': purchase.supplier_name,
-      'Subtotal': purchase.subtotal,
-      'Tax': purchase.tax_total,
-      'Total': purchase.grand_total,
-      'Status': purchase.status
+    const billExport = billsData.map(bill => ({
+      'Type': 'Bill',
+      'Document No': bill.bill_no,
+      'Date': bill.bill_date,
+      'Supplier': bill.supplier_name,
+      'Subtotal': bill.subtotal,
+      'Tax': bill.tax_total,
+      'Discount': bill.discount,
+      'Total': bill.grand_total,
+      'Status': bill.status
     }));
 
-    exportToExcel('Purchasing_Report', data);
+    const paymentExport = paymentsData.map(pay => ({
+      'Type': 'Payment',
+      'Document No': pay.payment_no,
+      'Date': pay.payment_date,
+      'Supplier': pay.supplier_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': pay.amount,
+      'Status': pay.reference
+    }));
+
+    const debitNoteExport = debitNotesData.map(dn => ({
+      'Type': 'Debit Note',
+      'Document No': dn.debit_note_no,
+      'Date': dn.debit_date,
+      'Supplier': dn.supplier_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': dn.grand_total,
+      'Status': dn.reason
+    }));
+
+    exportToExcel('Purchasing_Report', [...billExport, ...paymentExport, ...debitNoteExport]);
     toast.success('Report exported to Excel');
   };
 
@@ -157,22 +280,68 @@ export default function PurchasingReport() {
     doc.setFontSize(11);
     doc.text(`Period: ${startDate} to ${endDate}`, 14, 32);
 
+    // Bills Table
+    doc.setFontSize(14);
+    doc.text('Bills', 14, 45);
+    
     autoTable(doc, {
-      startY: 40,
-      head: [['Bill No', 'Date', 'Supplier', 'Subtotal', 'Tax', 'Total', 'Status']],
-      body: purchaseData.map(purchase => [
-        purchase.bill_no,
-        purchase.bill_date,
-        purchase.supplier_name,
-        purchase.subtotal.toFixed(2),
-        purchase.tax_total.toFixed(2),
-        purchase.grand_total.toFixed(2),
-        purchase.status
+      startY: 50,
+      head: [['Bill No', 'Date', 'Supplier', 'Subtotal', 'Tax', 'Discount', 'Total']],
+      body: billsData.map(bill => [
+        bill.bill_no,
+        bill.bill_date,
+        bill.supplier_name,
+        bill.subtotal.toFixed(2),
+        bill.tax_total.toFixed(2),
+        bill.discount.toFixed(2),
+        bill.grand_total.toFixed(2)
       ]),
-      foot: [['', '', 'TOTAL', totals.subtotal.toFixed(2), totals.tax.toFixed(2), totals.total.toFixed(2), '']],
+      foot: [['', '', 'TOTAL', billTotals.subtotal.toFixed(2), billTotals.tax.toFixed(2), billTotals.discount.toFixed(2), billTotals.total.toFixed(2)]],
       theme: 'striped',
       headStyles: { fillColor: [231, 76, 60] },
       footStyles: { fillColor: [192, 57, 43], fontStyle: 'bold' }
+    });
+
+    // Payments Table
+    const finalY1 = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.text('Payments', 14, finalY1);
+    
+    autoTable(doc, {
+      startY: finalY1 + 5,
+      head: [['Payment No', 'Date', 'Supplier', 'Amount', 'Reference']],
+      body: paymentsData.map(pay => [
+        pay.payment_no,
+        pay.payment_date,
+        pay.supplier_name,
+        pay.amount.toFixed(2),
+        pay.reference
+      ]),
+      foot: [['', '', 'TOTAL', paymentTotal.toFixed(2), '']],
+      theme: 'striped',
+      headStyles: { fillColor: [39, 174, 96] },
+      footStyles: { fillColor: [46, 204, 113], fontStyle: 'bold' }
+    });
+
+    // Debit Notes Table
+    const finalY2 = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.text('Debit Notes', 14, finalY2);
+    
+    autoTable(doc, {
+      startY: finalY2 + 5,
+      head: [['Debit Note No', 'Date', 'Supplier', 'Total', 'Reason']],
+      body: debitNotesData.map(dn => [
+        dn.debit_note_no,
+        dn.debit_date,
+        dn.supplier_name,
+        dn.grand_total.toFixed(2),
+        dn.reason
+      ]),
+      foot: [['', '', 'TOTAL', debitNoteTotal.toFixed(2), '']],
+      theme: 'striped',
+      headStyles: { fillColor: [155, 89, 182] },
+      footStyles: { fillColor: [142, 68, 173], fontStyle: 'bold' }
     });
 
     doc.save('Purchasing_Report.pdf');
@@ -181,7 +350,6 @@ export default function PurchasingReport() {
 
   const handlePrint = () => {
     window.print();
-    toast.success('Print dialog opened');
   };
 
   return (
@@ -189,7 +357,7 @@ export default function PurchasingReport() {
       <div>
         <h1 className="text-3xl font-bold">Purchasing Report</h1>
         <p className="text-muted-foreground mt-2">
-          Comprehensive purchasing transactions report
+          Comprehensive purchasing report including bills, payments, and debit notes
         </p>
       </div>
 
@@ -227,9 +395,47 @@ export default function PurchasingReport() {
         </CardContent>
       </Card>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Bills</div>
+            <div className="text-2xl font-bold text-red-600">{billTotals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-xs text-muted-foreground">{billsData.length} bills</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Paid</div>
+            <div className="text-2xl font-bold text-green-600">{paymentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-xs text-muted-foreground">{paymentsData.length} payments</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Debit Notes</div>
+            <div className="text-2xl font-bold text-purple-600">{debitNoteTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-xs text-muted-foreground">{debitNotesData.length} notes</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Tax</div>
+            <div className="text-2xl font-bold text-orange-600">{billTotals.tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Outstanding</div>
+            <div className="text-2xl font-bold">{(billTotals.total - paymentTotal - debitNoteTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Bills Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Purchase Transactions</CardTitle>
+          <CardTitle>Bills ({billsData.length})</CardTitle>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-2" />
@@ -259,6 +465,7 @@ export default function PurchasingReport() {
                   <TableHead>Supplier</TableHead>
                   <TableHead className="text-right">Subtotal</TableHead>
                   <TableHead className="text-right">Tax</TableHead>
+                  <TableHead className="text-right">Discount</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -266,40 +473,42 @@ export default function PurchasingReport() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
-                ) : purchaseData.length === 0 ? (
+                ) : billsData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No purchase data found for the selected period
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No bills found
                     </TableCell>
                   </TableRow>
                 ) : (
                   <>
-                    {purchaseData.map((purchase, idx) => (
+                    {billsData.map((bill, idx) => (
                       <TableRow key={idx}>
-                        <TableCell className="font-medium">{purchase.bill_no}</TableCell>
-                        <TableCell>{purchase.bill_date}</TableCell>
-                        <TableCell>{purchase.supplier_name}</TableCell>
-                        <TableCell className="text-right">{purchase.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{purchase.tax_total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right font-medium">{purchase.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="font-medium">{bill.bill_no}</TableCell>
+                        <TableCell>{bill.bill_date}</TableCell>
+                        <TableCell>{bill.supplier_name}</TableCell>
+                        <TableCell className="text-right">{bill.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{bill.tax_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{bill.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right font-medium">{bill.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded text-xs ${
-                            purchase.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                            bill.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                           }`}>
-                            {purchase.status}
+                            {bill.status}
                           </span>
                         </TableCell>
                       </TableRow>
                     ))}
                     <TableRow className="font-bold bg-muted">
                       <TableCell colSpan={3}>TOTAL</TableCell>
-                      <TableCell className="text-right">{totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-right">{totals.tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-right">{totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{billTotals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{billTotals.tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{billTotals.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{billTotals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   </>
@@ -307,26 +516,101 @@ export default function PurchasingReport() {
               </TableBody>
             </Table>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">Total Purchases</div>
-                <div className="text-2xl font-bold">{totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">Total Tax</div>
-                <div className="text-2xl font-bold">{totals.tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">Number of Bills</div>
-                <div className="text-2xl font-bold">{purchaseData.length}</div>
-              </CardContent>
-            </Card>
+      {/* Payments Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Payments ({paymentsData.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Payment No</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Reference</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paymentsData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No payments found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {paymentsData.map((pay, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{pay.payment_no}</TableCell>
+                        <TableCell>{pay.payment_date}</TableCell>
+                        <TableCell>{pay.supplier_name}</TableCell>
+                        <TableCell className="text-right font-medium">{pay.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell>{pay.reference}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-muted">
+                      <TableCell colSpan={3}>TOTAL</TableCell>
+                      <TableCell className="text-right">{paymentTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Debit Notes Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Debit Notes ({debitNotesData.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Debit Note No</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Supplier</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {debitNotesData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No debit notes found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {debitNotesData.map((dn, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{dn.debit_note_no}</TableCell>
+                        <TableCell>{dn.debit_date}</TableCell>
+                        <TableCell>{dn.supplier_name}</TableCell>
+                        <TableCell className="text-right font-medium">{dn.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell>{dn.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-muted">
+                      <TableCell colSpan={3}>TOTAL</TableCell>
+                      <TableCell className="text-right">{debitNoteTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

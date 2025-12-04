@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,16 +18,34 @@ interface SalesData {
   customer_name: string;
   subtotal: number;
   tax_total: number;
+  discount: number;
   grand_total: number;
   status: string;
 }
 
+interface ReceiptData {
+  receipt_no: string;
+  receipt_date: string;
+  customer_name: string;
+  amount: number;
+  reference: string;
+}
+
+interface ReturnData {
+  return_note_no: string;
+  return_date: string;
+  customer_name: string;
+  grand_total: number;
+  reason: string;
+}
+
 export default function SalesReport() {
-  const { t } = useTranslation();
   const { user } = useAuth();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [salesData, setSalesData] = useState<SalesData[]>([]);
+  const [receiptsData, setReceiptsData] = useState<ReceiptData[]>([]);
+  const [returnsData, setReturnsData] = useState<ReturnData[]>([]);
   const [loading, setLoading] = useState(false);
 
   const generateReport = async () => {
@@ -47,46 +64,97 @@ export default function SalesReport() {
         return;
       }
 
-      let query = supabase
+      // Fetch Invoices
+      let invoiceQuery = supabase
         .from('invoices')
         .select(`
           invoice_no,
           invoice_date,
           subtotal,
           tax_total,
+          discount,
           grand_total,
           status,
-          contacts!invoices_customer_id_fkey (
-            name
-          )
+          contacts!invoices_customer_id_fkey (name)
         `)
         .eq('company_id', profile.company_id)
-        .eq('posted', true)
         .is('deleted_at', null)
         .order('invoice_date', { ascending: false });
 
-      if (startDate) {
-        query = query.gte('invoice_date', startDate);
-      }
-      if (endDate) {
-        query = query.lte('invoice_date', endDate);
-      }
+      if (startDate) invoiceQuery = invoiceQuery.gte('invoice_date', startDate);
+      if (endDate) invoiceQuery = invoiceQuery.lte('invoice_date', endDate);
 
-      const { data, error } = await query;
+      // Fetch Receipts
+      let receiptQuery = supabase
+        .from('receipts')
+        .select(`
+          receipt_no,
+          receipt_date,
+          amount,
+          reference,
+          contacts!receipts_customer_id_fkey (name)
+        `)
+        .eq('company_id', profile.company_id)
+        .is('deleted_at', null)
+        .order('receipt_date', { ascending: false });
 
-      if (error) throw error;
+      if (startDate) receiptQuery = receiptQuery.gte('receipt_date', startDate);
+      if (endDate) receiptQuery = receiptQuery.lte('receipt_date', endDate);
 
-      const formatted = data?.map(inv => ({
+      // Fetch Return Notes
+      let returnQuery = supabase
+        .from('return_notes')
+        .select(`
+          return_note_no,
+          return_date,
+          grand_total,
+          reason,
+          contacts!return_notes_customer_id_fkey (name)
+        `)
+        .eq('company_id', profile.company_id)
+        .is('deleted_at', null)
+        .order('return_date', { ascending: false });
+
+      if (startDate) returnQuery = returnQuery.gte('return_date', startDate);
+      if (endDate) returnQuery = returnQuery.lte('return_date', endDate);
+
+      const [invoicesRes, receiptsRes, returnsRes] = await Promise.all([
+        invoiceQuery,
+        receiptQuery,
+        returnQuery
+      ]);
+
+      if (invoicesRes.error) throw invoicesRes.error;
+      if (receiptsRes.error) throw receiptsRes.error;
+      if (returnsRes.error) throw returnsRes.error;
+
+      setSalesData(invoicesRes.data?.map(inv => ({
         invoice_no: inv.invoice_no,
         invoice_date: inv.invoice_date,
         customer_name: inv.contacts?.name || 'Unknown',
         subtotal: inv.subtotal || 0,
         tax_total: inv.tax_total || 0,
+        discount: inv.discount || 0,
         grand_total: inv.grand_total || 0,
         status: inv.status || 'draft'
-      })) || [];
+      })) || []);
 
-      setSalesData(formatted);
+      setReceiptsData(receiptsRes.data?.map(rec => ({
+        receipt_no: rec.receipt_no,
+        receipt_date: rec.receipt_date,
+        customer_name: rec.contacts?.name || 'Unknown',
+        amount: rec.amount || 0,
+        reference: rec.reference || ''
+      })) || []);
+
+      setReturnsData(returnsRes.data?.map(ret => ({
+        return_note_no: ret.return_note_no,
+        return_date: ret.return_date,
+        customer_name: ret.contacts?.name || 'Unknown',
+        grand_total: ret.grand_total || 0,
+        reason: ret.reason || ''
+      })) || []);
+
       toast.success('Sales report generated successfully');
     } catch (error) {
       console.error('Error generating report:', error);
@@ -104,47 +172,103 @@ export default function SalesReport() {
   }, []);
 
   useEffect(() => {
-    if (startDate && endDate) {
+    if (startDate && endDate && user) {
       generateReport();
     }
-  }, []);
+  }, [startDate, endDate, user]);
 
-  const totals = salesData.reduce(
+  const invoiceTotals = salesData.reduce(
     (acc, sale) => ({
       subtotal: acc.subtotal + sale.subtotal,
       tax: acc.tax + sale.tax_total,
+      discount: acc.discount + sale.discount,
       total: acc.total + sale.grand_total
     }),
-    { subtotal: 0, tax: 0, total: 0 }
+    { subtotal: 0, tax: 0, discount: 0, total: 0 }
   );
 
+  const receiptTotal = receiptsData.reduce((acc, rec) => acc + rec.amount, 0);
+  const returnTotal = returnsData.reduce((acc, ret) => acc + ret.grand_total, 0);
+
   const handleExportCSV = () => {
-    const data = salesData.map(sale => ({
-      'Invoice No': sale.invoice_no,
+    const invoiceExport = salesData.map(sale => ({
+      'Type': 'Invoice',
+      'Document No': sale.invoice_no,
       'Date': sale.invoice_date,
       'Customer': sale.customer_name,
       'Subtotal': sale.subtotal,
       'Tax': sale.tax_total,
+      'Discount': sale.discount,
       'Total': sale.grand_total,
       'Status': sale.status
     }));
 
-    exportToCSV('Sales_Report', data);
+    const receiptExport = receiptsData.map(rec => ({
+      'Type': 'Receipt',
+      'Document No': rec.receipt_no,
+      'Date': rec.receipt_date,
+      'Customer': rec.customer_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': rec.amount,
+      'Status': rec.reference
+    }));
+
+    const returnExport = returnsData.map(ret => ({
+      'Type': 'Return Note',
+      'Document No': ret.return_note_no,
+      'Date': ret.return_date,
+      'Customer': ret.customer_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': ret.grand_total,
+      'Status': ret.reason
+    }));
+
+    exportToCSV('Sales_Report', [...invoiceExport, ...receiptExport, ...returnExport]);
     toast.success('Report exported to CSV');
   };
 
   const handleExportExcel = () => {
-    const data = salesData.map(sale => ({
-      'Invoice No': sale.invoice_no,
+    const invoiceExport = salesData.map(sale => ({
+      'Type': 'Invoice',
+      'Document No': sale.invoice_no,
       'Date': sale.invoice_date,
       'Customer': sale.customer_name,
       'Subtotal': sale.subtotal,
       'Tax': sale.tax_total,
+      'Discount': sale.discount,
       'Total': sale.grand_total,
       'Status': sale.status
     }));
 
-    exportToExcel('Sales_Report', data);
+    const receiptExport = receiptsData.map(rec => ({
+      'Type': 'Receipt',
+      'Document No': rec.receipt_no,
+      'Date': rec.receipt_date,
+      'Customer': rec.customer_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': rec.amount,
+      'Status': rec.reference
+    }));
+
+    const returnExport = returnsData.map(ret => ({
+      'Type': 'Return Note',
+      'Document No': ret.return_note_no,
+      'Date': ret.return_date,
+      'Customer': ret.customer_name,
+      'Subtotal': '',
+      'Tax': '',
+      'Discount': '',
+      'Total': ret.grand_total,
+      'Status': ret.reason
+    }));
+
+    exportToExcel('Sales_Report', [...invoiceExport, ...receiptExport, ...returnExport]);
     toast.success('Report exported to Excel');
   };
 
@@ -157,22 +281,68 @@ export default function SalesReport() {
     doc.setFontSize(11);
     doc.text(`Period: ${startDate} to ${endDate}`, 14, 32);
 
+    // Invoices Table
+    doc.setFontSize(14);
+    doc.text('Invoices', 14, 45);
+    
     autoTable(doc, {
-      startY: 40,
-      head: [['Invoice No', 'Date', 'Customer', 'Subtotal', 'Tax', 'Total', 'Status']],
+      startY: 50,
+      head: [['Invoice No', 'Date', 'Customer', 'Subtotal', 'Tax', 'Discount', 'Total']],
       body: salesData.map(sale => [
         sale.invoice_no,
         sale.invoice_date,
         sale.customer_name,
         sale.subtotal.toFixed(2),
         sale.tax_total.toFixed(2),
-        sale.grand_total.toFixed(2),
-        sale.status
+        sale.discount.toFixed(2),
+        sale.grand_total.toFixed(2)
       ]),
-      foot: [['', '', 'TOTAL', totals.subtotal.toFixed(2), totals.tax.toFixed(2), totals.total.toFixed(2), '']],
+      foot: [['', '', 'TOTAL', invoiceTotals.subtotal.toFixed(2), invoiceTotals.tax.toFixed(2), invoiceTotals.discount.toFixed(2), invoiceTotals.total.toFixed(2)]],
       theme: 'striped',
       headStyles: { fillColor: [41, 128, 185] },
       footStyles: { fillColor: [52, 152, 219], fontStyle: 'bold' }
+    });
+
+    // Receipts Table
+    const finalY1 = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.text('Receipts', 14, finalY1);
+    
+    autoTable(doc, {
+      startY: finalY1 + 5,
+      head: [['Receipt No', 'Date', 'Customer', 'Amount', 'Reference']],
+      body: receiptsData.map(rec => [
+        rec.receipt_no,
+        rec.receipt_date,
+        rec.customer_name,
+        rec.amount.toFixed(2),
+        rec.reference
+      ]),
+      foot: [['', '', 'TOTAL', receiptTotal.toFixed(2), '']],
+      theme: 'striped',
+      headStyles: { fillColor: [39, 174, 96] },
+      footStyles: { fillColor: [46, 204, 113], fontStyle: 'bold' }
+    });
+
+    // Return Notes Table
+    const finalY2 = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.text('Return Notes', 14, finalY2);
+    
+    autoTable(doc, {
+      startY: finalY2 + 5,
+      head: [['Return Note No', 'Date', 'Customer', 'Total', 'Reason']],
+      body: returnsData.map(ret => [
+        ret.return_note_no,
+        ret.return_date,
+        ret.customer_name,
+        ret.grand_total.toFixed(2),
+        ret.reason
+      ]),
+      foot: [['', '', 'TOTAL', returnTotal.toFixed(2), '']],
+      theme: 'striped',
+      headStyles: { fillColor: [155, 89, 182] },
+      footStyles: { fillColor: [142, 68, 173], fontStyle: 'bold' }
     });
 
     doc.save('Sales_Report.pdf');
@@ -181,7 +351,6 @@ export default function SalesReport() {
 
   const handlePrint = () => {
     window.print();
-    toast.success('Print dialog opened');
   };
 
   return (
@@ -189,7 +358,7 @@ export default function SalesReport() {
       <div>
         <h1 className="text-3xl font-bold">Sales Report</h1>
         <p className="text-muted-foreground mt-2">
-          Comprehensive sales transactions report
+          Comprehensive sales report including invoices, receipts, and return notes
         </p>
       </div>
 
@@ -227,9 +396,47 @@ export default function SalesReport() {
         </CardContent>
       </Card>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Invoiced</div>
+            <div className="text-2xl font-bold text-blue-600">{invoiceTotals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-xs text-muted-foreground">{salesData.length} invoices</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Received</div>
+            <div className="text-2xl font-bold text-green-600">{receiptTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-xs text-muted-foreground">{receiptsData.length} receipts</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Returns</div>
+            <div className="text-2xl font-bold text-purple-600">{returnTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+            <div className="text-xs text-muted-foreground">{returnsData.length} returns</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Total Tax</div>
+            <div className="text-2xl font-bold text-orange-600">{invoiceTotals.tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground">Net Sales</div>
+            <div className="text-2xl font-bold">{(invoiceTotals.total - returnTotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Invoices Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Sales Transactions</CardTitle>
+          <CardTitle>Invoices ({salesData.length})</CardTitle>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-2" />
@@ -259,6 +466,7 @@ export default function SalesReport() {
                   <TableHead>Customer</TableHead>
                   <TableHead className="text-right">Subtotal</TableHead>
                   <TableHead className="text-right">Tax</TableHead>
+                  <TableHead className="text-right">Discount</TableHead>
                   <TableHead className="text-right">Total</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -266,14 +474,14 @@ export default function SalesReport() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={8} className="text-center py-8">
                       <Loader2 className="h-8 w-8 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : salesData.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No sales data found for the selected period
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No invoices found
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -283,9 +491,10 @@ export default function SalesReport() {
                         <TableCell className="font-medium">{sale.invoice_no}</TableCell>
                         <TableCell>{sale.invoice_date}</TableCell>
                         <TableCell>{sale.customer_name}</TableCell>
-                        <TableCell className="text-right">{sale.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right">{sale.tax_total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-right font-medium">{sale.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{sale.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{sale.tax_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right">{sale.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell className="text-right font-medium">{sale.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded text-xs ${
                             sale.status === 'approved' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
@@ -297,9 +506,10 @@ export default function SalesReport() {
                     ))}
                     <TableRow className="font-bold bg-muted">
                       <TableCell colSpan={3}>TOTAL</TableCell>
-                      <TableCell className="text-right">{totals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-right">{totals.tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                      <TableCell className="text-right">{totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{invoiceTotals.subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{invoiceTotals.tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{invoiceTotals.discount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell className="text-right">{invoiceTotals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   </>
@@ -307,26 +517,101 @@ export default function SalesReport() {
               </TableBody>
             </Table>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">Total Sales</div>
-                <div className="text-2xl font-bold">{totals.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">Total Tax</div>
-                <div className="text-2xl font-bold">{totals.tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground">Number of Invoices</div>
-                <div className="text-2xl font-bold">{salesData.length}</div>
-              </CardContent>
-            </Card>
+      {/* Receipts Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Receipts ({receiptsData.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Receipt No</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Reference</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {receiptsData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No receipts found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {receiptsData.map((rec, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{rec.receipt_no}</TableCell>
+                        <TableCell>{rec.receipt_date}</TableCell>
+                        <TableCell>{rec.customer_name}</TableCell>
+                        <TableCell className="text-right font-medium">{rec.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell>{rec.reference}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-muted">
+                      <TableCell colSpan={3}>TOTAL</TableCell>
+                      <TableCell className="text-right">{receiptTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Return Notes Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Return Notes ({returnsData.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Return Note No</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Reason</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {returnsData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                      No return notes found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <>
+                    {returnsData.map((ret, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{ret.return_note_no}</TableCell>
+                        <TableCell>{ret.return_date}</TableCell>
+                        <TableCell>{ret.customer_name}</TableCell>
+                        <TableCell className="text-right font-medium">{ret.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell>{ret.reason}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold bg-muted">
+                      <TableCell colSpan={3}>TOTAL</TableCell>
+                      <TableCell className="text-right">{returnTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                      <TableCell></TableCell>
+                    </TableRow>
+                  </>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
