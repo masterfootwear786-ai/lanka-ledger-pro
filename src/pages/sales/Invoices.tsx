@@ -239,26 +239,39 @@ export default function Invoices() {
           <head>
             <title>Invoice ${invoice.invoice_no}</title>
             <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+              body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
+              .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
               .company-info { flex: 1; }
-              .company-logo { width: 120px; height: auto; }
-              .company-name { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
-              .company-details { font-size: 12px; color: #666; }
-              .invoice-title { text-align: center; font-size: 28px; font-weight: bold; margin: 20px 0; }
-              .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-              .detail-item { margin-bottom: 10px; }
-              .detail-label { font-size: 12px; color: #666; }
-              .detail-value { font-weight: 600; }
-              .line-items { margin: 30px 0; }
+              .company-logo { width: 100px; height: auto; margin-bottom: 8px; }
+              .company-name { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+              .company-details { font-size: 11px; color: #666; }
+              .invoice-header { text-align: right; }
+              .invoice-title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 5px; }
+              .invoice-no { font-size: 14px; font-weight: 600; }
+              .invoice-date { font-size: 11px; color: #666; margin-top: 5px; }
+              .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+              .info-box { background: #f8f8f8; border: 1px solid #ddd; border-radius: 6px; padding: 12px; }
+              .info-title { font-size: 11px; font-weight: bold; color: #333; margin-bottom: 8px; text-transform: uppercase; }
+              .customer-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+              .customer-detail { font-size: 11px; color: #666; margin-bottom: 2px; }
+              .customer-phone { font-size: 11px; margin-top: 6px; }
+              .customer-phone span { color: #666; }
+              .customer-phone strong { color: #333; }
+              .line-items { margin: 15px 0; }
               table { width: 100%; border-collapse: collapse; }
-              th { background: #f5f5f5; padding: 10px; text-align: left; border: 1px solid #ddd; font-size: 11px; }
-              td { padding: 8px; border: 1px solid #ddd; font-size: 12px; }
-              .size-col { text-align: center; width: 50px; }
-              .total-section { margin-top: 30px; float: right; width: 300px; }
-              .total-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
-              .total-row.grand { font-weight: bold; font-size: 16px; border-top: 2px solid #333; margin-top: 10px; }
-              @media print { body { padding: 0; } }
+              th { background: #f0f0f0; padding: 8px 6px; text-align: left; border: 1px solid #ddd; font-size: 10px; font-weight: bold; }
+              td { padding: 6px; border: 1px solid #ddd; font-size: 11px; }
+              .size-col { text-align: center; width: 35px; }
+              .total-pairs { text-align: center; font-weight: 600; }
+              .price-col { text-align: right; }
+              .total-section { margin-top: 20px; float: right; width: 250px; background: #f8f8f8; border: 1px solid #ddd; border-radius: 6px; padding: 10px; }
+              .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 11px; }
+              .total-row.grand { font-weight: bold; font-size: 14px; border-top: 2px solid #333; margin-top: 8px; padding-top: 8px; }
+              .signature-section { clear: both; margin-top: 280px; display: flex; justify-content: space-between; }
+              .signature-box { flex: 1; text-align: center; padding: 0 30px; }
+              .signature-line { border-bottom: 1px solid #333; width: 80%; margin: 0 auto 8px auto; }
+              .signature-label { font-size: 11px; color: #666; }
+              @media print { body { padding: 10px; } }
             </style>
           </head>
           <body>
@@ -268,51 +281,42 @@ export default function Invoices() {
                 <div class="company-name">${company?.name || ''}</div>
                 <div class="company-details">
                   ${company?.address || ''}<br/>
-                  ${company?.phone || ''} | ${company?.email || ''}
+                  ${company?.phone || ''} ${company?.email ? `| ${company.email}` : ''}
+                </div>
+              </div>
+              <div class="invoice-header">
+                <div class="invoice-title">INVOICE</div>
+                <div class="invoice-no">#${invoice.invoice_no}</div>
+                <div class="invoice-date">
+                  Date: ${new Date(invoice.invoice_date).toLocaleDateString()}
+                  ${invoice.due_date ? `<br/>Due: ${new Date(invoice.due_date).toLocaleDateString()}` : ''}
                 </div>
               </div>
             </div>
             
-            <div class="invoice-title">INVOICE</div>
-            
-            <div class="details-grid">
-              <div>
-                <div class="detail-item">
-                  <div class="detail-label">Invoice No</div>
-                  <div class="detail-value">${invoice.invoice_no}</div>
-                </div>
-                <div class="detail-item">
-                  <div class="detail-label">Invoice Date</div>
-                  <div class="detail-value">${new Date(invoice.invoice_date).toLocaleDateString()}</div>
-                </div>
-                ${invoice.due_date ? `
-                  <div class="detail-item">
-                    <div class="detail-label">Due Date</div>
-                    <div class="detail-value">${new Date(invoice.due_date).toLocaleDateString()}</div>
-                  </div>
-                ` : ''}
+            <div class="info-grid">
+              <div class="info-box">
+                <div class="info-title">Bill To:</div>
+                <div class="customer-name">${invoice.customer?.name || 'N/A'}</div>
+                ${invoice.customer?.address ? `<div class="customer-detail">${invoice.customer.address}</div>` : ''}
+                ${invoice.customer?.area ? `<div class="customer-detail">${invoice.customer.area}${invoice.customer?.district ? `, ${invoice.customer.district}` : ''}</div>` : ''}
+                ${invoice.customer?.phone ? `<div class="customer-phone"><span>Tel:</span> <strong>${invoice.customer.phone}</strong></div>` : ''}
               </div>
-              <div>
-                <div class="detail-item">
-                  <div class="detail-label">Bill To</div>
-                  <div class="detail-value">${invoice.customer?.name || ''}</div>
-                </div>
-                ${invoice.customer?.address ? `
-                  <div class="detail-item">
-                    <div class="detail-value" style="font-size: 12px; color: #666;">${invoice.customer.address}</div>
-                  </div>
-                ` : ''}
-                ${invoice.customer?.area ? `
-                  <div class="detail-item">
-                    <div class="detail-value" style="font-size: 12px; color: #666;">${invoice.customer.area}${invoice.customer?.district ? `, ${invoice.customer.district}` : ''}</div>
-                  </div>
-                ` : ''}
-                ${invoice.customer?.phone ? `
-                  <div class="detail-item">
-                    <div class="detail-label">Tel</div>
-                    <div class="detail-value">${invoice.customer.phone}</div>
-                  </div>
-                ` : ''}
+              <div class="info-box">
+                <div class="info-title">Payment Information:</div>
+                <div style="font-weight: 600;">Payment Method: ${(() => {
+                  try {
+                    const terms = invoice.terms;
+                    if (!terms) return 'Not specified';
+                    const parsed = typeof terms === 'string' && terms.startsWith('{') ? JSON.parse(terms) : null;
+                    if (parsed?.payment_method) {
+                      return parsed.payment_method.charAt(0).toUpperCase() + parsed.payment_method.slice(1);
+                    }
+                    return terms.charAt(0).toUpperCase() + terms.slice(1);
+                  } catch (e) {
+                    return invoice.terms || 'Not specified';
+                  }
+                })()}</div>
               </div>
             </div>
 
@@ -320,7 +324,9 @@ export default function Invoices() {
               <table>
                 <thead>
                   <tr>
-                    <th>Art No / Color</th>
+                    <th>Art No</th>
+                    <th>Description</th>
+                    <th>Color</th>
                     <th class="size-col">39</th>
                     <th class="size-col">40</th>
                     <th class="size-col">41</th>
@@ -328,14 +334,22 @@ export default function Invoices() {
                     <th class="size-col">43</th>
                     <th class="size-col">44</th>
                     <th class="size-col">45</th>
-                    <th>Unit Price</th>
-                    <th>Line Total</th>
+                    <th class="size-col">Total</th>
+                    <th class="price-col">Unit Price</th>
+                    <th class="price-col">Line Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${Object.values(groupedLines).map((line: any) => `
+                  ${Object.values(groupedLines).map((line: any) => {
+                    const parts = (line.description || '').split(' - ');
+                    const artNo = parts[0] || '-';
+                    const color = parts[1] || '-';
+                    const totalPairs = (line.sizes[39] || 0) + (line.sizes[40] || 0) + (line.sizes[41] || 0) + (line.sizes[42] || 0) + (line.sizes[43] || 0) + (line.sizes[44] || 0) + (line.sizes[45] || 0);
+                    return `
                     <tr>
+                      <td>${artNo}</td>
                       <td>${line.description}</td>
+                      <td class="size-col">${color}</td>
                       <td class="size-col">${line.sizes[39] || '-'}</td>
                       <td class="size-col">${line.sizes[40] || '-'}</td>
                       <td class="size-col">${line.sizes[41] || '-'}</td>
@@ -343,10 +357,11 @@ export default function Invoices() {
                       <td class="size-col">${line.sizes[43] || '-'}</td>
                       <td class="size-col">${line.sizes[44] || '-'}</td>
                       <td class="size-col">${line.sizes[45] || '-'}</td>
-                      <td>${line.unit_price?.toFixed(2)}</td>
-                      <td>${line.line_total?.toFixed(2)}</td>
+                      <td class="total-pairs">${totalPairs}</td>
+                      <td class="price-col">${line.unit_price?.toFixed(2)}</td>
+                      <td class="price-col">${line.line_total?.toFixed(2)}</td>
                     </tr>
-                  `).join('')}
+                  `}).join('')}
                 </tbody>
               </table>
             </div>
@@ -356,16 +371,14 @@ export default function Invoices() {
                 <span>Subtotal:</span>
                 <span>${(invoice.subtotal || 0).toFixed(2)}</span>
               </div>
+              <div class="total-row">
+                <span>Tax:</span>
+                <span>${(invoice.tax_total || 0).toFixed(2)}</span>
+              </div>
               ${invoice.discount ? `
-                <div class="total-row">
+                <div class="total-row" style="color: #c00;">
                   <span>Discount:</span>
-                  <span>${invoice.discount.toFixed(2)}</span>
-                </div>
-              ` : ''}
-              ${invoice.tax_total ? `
-                <div class="total-row">
-                  <span>Tax:</span>
-                  <span>${invoice.tax_total.toFixed(2)}</span>
+                  <span>-${invoice.discount.toFixed(2)}</span>
                 </div>
               ` : ''}
               <div class="total-row grand">
@@ -374,14 +387,14 @@ export default function Invoices() {
               </div>
             </div>
 
-            <div style="clear: both; margin-top: 280px; display: flex; justify-content: space-between;">
-              <div style="flex: 1; text-align: center; padding: 0 20px;">
-                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto 8px auto;"></div>
-                <div style="font-size: 12px; color: #666;">Customer Signature</div>
+            <div class="signature-section">
+              <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Customer Signature</div>
               </div>
-              <div style="flex: 1; text-align: center; padding: 0 20px;">
-                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto 8px auto;"></div>
-                <div style="font-size: 12px; color: #666;">Sales Rep Signature</div>
+              <div class="signature-box">
+                <div class="signature-line"></div>
+                <div class="signature-label">Sales Rep Signature</div>
               </div>
             </div>
           </body>
