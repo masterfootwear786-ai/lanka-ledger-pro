@@ -202,7 +202,14 @@ export function ReturnNoteDialog({ open, onOpenChange, returnNote, existingLines
 
     setLoading(true);
     try {
-      const { data: profile } = await supabase.from("profiles").select("company_id").single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("company_id")
+        .eq("id", user.id)
+        .single();
       if (!profile?.company_id) throw new Error("No company found");
 
       const grandTotal = calculateGrandTotal();
