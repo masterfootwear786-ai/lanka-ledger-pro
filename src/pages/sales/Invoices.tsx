@@ -362,14 +362,14 @@ export default function Invoices() {
               </div>
             </div>
 
-            <div style="clear: both; margin-top: 80px; display: flex; justify-content: space-between;">
+            <div style="clear: both; margin-top: 100px; display: flex; justify-content: space-between;">
               <div style="flex: 1; text-align: center; padding: 0 20px;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Customer Signature</div>
-                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto;"></div>
+                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto 8px auto;"></div>
+                <div style="font-size: 12px; color: #666;">Customer Signature</div>
               </div>
               <div style="flex: 1; text-align: center; padding: 0 20px;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Sales Rep Signature</div>
-                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto;"></div>
+                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto 8px auto;"></div>
+                <div style="font-size: 12px; color: #666;">Sales Rep Signature</div>
               </div>
             </div>
           </body>
@@ -831,14 +831,14 @@ export default function Invoices() {
               )}
 
               {/* Signature Section */}
-              <div className="flex justify-between mt-8 pt-4">
+              <div className="flex justify-between mt-16 pt-8">
                 <div className="flex-1 text-center px-4">
-                  <div className="text-sm text-muted-foreground mb-2">Customer Signature</div>
-                  <div className="border-b border-foreground w-4/5 mx-auto"></div>
+                  <div className="border-b border-foreground w-4/5 mx-auto mb-2"></div>
+                  <div className="text-sm text-muted-foreground">Customer Signature</div>
                 </div>
                 <div className="flex-1 text-center px-4">
-                  <div className="text-sm text-muted-foreground mb-2">Sales Rep Signature</div>
-                  <div className="border-b border-foreground w-4/5 mx-auto"></div>
+                  <div className="border-b border-foreground w-4/5 mx-auto mb-2"></div>
+                  <div className="text-sm text-muted-foreground">Sales Rep Signature</div>
                 </div>
               </div>
 
