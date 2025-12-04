@@ -127,13 +127,205 @@ export const exportBackupAsExcel = (backupData: BackupData) => {
   exportToExcelMultiSheet(`backup-${backupData.timestamp}`, sheets);
 };
 
-export const restoreFromBackup = async (backupData: BackupData) => {
+export const restoreFromBackup = async (backupData: BackupData, companyId: string): Promise<{ success: boolean; message: string }> => {
   // Validation
-  if (!backupData.version || !backupData.company_id) {
+  if (!backupData.version || !backupData.data) {
     throw new Error('Invalid backup file format');
   }
 
-  // This is a simplified restore - in production you'd want more sophisticated logic
-  console.log('Restore functionality - would restore data:', backupData);
-  throw new Error('Restore functionality requires careful implementation to avoid data conflicts');
+  try {
+    // Restore order matters due to foreign key constraints
+    // 1. Colors first (no dependencies)
+    if (backupData.data.colors?.length) {
+      for (const color of backupData.data.colors) {
+        const { id, ...colorData } = color;
+        await supabase.from('colors').upsert({ 
+          ...colorData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 2. Tax rates
+    if (backupData.data.tax_rates?.length) {
+      for (const taxRate of backupData.data.tax_rates) {
+        const { id, ...taxData } = taxRate;
+        await supabase.from('tax_rates').upsert({ 
+          ...taxData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 3. Contacts (customers/suppliers)
+    if (backupData.data.contacts?.length) {
+      for (const contact of backupData.data.contacts) {
+        const { id, ...contactData } = contact;
+        await supabase.from('contacts').upsert({ 
+          ...contactData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 4. Items
+    if (backupData.data.items?.length) {
+      for (const item of backupData.data.items) {
+        const { id, ...itemData } = item;
+        await supabase.from('items').upsert({ 
+          ...itemData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 5. Stock by size
+    if (backupData.data.stock_by_size?.length) {
+      for (const stock of backupData.data.stock_by_size) {
+        const { id, ...stockData } = stock;
+        await supabase.from('stock_by_size').upsert({ 
+          ...stockData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 6. Invoices
+    if (backupData.data.invoices?.length) {
+      for (const invoice of backupData.data.invoices) {
+        const { id, ...invoiceData } = invoice;
+        await supabase.from('invoices').upsert({ 
+          ...invoiceData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 7. Invoice lines
+    if (backupData.data.invoice_lines?.length) {
+      for (const line of backupData.data.invoice_lines) {
+        const { id, ...lineData } = line;
+        await supabase.from('invoice_lines').upsert({ 
+          ...lineData,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 8. Sales orders
+    if (backupData.data.sales_orders?.length) {
+      for (const order of backupData.data.sales_orders) {
+        const { id, ...orderData } = order;
+        await supabase.from('sales_orders').upsert({ 
+          ...orderData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 9. Sales order lines
+    if (backupData.data.sales_order_lines?.length) {
+      for (const line of backupData.data.sales_order_lines) {
+        const { id, ...lineData } = line;
+        await supabase.from('sales_order_lines').upsert({ 
+          ...lineData,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 10. Receipts
+    if (backupData.data.receipts?.length) {
+      for (const receipt of backupData.data.receipts) {
+        const { id, ...receiptData } = receipt;
+        await supabase.from('receipts').upsert({ 
+          ...receiptData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 11. Bills
+    if (backupData.data.bills?.length) {
+      for (const bill of backupData.data.bills) {
+        const { id, ...billData } = bill;
+        await supabase.from('bills').upsert({ 
+          ...billData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 12. Bill lines
+    if (backupData.data.bill_lines?.length) {
+      for (const line of backupData.data.bill_lines) {
+        const { id, ...lineData } = line;
+        await supabase.from('bill_lines').upsert({ 
+          ...lineData,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 13. Bill payments
+    if (backupData.data.bill_payments?.length) {
+      for (const payment of backupData.data.bill_payments) {
+        const { id, ...paymentData } = payment;
+        await supabase.from('bill_payments').upsert({ 
+          ...paymentData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 14. Payment allocations
+    if (backupData.data.payment_allocations?.length) {
+      for (const allocation of backupData.data.payment_allocations) {
+        const { id, ...allocationData } = allocation;
+        await supabase.from('payment_allocations').upsert({ 
+          ...allocationData,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    // 15. Transactions
+    if (backupData.data.transactions?.length) {
+      for (const transaction of backupData.data.transactions) {
+        const { id, ...transactionData } = transaction;
+        await supabase.from('transactions').upsert({ 
+          ...transactionData, 
+          company_id: companyId,
+          id 
+        }, { onConflict: 'id' });
+      }
+    }
+
+    return { success: true, message: 'Data restored successfully' };
+  } catch (error: any) {
+    console.error('Restore error:', error);
+    throw new Error(`Failed to restore data: ${error.message}`);
+  }
+};
+
+export const parseBackupFile = (fileContent: string): BackupData => {
+  try {
+    const data = JSON.parse(fileContent);
+    if (!data.version || !data.data) {
+      throw new Error('Invalid backup file structure');
+    }
+    return data as BackupData;
+  } catch (error) {
+    throw new Error('Failed to parse backup file. Please ensure it is a valid JSON backup file.');
+  }
 };
