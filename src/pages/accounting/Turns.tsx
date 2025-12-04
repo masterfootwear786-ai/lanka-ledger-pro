@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Pencil, Trash2, Truck, MapPin, DollarSign, Fuel, UtensilsCrossed, Hotel, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Truck, MapPin, DollarSign, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -23,6 +23,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { TurnDailyExpensesDialog } from "@/components/accounting/TurnDailyExpensesDialog";
 
 interface Turn {
   id: string;
@@ -64,6 +65,9 @@ export default function Turns() {
     notes: "",
   });
   const [saving, setSaving] = useState(false);
+  const [isDailyExpensesOpen, setIsDailyExpensesOpen] = useState(false);
+  const [turnForDailyExpenses, setTurnForDailyExpenses] = useState<Turn | null>(null);
+  const [companyId, setCompanyId] = useState<string>("");
   const { toast } = useToast();
 
   const fetchTurns = async () => {
@@ -79,6 +83,7 @@ export default function Turns() {
         .single();
 
       if (!profile?.company_id) throw new Error("No company found");
+      setCompanyId(profile.company_id);
 
       const { data, error } = await supabase
         .from("turns")
@@ -449,6 +454,17 @@ export default function Turns() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setTurnForDailyExpenses(turn);
+                            setIsDailyExpensesOpen(true);
+                          }}
+                          title="Daily Expenses"
+                        >
+                          <Calendar className="h-4 w-4 text-blue-500" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(turn)}>
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -634,6 +650,15 @@ export default function Turns() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Daily Expenses Dialog */}
+      <TurnDailyExpensesDialog
+        open={isDailyExpensesOpen}
+        onOpenChange={setIsDailyExpensesOpen}
+        turn={turnForDailyExpenses}
+        companyId={companyId}
+        onExpensesUpdated={fetchTurns}
+      />
     </div>
   );
 }
