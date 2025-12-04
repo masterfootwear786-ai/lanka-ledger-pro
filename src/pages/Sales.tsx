@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Users, Receipt, CreditCard } from "lucide-react";
+import { FileText, Users, Receipt, CreditCard, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -15,6 +15,13 @@ export default function Sales() {
       icon: FileText,
       path: "/sales/invoices",
       color: "text-blue-500"
+    },
+    {
+      title: t("sales.orders"),
+      description: "Create and manage sales orders",
+      icon: ClipboardList,
+      path: "/sales/orders",
+      color: "text-indigo-500"
     },
     {
       title: t("sales.receipts"),
