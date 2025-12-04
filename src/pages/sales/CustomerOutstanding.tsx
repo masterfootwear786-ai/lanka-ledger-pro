@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Eye, Printer, FileSpreadsheet, DollarSign, CreditCard, Wallet, TrendingDown, Filter, FileText } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Search, Eye, Printer, FileSpreadsheet, DollarSign, CreditCard, Wallet, TrendingDown, Filter, FileText, MapPin, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -50,7 +52,7 @@ export default function CustomerOutstanding() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("outstanding");
   const [filter, setFilter] = useState<FilterType>('all');
-  const [areaFilter, setAreaFilter] = useState<string>('all');
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [areas, setAreas] = useState<string[]>([]);
   
   const [stats, setStats] = useState({
@@ -178,9 +180,9 @@ export default function CustomerOutstanding() {
       );
     }
 
-    // Apply area filter
-    if (areaFilter !== 'all') {
-      filtered = filtered.filter(c => c.area === areaFilter);
+    // Apply area filter (multi-select)
+    if (selectedAreas.length > 0) {
+      filtered = filtered.filter(c => c.area && selectedAreas.includes(c.area));
     }
 
     // Apply status filter
@@ -495,17 +497,69 @@ export default function CustomerOutstanding() {
                 <SelectItem value="fully_paid">Fully Paid</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={areaFilter} onValueChange={setAreaFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by area" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Areas</SelectItem>
-                {areas.map(area => (
-                  <SelectItem key={area} value={area}>{area}</SelectItem>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[200px] justify-start">
+                  <MapPin className="h-4 w-4 mr-2" />
+                  {selectedAreas.length === 0 
+                    ? "All Areas" 
+                    : selectedAreas.length === 1 
+                      ? selectedAreas[0] 
+                      : `${selectedAreas.length} Areas`}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[220px] p-2" align="start">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between px-2 py-1 mb-1 border-b">
+                    <span className="text-sm font-medium">Select Areas</span>
+                    {selectedAreas.length > 0 && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 px-2 text-xs"
+                        onClick={() => setSelectedAreas([])}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {areas.map(area => (
+                      <div 
+                        key={area} 
+                        className="flex items-center space-x-2 px-2 py-1.5 hover:bg-muted rounded cursor-pointer"
+                        onClick={() => {
+                          setSelectedAreas(prev => 
+                            prev.includes(area) 
+                              ? prev.filter(a => a !== area)
+                              : [...prev, area]
+                          );
+                        }}
+                      >
+                        <Checkbox 
+                          checked={selectedAreas.includes(area)} 
+                          onCheckedChange={() => {}}
+                        />
+                        <span className="text-sm">{area}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            {selectedAreas.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {selectedAreas.map(area => (
+                  <Badge key={area} variant="secondary" className="flex items-center gap-1">
+                    {area}
+                    <X 
+                      className="h-3 w-3 cursor-pointer" 
+                      onClick={() => setSelectedAreas(prev => prev.filter(a => a !== area))}
+                    />
+                  </Badge>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
