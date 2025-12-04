@@ -18,6 +18,7 @@ interface StatsData {
   pendingCheques?: number;
   outstanding: number;
   toCollect?: number;
+  totalReturns?: number;
 }
 
 interface Transaction {
@@ -137,6 +138,7 @@ export const generateCustomerStatement = (
     
     const summaryData = [
       ["Total Invoiced", stats.totalInvoiced.toLocaleString("en-US", { minimumFractionDigits: 2 })],
+      ["Total Returns (Credit)", (stats.totalReturns || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Total Paid (Cash + Cleared Cheques)", stats.totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Pending Cheques", (stats.pendingCheques || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Outstanding Balance", stats.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })],
@@ -160,24 +162,29 @@ export const generateCustomerStatement = (
         1: { halign: "right", cellWidth: 60, fontStyle: 'bold' },
       },
       didParseCell: (data) => {
-        // Highlight outstanding row
+        // Highlight returns row (purple)
+        if (data.row.index === 1 && data.section === 'body') {
+          data.cell.styles.fillColor = [243, 232, 255];
+          data.cell.styles.textColor = [126, 34, 206];
+        }
+        // Highlight paid row
+        if (data.row.index === 2 && data.section === 'body') {
+          data.cell.styles.fillColor = [240, 253, 244];
+          data.cell.styles.textColor = [22, 101, 52];
+        }
+        // Highlight pending cheques row
         if (data.row.index === 3 && data.section === 'body') {
+          data.cell.styles.fillColor = [255, 247, 237];
+          data.cell.styles.textColor = [194, 65, 12];
+        }
+        // Highlight outstanding row
+        if (data.row.index === 4 && data.section === 'body') {
           data.cell.styles.fillColor = [254, 242, 242];
           data.cell.styles.textColor = [185, 28, 28];
           data.cell.styles.fontStyle = 'bold';
         }
-        // Highlight pending cheques row
-        if (data.row.index === 2 && data.section === 'body') {
-          data.cell.styles.fillColor = [255, 247, 237];
-          data.cell.styles.textColor = [194, 65, 12];
-        }
-        // Highlight paid row
-        if (data.row.index === 1 && data.section === 'body') {
-          data.cell.styles.fillColor = [240, 253, 244];
-          data.cell.styles.textColor = [22, 101, 52];
-        }
-        // Highlight to collect row (purple)
-        if (data.row.index === 4 && data.section === 'body') {
+        // Highlight to collect row
+        if (data.row.index === 5 && data.section === 'body') {
           data.cell.styles.fillColor = [243, 232, 255];
           data.cell.styles.textColor = [126, 34, 206];
           data.cell.styles.fontStyle = 'bold';
@@ -307,6 +314,14 @@ export const generateCustomerStatement = (
           }
           if ((type === "Cash Payment" || type === "Cheque (Cleared)") && data.column.index === 4) {
             data.cell.styles.textColor = [22, 101, 52];
+          }
+          // Return Note styling - purple background with purple text for credit column
+          if (type === "Return Note") {
+            data.cell.styles.fillColor = [243, 232, 255];
+            if (data.column.index === 4) {
+              data.cell.styles.textColor = [126, 34, 206];
+              data.cell.styles.fontStyle = 'bold';
+            }
           }
           if (type === "Cheque (Pending)") {
             data.cell.styles.fillColor = [255, 251, 235];
