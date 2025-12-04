@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Pencil, Trash2, Package, Wallet, TrendingDown, CreditCard, Building, Car, Utensils, Home, Wrench, ShieldCheck, Briefcase, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, Package, Wallet, TrendingDown, CreditCard, Building, Car, Utensils, Home, Wrench, ShieldCheck, Briefcase, MoreHorizontal, Users, UserMinus, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -49,6 +49,8 @@ const categoryConfig: Record<string, { icon: any; color: string; bgColor: string
   'Insurance': { icon: ShieldCheck, color: 'text-emerald-700', bgColor: 'bg-emerald-100' },
   'Professional Fees': { icon: CreditCard, color: 'text-violet-700', bgColor: 'bg-violet-100' },
   'Other': { icon: MoreHorizontal, color: 'text-gray-700', bgColor: 'bg-gray-100' },
+  'credit': { icon: UserMinus, color: 'text-rose-700', bgColor: 'bg-rose-100' },
+  'debit': { icon: UserPlus, color: 'text-sky-700', bgColor: 'bg-sky-100' },
 };
 
 export default function Expenses() {
@@ -152,8 +154,12 @@ export default function Expenses() {
     setIsViewDialogOpen(true);
   };
 
-  // Calculate totals by category
-  const categoryTotals = transactions.reduce((acc, t) => {
+  // Separate creditor/debtor from expenses
+  const expenseTransactions = transactions.filter(t => t.transaction_type !== 'credit' && t.transaction_type !== 'debit');
+  const creditorDebtorTransactions = transactions.filter(t => t.transaction_type === 'credit' || t.transaction_type === 'debit');
+
+  // Calculate totals by category (excluding creditor/debtor)
+  const categoryTotals = expenseTransactions.reduce((acc, t) => {
     const category = t.transaction_type;
     acc[category] = (acc[category] || 0) + t.amount;
     return acc;
@@ -165,6 +171,10 @@ export default function Expenses() {
     .reduce((acc, [, val]) => acc + val, 0);
   const totalExpenses = cogsTotal + operatingExpenses;
 
+  // Creditor/Debtor totals
+  const creditorsTotal = creditorDebtorTransactions.filter(t => t.transaction_type === 'credit').reduce((acc, t) => acc + t.amount, 0);
+  const debtorsTotal = creditorDebtorTransactions.filter(t => t.transaction_type === 'debit').reduce((acc, t) => acc + t.amount, 0);
+
   const filteredTransactions = transactions.filter((t) => {
     const matchesSearch = 
       t.transaction_no.toLowerCase().includes(search.toLowerCase()) ||
@@ -172,18 +182,22 @@ export default function Expenses() {
       t.description?.toLowerCase().includes(search.toLowerCase()) ||
       t.contacts?.name?.toLowerCase().includes(search.toLowerCase());
     
-    if (activeTab === "all") return matchesSearch;
+    const isCreditorDebtor = t.transaction_type === 'credit' || t.transaction_type === 'debit';
+    
+    if (activeTab === "all") return matchesSearch && !isCreditorDebtor;
     if (activeTab === "cogs") return matchesSearch && t.transaction_type === 'COGS';
-    return matchesSearch && t.transaction_type !== 'COGS';
+    if (activeTab === "creditor_debtor") return matchesSearch && isCreditorDebtor;
+    return matchesSearch && t.transaction_type !== 'COGS' && !isCreditorDebtor;
   });
 
   const getCategoryBadge = (category: string) => {
     const config = categoryConfig[category] || categoryConfig['Other'];
     const Icon = config.icon;
+    const displayName = category === 'credit' ? 'Creditor' : category === 'debit' ? 'Debtor' : category;
     return (
       <Badge variant="secondary" className={`${config.bgColor} ${config.color} font-medium gap-1`}>
         <Icon className="h-3 w-3" />
-        {category}
+        {displayName}
       </Badge>
     );
   };
@@ -254,30 +268,42 @@ export default function Expenses() {
               {totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {transactions.length} total entries
+              {expenseTransactions.length} entries
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-green-500">
+        <Card className="border-l-4 border-l-rose-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Top Category
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <UserMinus className="h-4 w-4" />
+              Total Creditors
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {Object.keys(categoryTotals).length > 0 ? (
-              <>
-                <div className="text-lg font-bold text-green-600">
-                  {Object.entries(categoryTotals).sort(([,a], [,b]) => b - a)[0]?.[0] || '-'}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(Object.entries(categoryTotals).sort(([,a], [,b]) => b - a)[0]?.[1] || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                </p>
-              </>
-            ) : (
-              <div className="text-lg font-bold text-muted-foreground">-</div>
-            )}
+            <div className="text-2xl font-bold text-rose-600">
+              {creditorsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Money we owe
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-sky-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Total Debtors
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-sky-600">
+              {debtorsTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Money owed to us
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -312,9 +338,10 @@ export default function Expenses() {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <div className="flex items-center justify-between gap-4 mb-4">
           <TabsList>
-            <TabsTrigger value="all">All Entries</TabsTrigger>
+            <TabsTrigger value="all">All Expenses</TabsTrigger>
             <TabsTrigger value="cogs" className="text-red-600">COGS</TabsTrigger>
-            <TabsTrigger value="expenses">Operating Expenses</TabsTrigger>
+            <TabsTrigger value="expenses">Operating</TabsTrigger>
+            <TabsTrigger value="creditor_debtor" className="text-rose-600">Creditors/Debtors</TabsTrigger>
           </TabsList>
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -348,6 +375,16 @@ export default function Expenses() {
           />
         </TabsContent>
         <TabsContent value="expenses" className="mt-0">
+          <ExpenseTable 
+            transactions={filteredTransactions}
+            loading={loading}
+            onView={handleView}
+            onEdit={handleEdit}
+            onDelete={handleDeleteRequest}
+            getCategoryBadge={getCategoryBadge}
+          />
+        </TabsContent>
+        <TabsContent value="creditor_debtor" className="mt-0">
           <ExpenseTable 
             transactions={filteredTransactions}
             loading={loading}
