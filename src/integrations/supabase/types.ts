@@ -2474,6 +2474,7 @@ export type Database = {
       }
       turns: {
         Row: {
+          accommodation_city: string | null
           company_id: string
           created_at: string | null
           created_by: string | null
@@ -2492,6 +2493,7 @@ export type Database = {
           vehicle_number: string
         }
         Insert: {
+          accommodation_city?: string | null
           company_id: string
           created_at?: string | null
           created_by?: string | null
@@ -2510,6 +2512,7 @@ export type Database = {
           vehicle_number: string
         }
         Update: {
+          accommodation_city?: string | null
           company_id?: string
           created_at?: string | null
           created_by?: string | null
