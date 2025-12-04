@@ -19,6 +19,7 @@ interface StatsData {
   outstanding: number;
   toCollect?: number;
   totalReturns?: number;
+  creditBalance?: number;
 }
 
 interface Transaction {
@@ -136,12 +137,13 @@ export const generateCustomerStatement = (
     
     yPos += 5;
     
-    const summaryData = [
+    const summaryData: string[][] = [
       ["Total Invoiced", stats.totalInvoiced.toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Total Returns (Credit)", (stats.totalReturns || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Total Paid (Cash + Cleared Cheques)", stats.totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Pending Cheques", (stats.pendingCheques || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["Outstanding Balance", stats.outstanding.toLocaleString("en-US", { minimumFractionDigits: 2 })],
+      ["Credit Balance (Overpayment)", (stats.creditBalance || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
       ["To Collect (Cash/Cheque)", (stats.toCollect || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })],
     ];
     
@@ -183,8 +185,16 @@ export const generateCustomerStatement = (
           data.cell.styles.textColor = [185, 28, 28];
           data.cell.styles.fontStyle = 'bold';
         }
-        // Highlight to collect row
+        // Highlight credit balance row (green when has credit)
         if (data.row.index === 5 && data.section === 'body') {
+          if ((stats.creditBalance || 0) > 0) {
+            data.cell.styles.fillColor = [220, 252, 231];
+            data.cell.styles.textColor = [22, 163, 74];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+        // Highlight to collect row
+        if (data.row.index === 6 && data.section === 'body') {
           data.cell.styles.fillColor = [243, 232, 255];
           data.cell.styles.textColor = [126, 34, 206];
           data.cell.styles.fontStyle = 'bold';
