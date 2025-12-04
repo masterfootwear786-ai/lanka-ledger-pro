@@ -475,57 +475,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         if (linesError) throw linesError;
 
-        // Deduct stock for order items
-        for (const lineItem of lineItems) {
-          const itemKey = `${lineItem.art_no}-${lineItem.color}`;
-          const itemId = itemsMap.get(itemKey);
-
-          if (itemId) {
-            const sizes = [
-              { size: '39', qty: lineItem.size_39 || 0 },
-              { size: '40', qty: lineItem.size_40 || 0 },
-              { size: '41', qty: lineItem.size_41 || 0 },
-              { size: '42', qty: lineItem.size_42 || 0 },
-              { size: '43', qty: lineItem.size_43 || 0 },
-              { size: '44', qty: lineItem.size_44 || 0 },
-              { size: '45', qty: lineItem.size_45 || 0 },
-            ];
-
-            for (const { size, qty } of sizes) {
-              if (qty > 0) {
-                const { data: currentStock } = await supabase
-                  .from('stock_by_size')
-                  .select('quantity, id')
-                  .eq('item_id', itemId)
-                  .eq('size', size)
-                  .eq('company_id', profile.company_id)
-                  .maybeSingle();
-
-                if (currentStock) {
-                  await supabase
-                    .from('stock_by_size')
-                    .update({ 
-                      quantity: currentStock.quantity - qty,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq('item_id', itemId)
-                    .eq('size', size)
-                    .eq('company_id', profile.company_id);
-                } else {
-                  // Create new stock record with negative quantity
-                  await supabase
-                    .from('stock_by_size')
-                    .insert({
-                      company_id: profile.company_id,
-                      item_id: itemId,
-                      size: size,
-                      quantity: -qty
-                    });
-                }
-              }
-            }
-          }
-        }
+        // NOTE: Orders do NOT deduct stock - only invoices do
 
         toast({
           title: "Success",
