@@ -2472,6 +2472,69 @@ export type Database = {
           },
         ]
       }
+      turn_daily_expenses: {
+        Row: {
+          accommodation_city: string | null
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          expense_accommodation: number | null
+          expense_date: string
+          expense_food: number | null
+          expense_fuel: number | null
+          expense_other: number | null
+          id: string
+          km: number | null
+          notes: string | null
+          turn_id: string
+        }
+        Insert: {
+          accommodation_city?: string | null
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          expense_accommodation?: number | null
+          expense_date: string
+          expense_food?: number | null
+          expense_fuel?: number | null
+          expense_other?: number | null
+          id?: string
+          km?: number | null
+          notes?: string | null
+          turn_id: string
+        }
+        Update: {
+          accommodation_city?: string | null
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          expense_accommodation?: number | null
+          expense_date?: string
+          expense_food?: number | null
+          expense_fuel?: number | null
+          expense_other?: number | null
+          id?: string
+          km?: number | null
+          notes?: string | null
+          turn_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turn_daily_expenses_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turn_daily_expenses_turn_id_fkey"
+            columns: ["turn_id"]
+            isOneToOne: false
+            referencedRelation: "turns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       turns: {
         Row: {
           accommodation_city: string | null
