@@ -69,7 +69,7 @@ export default function Invoices() {
         .select(
           `
           *,
-          customer:contacts(name, area)
+          customer:contacts(name, area, phone, district)
         `,
         )
         .is('deleted_at', null)
