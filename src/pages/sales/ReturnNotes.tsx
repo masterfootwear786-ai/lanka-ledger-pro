@@ -158,13 +158,17 @@ export default function ReturnNotes() {
   const handleDelete = async () => {
     if (!noteToDelete) return;
     try {
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from("return_notes")
-        .update({ deleted_at: new Date().toISOString() })
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          deleted_by: user?.id || null
+        })
         .eq("id", noteToDelete.id);
 
       if (error) throw error;
-      toast({ title: "Success", description: "Return note deleted successfully." });
+      toast({ title: "Success", description: "Return note moved to trash." });
       fetchReturnNotes();
     } catch (error) {
       console.error("Error deleting:", error);
