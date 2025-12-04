@@ -8,6 +8,18 @@ import { Search, Eye, TrendingUp, TrendingDown, DollarSign, Users } from "lucide
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
+
+interface PendingCheque {
+  chequeNo: string;
+  amount: number;
+  date: string;
+  bank: string;
+}
 
 interface CustomerProfile {
   id: string;
@@ -22,6 +34,8 @@ interface CustomerProfile {
   totalInvoiced: number;
   totalPaid: number;
   pendingCheques: number;
+  pendingChequesCount: number;
+  pendingChequesList: PendingCheque[];
   outstanding: number;
 }
 
@@ -81,6 +95,7 @@ export default function CustomerProfiles() {
         // Calculate paid amount and pending cheques
         let totalPaid = 0;
         let pendingCheques = 0;
+        const pendingChequesList: PendingCheque[] = [];
 
         customerReceipts.forEach(receipt => {
           try {
@@ -89,6 +104,12 @@ export default function CustomerProfiles() {
               reference.cheques.forEach((cheque: any) => {
                 if (cheque.status === 'pending') {
                   pendingCheques += Number(cheque.amount) || 0;
+                  pendingChequesList.push({
+                    chequeNo: cheque.chequeNo || '-',
+                    amount: Number(cheque.amount) || 0,
+                    date: cheque.date || '-',
+                    bank: cheque.bank || '-',
+                  });
                 } else if (cheque.status === 'passed') {
                   totalPaid += Number(cheque.amount) || 0;
                 }
@@ -118,6 +139,8 @@ export default function CustomerProfiles() {
           totalInvoiced,
           totalPaid,
           pendingCheques,
+          pendingChequesCount: pendingChequesList.length,
+          pendingChequesList,
           outstanding,
         };
       });
@@ -288,7 +311,35 @@ export default function CustomerProfiles() {
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(customer.totalInvoiced)}</TableCell>
                       <TableCell className="text-right text-green-600">{formatCurrency(customer.totalPaid)}</TableCell>
-                      <TableCell className="text-right text-orange-600">{formatCurrency(customer.pendingCheques)}</TableCell>
+                      <TableCell className="text-right text-orange-600">
+                        {customer.pendingChequesCount > 0 ? (
+                          <HoverCard>
+                            <HoverCardTrigger asChild>
+                              <span className="cursor-pointer underline decoration-dotted">
+                                {formatCurrency(customer.pendingCheques)} ({customer.pendingChequesCount})
+                              </span>
+                            </HoverCardTrigger>
+                            <HoverCardContent className="w-80">
+                              <div className="space-y-2">
+                                <h4 className="font-semibold text-sm">Pending Cheques</h4>
+                                <div className="space-y-1">
+                                  {customer.pendingChequesList.map((cheque, idx) => (
+                                    <div key={idx} className="text-xs flex justify-between border-b pb-1">
+                                      <div>
+                                        <span className="font-medium">{cheque.chequeNo}</span>
+                                        <span className="text-muted-foreground ml-2">{cheque.bank}</span>
+                                      </div>
+                                      <span className="font-medium">{formatCurrency(cheque.amount)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </HoverCardContent>
+                          </HoverCard>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
                       <TableCell className={`text-right font-semibold ${customer.outstanding > 0 ? 'text-red-600' : 'text-green-600'}`}>
                         {formatCurrency(customer.outstanding)}
                       </TableCell>
