@@ -209,6 +209,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
           .from('bills')
           .update({
             supplier_id: data.supplier_id,
+            bill_no: data.bill_no,
             bill_date: data.bill_date,
             due_date: data.due_date,
             supplier_ref: data.supplier_ref,
@@ -229,14 +230,12 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
 
         if (deleteLinesError) throw deleteLinesError;
       } else {
-        bill_no = `BILL-${Date.now()}`;
-
         const { data: newBill, error: billError } = await supabase
           .from('bills')
           .insert({
             company_id: profile.company_id,
             supplier_id: data.supplier_id,
-            bill_no,
+            bill_no: data.bill_no,
             bill_date: data.bill_date,
             due_date: data.due_date,
             supplier_ref: data.supplier_ref,
