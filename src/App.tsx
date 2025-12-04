@@ -44,6 +44,7 @@ import Items from "./pages/inventory/Items";
 import Stock from "./pages/inventory/Stock";
 import Expenses from "./pages/accounting/Transactions";
 import CreditorsDebtors from "./pages/accounting/CreditorsDebtors";
+import Turns from "./pages/accounting/Turns";
 import Settings from "./pages/Settings";
 import Company from "./pages/settings/Company";
 import Security from "./pages/settings/Security";
@@ -120,6 +121,7 @@ const App = () => (
               {/* Accounting routes */}
               <Route path="/accounting/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
               <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><CreditorsDebtors /></ProtectedRoute>} />
+              <Route path="/accounting/turns" element={<ProtectedRoute><Turns /></ProtectedRoute>} />
               {/* Reports routes */}
               <Route path="/reports/all" element={<ProtectedRoute><AllReportsDetails /></ProtectedRoute>} />
               <Route path="/reports/sales" element={<ProtectedRoute><SalesReport /></ProtectedRoute>} />

@@ -2472,6 +2472,59 @@ export type Database = {
           },
         ]
       }
+      turns: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          expenses: number
+          id: string
+          notes: string | null
+          route: string
+          turn_date: string
+          turn_no: string
+          updated_at: string | null
+          updated_by: string | null
+          vehicle_number: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          expenses?: number
+          id?: string
+          notes?: string | null
+          route: string
+          turn_date?: string
+          turn_no: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vehicle_number: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          expenses?: number
+          id?: string
+          notes?: string | null
+          route?: string
+          turn_date?: string
+          turn_no?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vehicle_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_permissions: {
         Row: {
           can_create: boolean | null
