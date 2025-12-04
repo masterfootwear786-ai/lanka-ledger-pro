@@ -511,50 +511,7 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         if (invoiceError) throw invoiceError;
 
-        // Fetch old invoice lines to restore stock before deleting
-        const { data: oldLines } = await supabase
-          .from('invoice_lines')
-          .select('*')
-          .eq('invoice_id', invoice.id);
-
-        // Restore stock from old invoice lines before deleting
-        if (oldLines && oldLines.length > 0) {
-          for (const oldLine of oldLines) {
-            if (!oldLine.item_id) continue;
-            
-            const sizes = [
-              { size: '39', qty: oldLine.size_39 || 0 },
-              { size: '40', qty: oldLine.size_40 || 0 },
-              { size: '41', qty: oldLine.size_41 || 0 },
-              { size: '42', qty: oldLine.size_42 || 0 },
-              { size: '43', qty: oldLine.size_43 || 0 },
-              { size: '44', qty: oldLine.size_44 || 0 },
-              { size: '45', qty: oldLine.size_45 || 0 },
-            ];
-
-            for (const { size, qty } of sizes) {
-              if (qty <= 0) continue;
-
-              const { data: existingStock } = await supabase
-                .from('stock_by_size')
-                .select('id, quantity')
-                .eq('item_id', oldLine.item_id)
-                .eq('size', size)
-                .eq('company_id', profile.company_id)
-                .maybeSingle();
-
-              if (existingStock) {
-                // Add back the old quantity
-                const newQuantity = (existingStock.quantity || 0) + qty;
-                await supabase
-                  .from('stock_by_size')
-                  .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-                  .eq('id', existingStock.id);
-              }
-            }
-          }
-        }
-
+        // NOTE: Stock is automatically restored by database trigger (restore_stock_on_line_delete) when lines are deleted
         // Delete existing lines
         const { error: deleteLinesError } = await supabase
           .from('invoice_lines')
@@ -631,59 +588,10 @@ export function InvoiceDialog({ open, onOpenChange, onSuccess, invoice }: Invoic
 
         if (linesError) throw linesError;
 
-        // Deduct stock for invoice items
-        for (const lineItem of lineItems) {
-          const itemKey = `${lineItem.art_no}-${lineItem.color}`;
-          const itemId = itemsMap.get(itemKey);
+        // NOTE: Stock is automatically deducted by database trigger (adjust_stock_on_line_insert_or_update)
+        // Do NOT manually deduct stock here to avoid double deduction
 
-          if (itemId) {
-            const sizes = [
-              { size: '39', qty: lineItem.size_39 || 0 },
-              { size: '40', qty: lineItem.size_40 || 0 },
-              { size: '41', qty: lineItem.size_41 || 0 },
-              { size: '42', qty: lineItem.size_42 || 0 },
-              { size: '43', qty: lineItem.size_43 || 0 },
-              { size: '44', qty: lineItem.size_44 || 0 },
-              { size: '45', qty: lineItem.size_45 || 0 },
-            ];
-
-            for (const { size, qty } of sizes) {
-              if (qty > 0) {
-                const { data: currentStock } = await supabase
-                  .from('stock_by_size')
-                  .select('quantity, id')
-                  .eq('item_id', itemId)
-                  .eq('size', size)
-                  .eq('company_id', profile.company_id)
-                  .maybeSingle();
-
-                if (currentStock) {
-                  await supabase
-                    .from('stock_by_size')
-                    .update({ 
-                      quantity: currentStock.quantity - qty,
-                      updated_at: new Date().toISOString()
-                    })
-                    .eq('item_id', itemId)
-                    .eq('size', size)
-                    .eq('company_id', profile.company_id);
-                } else {
-                  // Create new stock record with negative quantity
-                  await supabase
-                    .from('stock_by_size')
-                    .insert({
-                      company_id: profile.company_id,
-                      item_id: itemId,
-                      size: size,
-                      quantity: -qty
-                    });
-                }
-              }
-            }
-          }
-        }
-
-        // Now post the invoice to trigger stock deduction
+        // Post the invoice
         if (!invoice) {
           const { error: postError } = await supabase
             .from('invoices')
