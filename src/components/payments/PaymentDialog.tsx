@@ -15,6 +15,7 @@ import { Loader2, Plus, Trash2 } from "lucide-react";
 const paymentSchema = z.object({
   payment_no: z.string().trim().min(1, "Payment number is required").max(50),
   supplier_id: z.string().min(1, "Supplier is required"),
+  bill_id: z.string().optional(),
   payment_date: z.string().min(1, "Payment date is required"),
   amount: z.string().min(1, "Amount is required").refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Amount must be greater than 0"),
   bank_account_id: z.string().optional(),
@@ -46,6 +47,7 @@ export function PaymentDialog({ open, onOpenChange, payment, onSuccess }: Paymen
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [bills, setBills] = useState<any[]>([]);
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("Cash");
   const [cheques, setCheques] = useState<ChequeDetails[]>([]);
@@ -75,6 +77,7 @@ export function PaymentDialog({ open, onOpenChange, payment, onSuccess }: Paymen
   });
 
   const selectedSupplier = watch('supplier_id');
+  const selectedBill = watch('bill_id');
   const selectedBankAccount = watch('bank_account_id');
 
   useEffect(() => {
@@ -169,6 +172,43 @@ export function PaymentDialog({ open, onOpenChange, payment, onSuccess }: Paymen
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const fetchBills = async (supplierId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('bills')
+        .select('id, bill_no, bill_date, grand_total')
+        .eq('supplier_id', supplierId)
+        .is('deleted_at', null)
+        .order('bill_date', { ascending: false });
+
+      if (error) throw error;
+      setBills(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSupplierChange = (supplierId: string) => {
+    setValue('supplier_id', supplierId);
+    setValue('bill_id', undefined);
+    if (selectedPaymentMethod !== "Cheque") {
+      setValue('amount', '');
+    }
+    fetchBills(supplierId);
+  };
+
+  const handleBillSelect = (billId: string) => {
+    setValue('bill_id', billId);
+    const bill = bills.find(b => b.id === billId);
+    if (bill && selectedPaymentMethod !== "Cheque") {
+      setValue('amount', bill.grand_total.toString());
     }
   };
 
@@ -298,16 +338,45 @@ export function PaymentDialog({ open, onOpenChange, payment, onSuccess }: Paymen
 
         if (error) throw error;
 
+        // Update payment allocation if bill was selected
+        if (data.bill_id) {
+          await supabase
+            .from('payment_allocations')
+            .delete()
+            .eq('payment_id', payment.id);
+
+          await supabase
+            .from('payment_allocations')
+            .insert({
+              payment_id: payment.id,
+              bill_id: data.bill_id,
+              amount: parseFloat(data.amount),
+            });
+        }
+
         toast({
           title: "Success",
           description: "Payment updated successfully",
         });
       } else {
-        const { error } = await supabase
+        const { data: newPayment, error } = await supabase
           .from('bill_payments')
-          .insert([paymentData]);
+          .insert([paymentData])
+          .select()
+          .single();
 
         if (error) throw error;
+
+        // Create payment allocation if bill was selected
+        if (data.bill_id && newPayment) {
+          await supabase
+            .from('payment_allocations')
+            .insert({
+              payment_id: newPayment.id,
+              bill_id: data.bill_id,
+              amount: parseFloat(data.amount),
+            });
+        }
 
         toast({
           title: "Success",
@@ -364,26 +433,48 @@ export function PaymentDialog({ open, onOpenChange, payment, onSuccess }: Paymen
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="supplier_id">Supplier *</Label>
-            <Select
-              value={selectedSupplier}
-              onValueChange={(value) => setValue('supplier_id', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers.map((supplier) => (
-                  <SelectItem key={supplier.id} value={supplier.id}>
-                    {supplier.code} - {supplier.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.supplier_id && (
-              <p className="text-sm text-red-500">{errors.supplier_id.message}</p>
-            )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="supplier_id">Supplier *</Label>
+              <Select
+                value={selectedSupplier}
+                onValueChange={handleSupplierChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select supplier" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map((supplier) => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.code} - {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.supplier_id && (
+                <p className="text-sm text-red-500">{errors.supplier_id.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bill_id">Bill (Optional)</Label>
+              <Select
+                value={selectedBill || ""}
+                onValueChange={handleBillSelect}
+                disabled={!selectedSupplier || bills.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={bills.length === 0 ? "No bills available" : "Select bill"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {bills.map((bill) => (
+                    <SelectItem key={bill.id} value={bill.id}>
+                      {bill.bill_no} - {new Date(bill.bill_date).toLocaleDateString()} - Rs. {bill.grand_total?.toLocaleString()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
