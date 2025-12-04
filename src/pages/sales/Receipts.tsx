@@ -325,7 +325,6 @@ export default function Receipts() {
                 <TableHead>Receipt #</TableHead>
                 <TableHead>{t('common.date')}</TableHead>
                 <TableHead>Customer</TableHead>
-                <TableHead>City</TableHead>
                 <TableHead>Reference</TableHead>
                 <TableHead className="text-right">{t('common.amount')}</TableHead>
                 <TableHead className="text-right">{t('common.actions')}</TableHead>
@@ -334,7 +333,7 @@ export default function Receipts() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">Loading...</TableCell>
+                  <TableCell colSpan={6} className="text-center">Loading...</TableCell>
                 </TableRow>
               ) : receipts.filter((receipt) => {
                 if (!searchTerm) return true;
@@ -348,7 +347,7 @@ export default function Receipts() {
                 );
               }).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center">No receipts found</TableCell>
+                  <TableCell colSpan={6} className="text-center">No receipts found</TableCell>
                 </TableRow>
               ) : (
                 receipts.filter((receipt) => {
@@ -366,7 +365,6 @@ export default function Receipts() {
                     <TableCell className="font-mono font-medium">{receipt.receipt_no}</TableCell>
                     <TableCell>{new Date(receipt.receipt_date).toLocaleDateString()}</TableCell>
                     <TableCell>{receipt.customer?.name || 'N/A'}</TableCell>
-                    <TableCell className="text-muted-foreground">{receipt.customer?.area || '-'}</TableCell>
                     <TableCell>{renderReference(receipt)}</TableCell>
                     <TableCell className="text-right">{receipt.amount.toLocaleString()}</TableCell>
                     <TableCell className="text-right">
