@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Pencil, Trash2, Truck, MapPin, Calendar, DollarSign } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Truck, MapPin, DollarSign, Fuel, UtensilsCrossed, Hotel, MoreHorizontal } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -31,6 +31,10 @@ interface Turn {
   vehicle_number: string;
   route: string;
   expenses: number;
+  expense_fuel: number | null;
+  expense_food: number | null;
+  expense_accommodation: number | null;
+  expense_other: number | null;
   notes?: string;
 }
 
@@ -46,7 +50,10 @@ export default function Turns() {
     turn_date: new Date().toISOString().split("T")[0],
     vehicle_number: "",
     route: "",
-    expenses: "",
+    expense_fuel: "",
+    expense_food: "",
+    expense_accommodation: "",
+    expense_other: "",
     notes: "",
   });
   const [saving, setSaving] = useState(false);
@@ -97,7 +104,10 @@ export default function Turns() {
         turn_date: turn.turn_date,
         vehicle_number: turn.vehicle_number,
         route: turn.route,
-        expenses: turn.expenses.toString(),
+        expense_fuel: (turn.expense_fuel || 0).toString(),
+        expense_food: (turn.expense_food || 0).toString(),
+        expense_accommodation: (turn.expense_accommodation || 0).toString(),
+        expense_other: (turn.expense_other || 0).toString(),
         notes: turn.notes || "",
       });
     } else {
@@ -106,7 +116,10 @@ export default function Turns() {
         turn_date: new Date().toISOString().split("T")[0],
         vehicle_number: "",
         route: "",
-        expenses: "",
+        expense_fuel: "",
+        expense_food: "",
+        expense_accommodation: "",
+        expense_other: "",
         notes: "",
       });
     }
@@ -153,7 +166,10 @@ export default function Turns() {
         turn_date: formData.turn_date,
         vehicle_number: formData.vehicle_number,
         route: formData.route,
-        expenses: parseFloat(formData.expenses) || 0,
+        expense_fuel: parseFloat(formData.expense_fuel) || 0,
+        expense_food: parseFloat(formData.expense_food) || 0,
+        expense_accommodation: parseFloat(formData.expense_accommodation) || 0,
+        expense_other: parseFloat(formData.expense_other) || 0,
         notes: formData.notes || null,
         updated_by: user.id,
         updated_at: new Date().toISOString(),
@@ -226,6 +242,10 @@ export default function Turns() {
   );
 
   const totalExpenses = turns.reduce((sum, t) => sum + t.expenses, 0);
+  const totalFuel = turns.reduce((sum, t) => sum + (t.expense_fuel || 0), 0);
+  const totalFood = turns.reduce((sum, t) => sum + (t.expense_food || 0), 0);
+  const totalAccommodation = turns.reduce((sum, t) => sum + (t.expense_accommodation || 0), 0);
+  const totalOther = turns.reduce((sum, t) => sum + (t.expense_other || 0), 0);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -243,7 +263,7 @@ export default function Turns() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -270,16 +290,16 @@ export default function Turns() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="border-l-4 border-l-amber-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Truck className="h-4 w-4" />
-              Unique Vehicles
+              <Fuel className="h-4 w-4" />
+              Fuel
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-600">
-              {new Set(turns.map(t => t.vehicle_number)).size}
+            <div className="text-2xl font-bold text-amber-600">
+              {totalFuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
           </CardContent>
         </Card>
@@ -287,13 +307,41 @@ export default function Turns() {
         <Card className="border-l-4 border-l-orange-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Unique Routes
+              <UtensilsCrossed className="h-4 w-4" />
+              Food
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              {new Set(turns.map(t => t.route)).size}
+              {totalFood.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-purple-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Hotel className="h-4 w-4" />
+              Accommodation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">
+              {totalAccommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-l-4 border-l-gray-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <MoreHorizontal className="h-4 w-4" />
+              Other
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-gray-600">
+              {totalOther.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </div>
           </CardContent>
         </Card>
@@ -318,17 +366,20 @@ export default function Turns() {
               <TableRow className="bg-muted/50">
                 <TableHead className="font-semibold">Date</TableHead>
                 <TableHead className="font-semibold">Turn No</TableHead>
-                <TableHead className="font-semibold">Vehicle Number</TableHead>
+                <TableHead className="font-semibold">Vehicle</TableHead>
                 <TableHead className="font-semibold">Route</TableHead>
-                <TableHead className="text-right font-semibold">Expenses</TableHead>
-                <TableHead className="font-semibold">Notes</TableHead>
+                <TableHead className="text-right font-semibold">Fuel</TableHead>
+                <TableHead className="text-right font-semibold">Food</TableHead>
+                <TableHead className="text-right font-semibold">Accom.</TableHead>
+                <TableHead className="text-right font-semibold">Other</TableHead>
+                <TableHead className="text-right font-semibold">Total</TableHead>
                 <TableHead className="text-right font-semibold">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
                       Loading...
@@ -337,7 +388,7 @@ export default function Turns() {
                 </TableRow>
               ) : filteredTurns.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     No turns found
                   </TableCell>
                 </TableRow>
@@ -360,11 +411,20 @@ export default function Turns() {
                         {turn.route}
                       </div>
                     </TableCell>
+                    <TableCell className="text-right">
+                      {(turn.expense_fuel || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(turn.expense_food || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(turn.expense_accommodation || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {(turn.expense_other || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </TableCell>
                     <TableCell className="text-right font-semibold">
                       {turn.expenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="max-w-[150px] truncate text-muted-foreground">
-                      {turn.notes || "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -425,17 +485,66 @@ export default function Turns() {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="expenses">Expenses</Label>
-              <Input
-                id="expenses"
-                type="number"
-                step="0.01"
-                value={formData.expenses}
-                onChange={(e) => setFormData({ ...formData, expenses: e.target.value })}
-                placeholder="0.00"
-                required
-              />
+            <div className="space-y-3">
+              <Label className="text-base font-semibold">Expenses</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expense_fuel" className="text-sm flex items-center gap-2">
+                    <Fuel className="h-4 w-4 text-amber-500" />
+                    Fuel
+                  </Label>
+                  <Input
+                    id="expense_fuel"
+                    type="number"
+                    step="0.01"
+                    value={formData.expense_fuel}
+                    onChange={(e) => setFormData({ ...formData, expense_fuel: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expense_food" className="text-sm flex items-center gap-2">
+                    <UtensilsCrossed className="h-4 w-4 text-orange-500" />
+                    Food
+                  </Label>
+                  <Input
+                    id="expense_food"
+                    type="number"
+                    step="0.01"
+                    value={formData.expense_food}
+                    onChange={(e) => setFormData({ ...formData, expense_food: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expense_accommodation" className="text-sm flex items-center gap-2">
+                    <Hotel className="h-4 w-4 text-purple-500" />
+                    Accommodation
+                  </Label>
+                  <Input
+                    id="expense_accommodation"
+                    type="number"
+                    step="0.01"
+                    value={formData.expense_accommodation}
+                    onChange={(e) => setFormData({ ...formData, expense_accommodation: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expense_other" className="text-sm flex items-center gap-2">
+                    <MoreHorizontal className="h-4 w-4 text-gray-500" />
+                    Other
+                  </Label>
+                  <Input
+                    id="expense_other"
+                    type="number"
+                    step="0.01"
+                    value={formData.expense_other}
+                    onChange={(e) => setFormData({ ...formData, expense_other: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-2">
