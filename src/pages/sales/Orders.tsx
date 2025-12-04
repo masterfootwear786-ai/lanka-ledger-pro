@@ -286,6 +286,17 @@ export default function Orders() {
                 <span>${(order.grand_total || 0).toFixed(2)}</span>
               </div>
             </div>
+
+            <div style="clear: both; margin-top: 80px; display: flex; justify-content: space-between;">
+              <div style="flex: 1; text-align: center; padding: 0 20px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Customer Signature</div>
+                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto;"></div>
+              </div>
+              <div style="flex: 1; text-align: center; padding: 0 20px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 8px;">Sales Rep Signature</div>
+                <div style="border-bottom: 1px solid #333; width: 80%; margin: 0 auto;"></div>
+              </div>
+            </div>
           </body>
         </html>
       `;
