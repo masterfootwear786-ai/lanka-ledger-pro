@@ -22,7 +22,7 @@ interface StockBySize {
   size_44: number;
   size_45: number;
   totalStock: number;
-  purchasePrice: number;
+  salePrice: number;
   stockValue: number;
   lowStockThreshold: number;
 }
@@ -86,7 +86,7 @@ export default function Stock() {
         const size_45 = sizeStock.get("45") || 0;
 
         const totalStock = size_39 + size_40 + size_41 + size_42 + size_43 + size_44 + size_45;
-        const purchasePrice = item.purchase_price || 0;
+        const salePrice = item.sale_price || 0;
         const lowStockThreshold = item.low_stock_threshold || 10;
 
         groupedData.push({
@@ -102,8 +102,8 @@ export default function Stock() {
           size_44,
           size_45,
           totalStock,
-          purchasePrice,
-          stockValue: totalStock * purchasePrice,
+          salePrice,
+          stockValue: totalStock * salePrice,
           lowStockThreshold,
         });
       });
@@ -338,12 +338,12 @@ export default function Stock() {
                             {stock.size_45 > 0 && stock.size_45 < stock.lowStockThreshold && " ⚠️"}
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className={hasLowStock ? "text-destructive font-bold" : "font-semibold"}>
+                            <span className={`${stock.totalStock < 0 ? 'text-red-600' : hasLowStock ? 'text-destructive' : ''} font-semibold`}>
                               {stock.totalStock.toFixed(0)}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {stock.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          <TableCell className={`text-right font-medium ${stock.stockValue < 0 ? 'text-red-600' : ''}`}>
+                            {stock.stockValue < 0 ? '-' : ''}{Math.abs(stock.stockValue).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell>
                             {hasLowStock && (
