@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Printer, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useActionPassword } from "@/hooks/useActionPassword";
@@ -305,6 +307,138 @@ export default function ReturnNotes() {
     printWindow.print();
   };
 
+  const handleDownloadPDF = () => {
+    if (!selectedNote) return;
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Company Header
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(companyData?.name || "Company Name", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(companyData?.address || "", 14, 27);
+    doc.text(`Tel: ${companyData?.phone || ""} | Email: ${companyData?.email || ""}`, 14, 32);
+    
+    // Return Note Title
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(211, 47, 47);
+    doc.text("RETURN NOTE", pageWidth - 14, 20, { align: "right" });
+    doc.setTextColor(0, 0, 0);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`No: ${selectedNote.return_note_no}`, pageWidth - 14, 27, { align: "right" });
+    doc.text(`Date: ${formatDate(selectedNote.return_date)}`, pageWidth - 14, 32, { align: "right" });
+    
+    // Line under header
+    doc.setLineWidth(0.5);
+    doc.line(14, 38, pageWidth - 14, 38);
+    
+    // Customer Section
+    doc.setFillColor(245, 245, 245);
+    doc.rect(14, 42, pageWidth - 28, 25, "F");
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Customer Details", 18, 50);
+    doc.setFont("helvetica", "normal");
+    doc.text(selectedNote.customer?.name || "", 18, 57);
+    doc.text(selectedNote.customer?.area || "", 18, 62);
+    
+    let yPos = 75;
+    
+    // Reason
+    if (selectedNote.reason) {
+      doc.setFont("helvetica", "bold");
+      doc.text("Reason: ", 14, yPos);
+      doc.setFont("helvetica", "normal");
+      doc.text(selectedNote.reason, 35, yPos);
+      yPos += 10;
+    }
+    
+    // Group lines
+    const groupedLines = noteLines.reduce((acc: any[], line: any) => {
+      const key = `${line.item?.code || line.description}-${line.item?.color || ''}`;
+      const existing = acc.find(l => `${l.item?.code || l.description}-${l.item?.color || ''}` === key);
+      if (existing) {
+        existing.size_39 = (existing.size_39 || 0) + (line.size_39 || 0);
+        existing.size_40 = (existing.size_40 || 0) + (line.size_40 || 0);
+        existing.size_41 = (existing.size_41 || 0) + (line.size_41 || 0);
+        existing.size_42 = (existing.size_42 || 0) + (line.size_42 || 0);
+        existing.size_43 = (existing.size_43 || 0) + (line.size_43 || 0);
+        existing.size_44 = (existing.size_44 || 0) + (line.size_44 || 0);
+        existing.size_45 = (existing.size_45 || 0) + (line.size_45 || 0);
+        existing.quantity = (existing.quantity || 0) + (line.quantity || 0);
+        existing.line_total = (existing.line_total || 0) + (line.line_total || 0);
+      } else {
+        acc.push({ ...line });
+      }
+      return acc;
+    }, []);
+    
+    // Table
+    const tableData = groupedLines.map((line: any) => [
+      line.item?.code || line.description || "",
+      line.item?.color || "",
+      line.size_39 || "-",
+      line.size_40 || "-",
+      line.size_41 || "-",
+      line.size_42 || "-",
+      line.size_43 || "-",
+      line.size_44 || "-",
+      line.size_45 || "-",
+      line.quantity || 0,
+      formatCurrency(line.unit_price || 0),
+      formatCurrency(line.line_total || 0),
+    ]);
+    
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Qty", "Price", "Total"]],
+      body: tableData,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [51, 51, 51], textColor: 255 },
+      columnStyles: {
+        0: { halign: "left" },
+        1: { halign: "left" },
+        10: { halign: "right" },
+        11: { halign: "right" },
+      },
+    });
+    
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    
+    // Grand Total
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Grand Total:", pageWidth - 70, finalY);
+    doc.text(formatCurrency(selectedNote.grand_total || 0), pageWidth - 14, finalY, { align: "right" });
+    
+    // Notes
+    if (selectedNote.notes) {
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Notes:", 14, finalY + 15);
+      doc.setFont("helvetica", "normal");
+      doc.text(selectedNote.notes, 14, finalY + 22);
+    }
+    
+    // Signatures
+    const sigY = finalY + 50;
+    doc.setFontSize(10);
+    doc.line(14, sigY, 80, sigY);
+    doc.text("Customer Signature", 30, sigY + 7);
+    doc.line(pageWidth - 80, sigY, pageWidth - 14, sigY);
+    doc.text("Sales Rep Signature", pageWidth - 65, sigY + 7);
+    
+    doc.save(`ReturnNote-${selectedNote.return_note_no}.pdf`);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -404,9 +538,14 @@ export default function ReturnNotes() {
           <DialogHeader>
             <DialogTitle className="flex justify-between items-center">
               <span>Return Note - {selectedNote?.return_note_no}</span>
-              <Button variant="outline" size="sm" onClick={handlePrint}>
-                <Printer className="h-4 w-4 mr-2" />Print
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleDownloadPDF}>
+                  <Download className="h-4 w-4 mr-2" />PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={handlePrint}>
+                  <Printer className="h-4 w-4 mr-2" />Print
+                </Button>
+              </div>
             </DialogTitle>
           </DialogHeader>
           {selectedNote && (
