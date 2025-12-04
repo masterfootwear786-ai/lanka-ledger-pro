@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Eye, Printer, FileSpreadsheet, DollarSign, CreditCard, Wallet, TrendingDown, Filter } from "lucide-react";
+import { Search, Eye, Printer, FileSpreadsheet, DollarSign, CreditCard, Wallet, TrendingDown, Filter, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface PendingCheque {
   chequeNo: string;
@@ -312,6 +314,71 @@ export default function CustomerOutstanding() {
     toast.success('Exported to Excel');
   };
 
+  const handleExportPDF = () => {
+    const filteredData = getFilteredCustomers();
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('Customer Outstanding Report', 14, 22);
+    
+    // Date
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
+    
+    // Summary
+    doc.setFontSize(12);
+    doc.text(`Total Outstanding: ${formatCurrency(stats.totalOutstanding)}`, 14, 40);
+    doc.text(`Pending Cheques: ${formatCurrency(stats.totalPendingCheques)}`, 14, 48);
+    doc.text(`To Collect: ${formatCurrency(stats.totalToCollect)}`, 14, 56);
+    
+    // Table
+    const tableData = filteredData.map(c => [
+      c.code,
+      c.name,
+      c.area || '-',
+      formatCurrency(c.totalInvoiced),
+      formatCurrency(c.totalPaid),
+      formatCurrency(c.pendingCheques),
+      formatCurrency(c.outstanding),
+      c.toCollect > 0 ? formatCurrency(c.toCollect) : 'Covered',
+    ]);
+    
+    autoTable(doc, {
+      startY: 65,
+      head: [['Code', 'Customer', 'Area', 'Invoiced', 'Paid', 'Pending', 'Outstanding', 'To Collect']],
+      body: tableData,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: {
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+      },
+      didParseCell: (data) => {
+        // Highlight outstanding column
+        if (data.column.index === 6 && data.section === 'body') {
+          const value = parseFloat(String(data.cell.raw).replace(/,/g, ''));
+          if (value > 0) {
+            data.cell.styles.textColor = [220, 38, 38];
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
+    });
+    
+    // Totals
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Total Outstanding: ${formatCurrency(filteredData.reduce((sum, c) => sum + c.outstanding, 0))}`, 14, finalY);
+    
+    doc.save(`customer_outstanding_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success('Exported to PDF');
+  };
+
   const filteredCustomers = getFilteredCustomers();
   const pendingCheques = getAllPendingCheques();
 
@@ -327,9 +394,13 @@ export default function CustomerOutstanding() {
             <Printer className="h-4 w-4 mr-2" />
             Print
           </Button>
+          <Button variant="outline" onClick={handleExportPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
           <Button variant="outline" onClick={handleExportExcel}>
             <FileSpreadsheet className="h-4 w-4 mr-2" />
-            Export
+            Excel
           </Button>
         </div>
       </div>
