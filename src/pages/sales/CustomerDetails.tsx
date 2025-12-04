@@ -23,12 +23,14 @@ export default function CustomerDetails() {
   const [customer, setCustomer] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [receipts, setReceipts] = useState<any[]>([]);
+  const [returnNotes, setReturnNotes] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalInvoiced: 0,
     totalPaid: 0,
     pendingCheques: 0,
     outstanding: 0,
     toCollect: 0,
+    totalReturns: 0,
   });
   const [showStatementDialog, setShowStatementDialog] = useState(false);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
@@ -47,23 +49,28 @@ export default function CustomerDetails() {
       const [
         { data: customerData, error: customerError },
         { data: invoicesData, error: invoicesError },
-        { data: receiptsData, error: receiptsError }
+        { data: receiptsData, error: receiptsError },
+        { data: returnNotesData, error: returnNotesError }
       ] = await Promise.all([
         supabase.from("contacts").select("*").eq("id", id).single(),
         supabase.from("invoices").select("*").eq("customer_id", id).is('deleted_at', null).order("invoice_date", { ascending: false }),
-        supabase.from("receipts").select("*").eq("customer_id", id).is('deleted_at', null).order("receipt_date", { ascending: false })
+        supabase.from("receipts").select("*").eq("customer_id", id).is('deleted_at', null).order("receipt_date", { ascending: false }),
+        supabase.from("return_notes").select("*").eq("customer_id", id).is('deleted_at', null).order("return_date", { ascending: false })
       ]);
 
       if (customerError) throw customerError;
       if (invoicesError) throw invoicesError;
       if (receiptsError) throw receiptsError;
+      if (returnNotesError) throw returnNotesError;
 
       setCustomer(customerData);
       setInvoices(invoicesData || []);
       setReceipts(receiptsData || []);
+      setReturnNotes(returnNotesData || []);
 
-      // Calculate statistics considering cheque statuses
+      // Calculate statistics considering cheque statuses and return notes
       const totalInvoiced = invoicesData?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
+      const totalReturns = returnNotesData?.reduce((sum, rn) => sum + (rn.grand_total || 0), 0) || 0;
       
       // Calculate payments by type
       let cashPayments = 0;
@@ -92,8 +99,8 @@ export default function CustomerDetails() {
         }
       });
       
-      // Total paid = only cash + passed cheques
-      const totalPaid = cashPayments + passedCheques;
+      // Total paid = cash + passed cheques + returns (returns act as credit)
+      const totalPaid = cashPayments + passedCheques + totalReturns;
       // Outstanding = invoiced - paid (pending cheques don't reduce outstanding)
       const outstanding = totalInvoiced - totalPaid;
       // Amount to collect = outstanding - pending cheques (if positive, more needs to be collected)
@@ -105,6 +112,7 @@ export default function CustomerDetails() {
         pendingCheques,
         outstanding,
         toCollect,
+        totalReturns,
       });
     } catch (error: any) {
       toast.error(error.message);
@@ -174,6 +182,16 @@ export default function CustomerDetails() {
         credit: 0,
         status: null,
         details: null,
+      })),
+      // Add return notes as credits
+      ...returnNotes.map((rn) => ({
+        date: rn.return_date,
+        type: "Return Note",
+        reference: rn.return_note_no,
+        debit: 0,
+        credit: rn.grand_total || 0,
+        status: rn.status,
+        details: { reason: rn.reason },
       })),
       ...receipts.flatMap((rec) => {
         const cheques = parseChequeDetails(rec.reference);
@@ -378,7 +396,7 @@ export default function CustomerDetails() {
       </div>
 
       {/* Customer Info Cards */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Invoiced</CardTitle>
@@ -391,12 +409,23 @@ export default function CustomerDetails() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Returns</CardTitle>
+            <FileText className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600">{stats.totalReturns.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground mt-1">Goods returned</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.totalPaid.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">Cash + Cleared Cheques</p>
+            <p className="text-xs text-muted-foreground mt-1">Cash + Cheques + Returns</p>
           </CardContent>
         </Card>
 
