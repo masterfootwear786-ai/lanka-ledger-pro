@@ -48,7 +48,7 @@ export function AppSidebar() {
 
   const customerItems = [
     { title: t('sales.customers'), url: '/sales/customers' },
-    { title: 'Customer Profile', url: '/sales/customers' },
+    { title: 'Customer Profiles', url: '/sales/customer-profiles' },
   ];
 
   const purchasingItems = [
