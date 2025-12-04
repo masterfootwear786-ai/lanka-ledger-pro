@@ -294,13 +294,25 @@ export default function Invoices() {
               </div>
               <div>
                 <div class="detail-item">
-                  <div class="detail-label">Customer</div>
+                  <div class="detail-label">Bill To</div>
                   <div class="detail-value">${invoice.customer?.name || ''}</div>
                 </div>
-                <div class="detail-item">
-                  <div class="detail-label">Status</div>
-                  <div class="detail-value">${invoice.status || 'draft'}</div>
-                </div>
+                ${invoice.customer?.address ? `
+                  <div class="detail-item">
+                    <div class="detail-value" style="font-size: 12px; color: #666;">${invoice.customer.address}</div>
+                  </div>
+                ` : ''}
+                ${invoice.customer?.area ? `
+                  <div class="detail-item">
+                    <div class="detail-value" style="font-size: 12px; color: #666;">${invoice.customer.area}${invoice.customer?.district ? `, ${invoice.customer.district}` : ''}</div>
+                  </div>
+                ` : ''}
+                ${invoice.customer?.phone ? `
+                  <div class="detail-item">
+                    <div class="detail-label">Tel</div>
+                    <div class="detail-value">${invoice.customer.phone}</div>
+                  </div>
+                ` : ''}
               </div>
             </div>
 
@@ -646,14 +658,29 @@ export default function Invoices() {
 
               {/* Bill To Section */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted/30 rounded-lg p-4">
-                  <div className="text-sm font-semibold text-primary mb-2">BILL TO:</div>
-                  <div className="space-y-1">
+                <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                  <div className="text-sm font-semibold text-primary mb-3">BILL TO:</div>
+                  <div className="space-y-2">
                     <div className="font-semibold text-lg">{selectedInvoice.customer?.name || "N/A"}</div>
-                    {selectedInvoice.customer?.area && (
-                      <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}</div>
+                    {selectedInvoice.customer?.address && (
+                      <div className="text-sm text-muted-foreground">{selectedInvoice.customer.address}</div>
                     )}
-                    <div className="mt-2">
+                    {selectedInvoice.customer?.area && (
+                      <div className="text-sm text-muted-foreground">{selectedInvoice.customer.area}{selectedInvoice.customer?.district ? `, ${selectedInvoice.customer.district}` : ''}</div>
+                    )}
+                    {selectedInvoice.customer?.phone && (
+                      <div className="text-sm flex items-center gap-2">
+                        <span className="text-muted-foreground">Tel:</span>
+                        <span className="font-medium">{selectedInvoice.customer.phone}</span>
+                      </div>
+                    )}
+                    {selectedInvoice.customer?.whatsapp && selectedInvoice.customer?.whatsapp !== selectedInvoice.customer?.phone && (
+                      <div className="text-sm flex items-center gap-2">
+                        <span className="text-muted-foreground">WhatsApp:</span>
+                        <span className="font-medium">{selectedInvoice.customer.whatsapp}</span>
+                      </div>
+                    )}
+                    <div className="mt-3 pt-2 border-t border-border">
                       <Badge className={getStatusColor(selectedInvoice.status)}>{selectedInvoice.status}</Badge>
                     </div>
                   </div>
