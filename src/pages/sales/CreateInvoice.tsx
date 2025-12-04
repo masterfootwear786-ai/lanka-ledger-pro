@@ -498,50 +498,8 @@ export default function CreateInvoice() {
 
           if (invoiceError) throw invoiceError;
 
-          // Fetch old invoice lines to restore stock before deleting
-          const { data: oldLines } = await supabase
-            .from('invoice_lines')
-            .select('*')
-            .eq('invoice_id', invoice.id);
-
-          // Restore stock from old invoice lines
-          if (oldLines && oldLines.length > 0) {
-            for (const oldLine of oldLines) {
-              if (!oldLine.item_id) continue;
-              
-              const sizes = [
-                { size: '39', qty: oldLine.size_39 || 0 },
-                { size: '40', qty: oldLine.size_40 || 0 },
-                { size: '41', qty: oldLine.size_41 || 0 },
-                { size: '42', qty: oldLine.size_42 || 0 },
-                { size: '43', qty: oldLine.size_43 || 0 },
-                { size: '44', qty: oldLine.size_44 || 0 },
-                { size: '45', qty: oldLine.size_45 || 0 },
-              ];
-
-              for (const { size, qty } of sizes) {
-                if (qty <= 0) continue;
-
-                const { data: existingStock } = await supabase
-                  .from('stock_by_size')
-                  .select('id, quantity')
-                  .eq('item_id', oldLine.item_id)
-                  .eq('size', size)
-                  .eq('company_id', profile.company_id)
-                  .maybeSingle();
-
-                if (existingStock) {
-                  // Add back the old quantity
-                  const newQuantity = (existingStock.quantity || 0) + qty;
-                  await supabase
-                    .from('stock_by_size')
-                    .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-                    .eq('id', existingStock.id);
-                }
-              }
-            }
-          }
-
+          // NOTE: Stock is automatically restored by database trigger (restore_stock_on_line_delete) when lines are deleted
+          // Delete existing lines
           const { error: deleteLinesError } = await supabase
             .from('invoice_lines')
             .delete()
@@ -613,52 +571,8 @@ export default function CreateInvoice() {
 
         if (linesError) throw linesError;
 
-        // Update stock for each line item - deduct quantities (allow negative)
-        for (const line of lines) {
-          if (!line.item_id) continue;
-          
-          const sizes = [
-            { size: '39', qty: line.size_39 || 0 },
-            { size: '40', qty: line.size_40 || 0 },
-            { size: '41', qty: line.size_41 || 0 },
-            { size: '42', qty: line.size_42 || 0 },
-            { size: '43', qty: line.size_43 || 0 },
-            { size: '44', qty: line.size_44 || 0 },
-            { size: '45', qty: line.size_45 || 0 },
-          ];
-
-          for (const { size, qty } of sizes) {
-            if (qty <= 0) continue;
-
-            // Check if stock record exists
-            const { data: existingStock } = await supabase
-              .from('stock_by_size')
-              .select('id, quantity')
-              .eq('item_id', line.item_id)
-              .eq('size', size)
-              .eq('company_id', profile.company_id)
-              .maybeSingle();
-
-            if (existingStock) {
-              // Update existing stock - subtract invoice qty (can go negative)
-              const newQuantity = (existingStock.quantity || 0) - qty;
-              await supabase
-                .from('stock_by_size')
-                .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-                .eq('id', existingStock.id);
-            } else {
-              // Create new stock record with negative value
-              await supabase
-                .from('stock_by_size')
-                .insert({
-                  company_id: profile.company_id,
-                  item_id: line.item_id,
-                  size,
-                  quantity: -qty, // Start with negative if no existing stock
-                });
-            }
-          }
-        }
+        // NOTE: Stock is automatically deducted by database trigger (adjust_stock_on_line_insert_or_update)
+        // Do NOT manually deduct stock here to avoid double deduction
 
         if (!invoice) {
           const { error: postError } = await supabase
