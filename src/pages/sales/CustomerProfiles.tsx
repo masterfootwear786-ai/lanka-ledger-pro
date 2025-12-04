@@ -93,37 +93,45 @@ export default function CustomerProfiles() {
         const totalInvoiced = customerInvoices.reduce((sum, inv) => sum + (inv.grand_total || 0), 0);
         
         // Calculate paid amount and pending cheques
-        let totalPaid = 0;
-        let pendingCheques = 0;
+        let cashPayments = 0;
+        let passedCheques = 0;
+        let pendingChequesTotal = 0;
         const pendingChequesList: PendingCheque[] = [];
 
         customerReceipts.forEach(receipt => {
           try {
-            const reference = receipt.reference ? JSON.parse(receipt.reference) : null;
-            if (reference?.paymentMethod === 'cheque' && reference?.cheques) {
-              reference.cheques.forEach((cheque: any) => {
-                if (cheque.status === 'pending') {
-                  pendingCheques += Number(cheque.amount) || 0;
+            // Try to parse as JSON array (cheques)
+            const parsed = receipt.reference ? JSON.parse(receipt.reference) : null;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              // Receipt has cheque payments
+              parsed.forEach((cheque: any) => {
+                const amount = Number(cheque.amount) || 0;
+                if (cheque.status === 'passed') {
+                  passedCheques += amount;
+                } else if (cheque.status === 'returned') {
+                  // Returned cheques don't count
+                } else {
+                  // Pending (no status or status = 'pending')
+                  pendingChequesTotal += amount;
                   pendingChequesList.push({
-                    chequeNo: cheque.chequeNo || '-',
-                    amount: Number(cheque.amount) || 0,
-                    date: cheque.date || '-',
-                    bank: cheque.bank || '-',
+                    chequeNo: cheque.cheque_no || cheque.chequeNo || '-',
+                    amount: amount,
+                    date: cheque.cheque_date || cheque.date || '-',
+                    bank: cheque.cheque_bank || cheque.bank || '-',
                   });
-                } else if (cheque.status === 'passed') {
-                  totalPaid += Number(cheque.amount) || 0;
                 }
-                // Returned cheques don't count as paid
               });
             } else {
-              // Cash payment
-              totalPaid += receipt.amount || 0;
+              // Cash payment or bank transfer
+              cashPayments += receipt.amount || 0;
             }
           } catch {
-            totalPaid += receipt.amount || 0;
+            // Not JSON, treat as cash payment
+            cashPayments += receipt.amount || 0;
           }
         });
 
+        const totalPaid = cashPayments + passedCheques;
         const outstanding = totalInvoiced - totalPaid;
 
         return {
@@ -138,7 +146,7 @@ export default function CustomerProfiles() {
           updated_at: customer.updated_at,
           totalInvoiced,
           totalPaid,
-          pendingCheques,
+          pendingCheques: pendingChequesTotal,
           pendingChequesCount: pendingChequesList.length,
           pendingChequesList,
           outstanding,
