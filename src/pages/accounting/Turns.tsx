@@ -32,6 +32,7 @@ interface Turn {
   route: string;
   expenses: number;
   expense_fuel: number | null;
+  km: number | null;
   expense_food: number | null;
   expense_accommodation: number | null;
   accommodation_city: string | null;
@@ -52,6 +53,7 @@ export default function Turns() {
     vehicle_number: "",
     route: "",
     expense_fuel: "",
+    km: "",
     expense_food: "",
     expense_accommodation: "",
     accommodation_city: "",
@@ -107,6 +109,7 @@ export default function Turns() {
         vehicle_number: turn.vehicle_number,
         route: turn.route,
         expense_fuel: (turn.expense_fuel || 0).toString(),
+        km: (turn.km || 0).toString(),
         expense_food: (turn.expense_food || 0).toString(),
         expense_accommodation: (turn.expense_accommodation || 0).toString(),
         accommodation_city: turn.accommodation_city || "",
@@ -120,6 +123,7 @@ export default function Turns() {
         vehicle_number: "",
         route: "",
         expense_fuel: "",
+        km: "",
         expense_food: "",
         expense_accommodation: "",
         accommodation_city: "",
@@ -171,6 +175,7 @@ export default function Turns() {
         vehicle_number: formData.vehicle_number,
         route: formData.route,
         expense_fuel: parseFloat(formData.expense_fuel) || 0,
+        km: parseFloat(formData.km) || 0,
         expense_food: parseFloat(formData.expense_food) || 0,
         expense_accommodation: parseFloat(formData.expense_accommodation) || 0,
         accommodation_city: formData.accommodation_city || null,
@@ -505,6 +510,20 @@ export default function Turns() {
                     value={formData.expense_fuel}
                     onChange={(e) => setFormData({ ...formData, expense_fuel: e.target.value })}
                     placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="km" className="text-sm flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-amber-500" />
+                    KM
+                  </Label>
+                  <Input
+                    id="km"
+                    type="number"
+                    step="0.01"
+                    value={formData.km}
+                    onChange={(e) => setFormData({ ...formData, km: e.target.value })}
+                    placeholder="0"
                   />
                 </div>
                 <div className="space-y-2">
