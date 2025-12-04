@@ -34,6 +34,7 @@ interface Turn {
   expense_fuel: number | null;
   expense_food: number | null;
   expense_accommodation: number | null;
+  accommodation_city: string | null;
   expense_other: number | null;
   notes?: string;
 }
@@ -53,6 +54,7 @@ export default function Turns() {
     expense_fuel: "",
     expense_food: "",
     expense_accommodation: "",
+    accommodation_city: "",
     expense_other: "",
     notes: "",
   });
@@ -107,6 +109,7 @@ export default function Turns() {
         expense_fuel: (turn.expense_fuel || 0).toString(),
         expense_food: (turn.expense_food || 0).toString(),
         expense_accommodation: (turn.expense_accommodation || 0).toString(),
+        accommodation_city: turn.accommodation_city || "",
         expense_other: (turn.expense_other || 0).toString(),
         notes: turn.notes || "",
       });
@@ -119,6 +122,7 @@ export default function Turns() {
         expense_fuel: "",
         expense_food: "",
         expense_accommodation: "",
+        accommodation_city: "",
         expense_other: "",
         notes: "",
       });
@@ -169,6 +173,7 @@ export default function Turns() {
         expense_fuel: parseFloat(formData.expense_fuel) || 0,
         expense_food: parseFloat(formData.expense_food) || 0,
         expense_accommodation: parseFloat(formData.expense_accommodation) || 0,
+        accommodation_city: formData.accommodation_city || null,
         expense_other: parseFloat(formData.expense_other) || 0,
         notes: formData.notes || null,
         updated_by: user.id,
@@ -528,6 +533,18 @@ export default function Turns() {
                     value={formData.expense_accommodation}
                     onChange={(e) => setFormData({ ...formData, expense_accommodation: e.target.value })}
                     placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="accommodation_city" className="text-sm flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-purple-500" />
+                    Accommodation City
+                  </Label>
+                  <Input
+                    id="accommodation_city"
+                    value={formData.accommodation_city}
+                    onChange={(e) => setFormData({ ...formData, accommodation_city: e.target.value })}
+                    placeholder="e.g. Colombo"
                   />
                 </div>
                 <div className="space-y-2">
