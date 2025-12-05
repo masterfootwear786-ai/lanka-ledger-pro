@@ -89,6 +89,9 @@ export default function Turns() {
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [turnToView, setTurnToView] = useState<Turn | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
+  const [isAddRouteDialogOpen, setIsAddRouteDialogOpen] = useState(false);
+  const [newRouteName, setNewRouteName] = useState("");
+  const [savingRoute, setSavingRoute] = useState(false);
   const { toast } = useToast();
 
   const fetchTurns = async () => {
@@ -290,6 +293,50 @@ export default function Turns() {
     } finally {
       setIsDeleteDialogOpen(false);
       setTurnToDelete(null);
+    }
+  };
+
+  const handleAddRoute = async () => {
+    if (!newRouteName.trim()) return;
+    setSavingRoute(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("routes")
+        .insert([{ 
+          name: newRouteName.trim(),
+          company_id: companyId,
+          created_by: user.id,
+          active: true
+        }]);
+
+      if (error) throw error;
+
+      toast({ title: "Success", description: "Route added successfully" });
+      
+      // Refresh routes
+      const { data: newRoutes } = await supabase
+        .from("routes")
+        .select("id, name, active")
+        .eq("company_id", companyId)
+        .eq("active", true)
+        .order("name", { ascending: true });
+      
+      setRoutes(newRoutes || []);
+      setFormData({ ...formData, route: newRouteName.trim() });
+      setNewRouteName("");
+      setIsAddRouteDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingRoute(false);
     }
   };
 
@@ -585,14 +632,14 @@ export default function Turns() {
                     ))}
                   </SelectContent>
                 </Select>
-                <a 
-                  href="/settings/routes" 
-                  target="_blank"
+                <button 
+                  type="button"
+                  onClick={() => setIsAddRouteDialogOpen(true)}
                   className="text-xs text-primary hover:underline flex items-center gap-1"
                 >
                   <Plus className="h-3 w-3" />
-                  Add Routes
-                </a>
+                  Add Route
+                </button>
               </div>
             </div>
 
@@ -762,6 +809,38 @@ export default function Turns() {
         onOpenChange={setIsViewDialogOpen}
         turn={turnToView}
       />
+
+      {/* Add Route Dialog */}
+      <Dialog open={isAddRouteDialogOpen} onOpenChange={setIsAddRouteDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Add New Route
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new_route_name">Route Name</Label>
+              <Input
+                id="new_route_name"
+                value={newRouteName}
+                onChange={(e) => setNewRouteName(e.target.value)}
+                placeholder="e.g., Colombo - Kandy"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsAddRouteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddRoute} disabled={savingRoute || !newRouteName.trim()}>
+              {savingRoute ? "Adding..." : "Add Route"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
