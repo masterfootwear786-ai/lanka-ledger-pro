@@ -46,6 +46,7 @@ interface ReceiptWithCheques {
 }
 
 type SortOrder = 'asc' | 'desc';
+type SortField = 'date' | 'city';
 
 export default function Cheques() {
   const { toast } = useToast();
@@ -54,6 +55,7 @@ export default function Cheques() {
   const [receiptsWithCheques, setReceiptsWithCheques] = useState<ReceiptWithCheques[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+  const [sortField, setSortField] = useState<SortField>('date');
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
@@ -153,9 +155,15 @@ export default function Cheques() {
   );
 
   const sortedCheques = [...allCheques].sort((a, b) => {
-    const dateA = new Date(a.cheque_date).getTime();
-    const dateB = new Date(b.cheque_date).getTime();
-    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    if (sortField === 'date') {
+      const dateA = new Date(a.cheque_date).getTime();
+      const dateB = new Date(b.cheque_date).getTime();
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    } else {
+      const cityA = (a.customer_city || '').toLowerCase();
+      const cityB = (b.customer_city || '').toLowerCase();
+      return sortOrder === 'asc' ? cityA.localeCompare(cityB) : cityB.localeCompare(cityA);
+    }
   });
 
   const updateChequeStatus = async (receiptId: string, chequeNo: string, status: 'passed' | 'returned') => {
@@ -282,7 +290,7 @@ export default function Cheques() {
     doc.text('Cheques Report', 14, 30);
     doc.setFontSize(10);
     doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 38);
-    doc.text(`Sort: By Date (${sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})`, 14, 44);
+    doc.text(`Sort: By ${sortField === 'date' ? 'Date' : 'City'} (${sortField === 'date' ? (sortOrder === 'asc' ? 'Oldest First' : 'Newest First') : (sortOrder === 'asc' ? 'A to Z' : 'Z to A')})`, 14, 44);
     if (searchTerm) {
       doc.text(`Filter: "${searchTerm}"`, 14, 50);
     }
@@ -339,7 +347,7 @@ export default function Cheques() {
         <h1>${companyInfo?.name || 'Company'}</h1>
         <h2>Cheques Report - ${new Date().toLocaleDateString()}</h2>
         <div class="summary">
-          <p><strong>Sort:</strong> By Date (${sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})</p>
+          <p><strong>Sort:</strong> By ${sortField === 'date' ? 'Date' : 'City'} (${sortField === 'date' ? (sortOrder === 'asc' ? 'Oldest First' : 'Newest First') : (sortOrder === 'asc' ? 'A to Z' : 'Z to A')})</p>
           ${searchTerm ? `<p><strong>Filter:</strong> "${searchTerm}"</p>` : ''}
           <p><strong>Total Cheques:</strong> ${sortedCheques.length} | 
              <strong>Pending:</strong> ${pendingCount} | 
@@ -404,19 +412,29 @@ export default function Cheques() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline">
                 {sortOrder === 'asc' ? <SortAsc className="h-4 w-4 mr-2" /> : <SortDesc className="h-4 w-4 mr-2" />}
-                Sort by Date
+                Sort by {sortField === 'date' ? 'Date' : 'City'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setSortOrder('asc')}>
+              <DropdownMenuItem onClick={() => { setSortField('date'); setSortOrder('asc'); }}>
                 <SortAsc className="h-4 w-4 mr-2" />
-                Oldest First
-                {sortOrder === 'asc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
+                Date - Oldest First
+                {sortField === 'date' && sortOrder === 'asc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setSortOrder('desc')}>
+              <DropdownMenuItem onClick={() => { setSortField('date'); setSortOrder('desc'); }}>
                 <SortDesc className="h-4 w-4 mr-2" />
-                Newest First
-                {sortOrder === 'desc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
+                Date - Newest First
+                {sortField === 'date' && sortOrder === 'desc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortField('city'); setSortOrder('asc'); }}>
+                <SortAsc className="h-4 w-4 mr-2" />
+                City - A to Z
+                {sortField === 'city' && sortOrder === 'asc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setSortField('city'); setSortOrder('desc'); }}>
+                <SortDesc className="h-4 w-4 mr-2" />
+                City - Z to A
+                {sortField === 'city' && sortOrder === 'desc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -459,7 +477,9 @@ export default function Cheques() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Cheque List ({sortedCheques.length})</CardTitle>
           <Badge variant="secondary" className="text-xs">
-            {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+            {sortField === 'date' 
+              ? (sortOrder === 'asc' ? 'Date: Oldest First' : 'Date: Newest First')
+              : (sortOrder === 'asc' ? 'City: A to Z' : 'City: Z to A')}
           </Badge>
         </CardHeader>
         <CardContent>
@@ -556,7 +576,7 @@ export default function Cheques() {
               <h2 className="text-xl font-bold">{companyInfo?.name || 'Company'}</h2>
               <p className="text-muted-foreground">Cheques Report - {new Date().toLocaleDateString()}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Sort: By Date ({sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})
+                Sort: By {sortField === 'date' ? 'Date' : 'City'} ({sortField === 'date' ? (sortOrder === 'asc' ? 'Oldest First' : 'Newest First') : (sortOrder === 'asc' ? 'A to Z' : 'Z to A')})
                 {searchTerm && ` | Filter: "${searchTerm}"`}
               </p>
             </div>
