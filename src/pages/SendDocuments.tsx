@@ -207,7 +207,7 @@ export default function SendDocuments() {
     }
   };
 
-  const handleSendWhatsApp = () => {
+  const handleSendWhatsApp = async () => {
     if (!selectedContactData || !selectedDocumentData) {
       toast({ variant: "destructive", description: "Please select contact and document" });
       return;
@@ -237,14 +237,28 @@ export default function SendDocuments() {
       ? selectedDocumentData.invoice_no 
       : selectedDocumentData.bill_no;
 
-    const whatsappMessage = encodeURIComponent(
-      `Hello ${selectedContactData.name},\n\n${documentType} ${documentNo}\nAmount: ${selectedDocumentData.grand_total.toLocaleString()}\n\n${message}`
-    );
+    const whatsappMessage = `Hello ${selectedContactData.name},\n\n${documentType} ${documentNo}\nAmount: ${selectedDocumentData.grand_total.toLocaleString()}\n\n${message}`;
     
-    // Use web.whatsapp.com directly instead of wa.me (which redirects to api.whatsapp.com and can be blocked)
-    const whatsappUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${whatsappMessage}`;
-    window.open(whatsappUrl, "_blank");
-    toast({ description: "Opening WhatsApp Web..." });
+    // Copy message to clipboard since WhatsApp URLs are blocked
+    try {
+      await navigator.clipboard.writeText(whatsappMessage);
+      toast({ 
+        title: "Message Copied!",
+        description: `Open WhatsApp manually and send to ${phone}. Message is copied to clipboard.`,
+      });
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement("textarea");
+      textArea.value = whatsappMessage;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+      toast({ 
+        title: "Message Copied!",
+        description: `Open WhatsApp manually and send to ${phone}. Message is copied to clipboard.`,
+      });
+    }
   };
 
   const handleSendSMS = () => {
