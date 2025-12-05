@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download, Database } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download, Database, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -74,6 +74,14 @@ export default function Settings() {
       path: "/settings/custom-fields",
       color: "text-pink-600 dark:text-pink-400",
       adminOnly: true,
+    },
+    {
+      title: "Routes",
+      description: "Manage trip routes for turns",
+      icon: MapPin,
+      path: "/settings/routes",
+      color: "text-teal-600 dark:text-teal-400",
+      adminOnly: false,
     },
     {
       title: "Trash",
