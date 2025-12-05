@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "https://esm.sh/resend@4.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +37,8 @@ const handler = async (req: Request): Promise<Response> => {
     }: EmailRequest = await req.json();
 
     console.log("Attempting to send email to:", to);
+    console.log("SMTP Host:", Deno.env.get("SMTP_HOST"));
+    console.log("SMTP User:", Deno.env.get("SMTP_USER"));
 
     let lineItemsHtml = '';
     if (lineItems && lineItems.length > 0) {
@@ -69,44 +69,77 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
-    const emailResponse = await resend.emails.send({
-      from: "Documents <onboarding@resend.dev>",
-      to: [to],
-      subject: `${documentType} ${documentNo}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #1a365d; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px;">Master Footwear</h1>
+        </div>
+        
+        <div style="padding: 20px;">
           <h2>${documentType} Details</h2>
           <p>Dear ${contactName},</p>
           <p>Please find the details of your ${documentType.toLowerCase()}:</p>
+          
           <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${documentType} Number:</strong> ${documentNo}</p>
-            <p><strong>Amount:</strong> ${amount.toLocaleString()}</p>
+            <p><strong>Amount:</strong> Rs. ${amount.toLocaleString()}</p>
             ${outstandingBalance !== undefined ? `
-              <p style="color: #dc2626;"><strong>Outstanding Balance:</strong> ${outstandingBalance.toLocaleString()}</p>
+              <p style="color: #dc2626;"><strong>Outstanding Balance:</strong> Rs. ${outstandingBalance.toLocaleString()}</p>
             ` : ''}
           </div>
+          
           ${lineItemsHtml}
-          ${message ? `<p style="margin: 20px 0;">${message}</p>` : ''}
+          ${message ? `<p style="margin: 20px 0; background-color: #e8f4fd; padding: 10px; border-radius: 5px;">${message}</p>` : ''}
           ${includePaymentTerms ? `
             <div style="background-color: #fef9e7; padding: 15px; border-radius: 5px; margin: 20px 0;">
               <p style="margin: 0;"><strong>Payment Terms:</strong> Payment is due within 30 days of invoice date.</p>
             </div>
           ` : ''}
+          
           <p>If you have any questions, please don't hesitate to contact us.</p>
-          <p>Best regards,<br>Accounts Team</p>
+          <p>Best regards,<br><strong>Master Footwear Accounts Team</strong></p>
         </div>
-      `,
+        
+        <div style="background-color: #1a365d; color: white; padding: 15px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">Master Footwear Pvt Ltd</p>
+          <p style="margin: 5px 0;">info@masterfootwear.lk</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Create SMTP client
+    const client = new SMTPClient({
+      connection: {
+        hostname: Deno.env.get("SMTP_HOST") || "server.cloudmail.lk",
+        port: parseInt(Deno.env.get("SMTP_PORT") || "465"),
+        tls: true,
+        auth: {
+          username: Deno.env.get("SMTP_USER") || "",
+          password: Deno.env.get("SMTP_PASS") || "",
+        },
+      },
     });
 
-    // Check if Resend returned an error
-    if (emailResponse.error) {
-      console.error("Resend error:", emailResponse.error);
-      throw new Error(emailResponse.error.message || "Failed to send email via Resend");
-    }
+    // Send email
+    await client.send({
+      from: `${Deno.env.get("SMTP_FROM_NAME") || "Master Footwear"} <${Deno.env.get("SMTP_FROM_EMAIL") || "info@masterfootwear.lk"}>`,
+      to: to,
+      subject: `${documentType} ${documentNo} - Master Footwear`,
+      content: "Please view this email in an HTML-compatible email client.",
+      html: htmlContent,
+    });
 
-    console.log("Email sent successfully:", emailResponse.data);
+    await client.close();
 
-    return new Response(JSON.stringify({ success: true, data: emailResponse.data }), {
+    console.log("Email sent successfully to:", to);
+
+    return new Response(JSON.stringify({ success: true, message: "Email sent successfully" }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
