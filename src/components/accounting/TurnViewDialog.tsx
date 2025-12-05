@@ -5,9 +5,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Truck, MapPin, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, User, Users } from "lucide-react";
+import { Truck, MapPin, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, User, Users, Gauge } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TurnViewDialogProps {
   open: boolean;
@@ -16,7 +18,23 @@ interface TurnViewDialogProps {
 }
 
 export function TurnViewDialog({ open, onOpenChange, turn }: TurnViewDialogProps) {
+  const { data: dailyExpenses } = useQuery({
+    queryKey: ['turn-daily-expenses-km', turn?.id],
+    queryFn: async () => {
+      if (!turn?.id) return [];
+      const { data, error } = await supabase
+        .from('turn_daily_expenses')
+        .select('start_km, end_km')
+        .eq('turn_id', turn.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!turn?.id && open,
+  });
+
   if (!turn) return null;
+
+  const totalKm = dailyExpenses?.reduce((sum, e) => sum + ((e.end_km || 0) - (e.start_km || 0)), 0) || 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -76,6 +94,19 @@ export function TurnViewDialog({ open, onOpenChange, turn }: TurnViewDialogProps
               </p>
             </div>
           </div>
+
+          {/* Total KM Card */}
+          <Card className="bg-primary/10 border-primary/30">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-primary">
+                  <Gauge className="h-5 w-5" />
+                  <span className="font-medium">Total Distance</span>
+                </div>
+                <span className="text-2xl font-bold text-primary">{totalKm.toLocaleString()} km</span>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Expense Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
