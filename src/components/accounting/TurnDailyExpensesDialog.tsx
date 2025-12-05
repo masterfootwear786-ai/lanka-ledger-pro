@@ -27,6 +27,7 @@ interface DailyExpense {
   start_km: number;
   end_km: number;
   expense_fuel: number;
+  fuel_km: number;
   km: number;
   expense_food: number;
   expense_accommodation: number;
@@ -83,6 +84,7 @@ export function TurnDailyExpensesDialog({
             start_km: d.start_km || 0,
             end_km: d.end_km || 0,
             expense_fuel: d.expense_fuel || 0,
+            fuel_km: d.fuel_km || 0,
             km: d.km || 0,
             expense_food: d.expense_food || 0,
             expense_accommodation: d.expense_accommodation || 0,
@@ -120,6 +122,7 @@ export function TurnDailyExpensesDialog({
         start_km: 0,
         end_km: 0,
         expense_fuel: 0,
+        fuel_km: 0,
         km: 0,
         expense_food: 0,
         expense_accommodation: 0,
@@ -148,6 +151,7 @@ export function TurnDailyExpensesDialog({
       start_km: 0,
       end_km: 0,
       expense_fuel: 0,
+      fuel_km: 0,
       km: 0,
       expense_food: 0,
       expense_accommodation: 0,
@@ -177,6 +181,7 @@ export function TurnDailyExpensesDialog({
       start_km: 0,
       end_km: 0,
       expense_fuel: 0,
+      fuel_km: 0,
       km: 0,
       expense_food: 0,
       expense_accommodation: 0,
@@ -213,6 +218,7 @@ export function TurnDailyExpensesDialog({
         start_km: 0,
         end_km: 0,
         expense_fuel: 0,
+        fuel_km: 0,
         km: 0,
         expense_food: 0,
         expense_accommodation: 0,
@@ -266,6 +272,7 @@ export function TurnDailyExpensesDialog({
           start_km: exp.start_km || 0,
           end_km: exp.end_km || 0,
           expense_fuel: exp.expense_fuel || 0,
+          fuel_km: exp.fuel_km || 0,
           km: exp.km || 0,
           expense_food: exp.expense_food || 0,
           expense_accommodation: exp.expense_accommodation || 0,
@@ -435,6 +442,8 @@ export function TurnDailyExpensesDialog({
                       <Fuel className="h-4 w-4 text-amber-500" /> Fuel
                     </span>
                   </TableHead>
+                  <TableHead className="text-right w-[80px]">Fuel KM</TableHead>
+                  <TableHead className="text-right w-[80px] bg-amber-50 dark:bg-amber-950/30">Fuel Trip</TableHead>
                   <TableHead className="text-right w-[100px]">
                     <span className="flex items-center justify-end gap-1">
                       <UtensilsCrossed className="h-4 w-4 text-orange-500" /> Food
@@ -498,6 +507,31 @@ export function TurnDailyExpensesDialog({
                         placeholder="0"
                         className="h-8 text-sm text-right"
                       />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={expense.fuel_km || ""}
+                        onChange={(e) => handleUpdateExpense(index, "fuel_km", parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        className="h-8 text-sm text-right"
+                      />
+                    </TableCell>
+                    <TableCell className="text-right bg-amber-50 dark:bg-amber-950/30 font-semibold text-amber-700 dark:text-amber-300">
+                      {(() => {
+                        if (!expense.fuel_km || expense.fuel_km === 0) return '-';
+                        // Find previous fuel entry with fuel_km > 0
+                        let prevFuelKm = 0;
+                        for (let i = index - 1; i >= 0; i--) {
+                          if (dailyExpenses[i].fuel_km && dailyExpenses[i].fuel_km > 0) {
+                            prevFuelKm = dailyExpenses[i].fuel_km;
+                            break;
+                          }
+                        }
+                        if (prevFuelKm === 0) return '-';
+                        return (expense.fuel_km - prevFuelKm).toLocaleString() + ' km';
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Input
@@ -575,6 +609,15 @@ export function TurnDailyExpensesDialog({
                   <TableCell></TableCell>
                   <TableCell className="text-right bg-primary/10 font-bold">{totals.dayKm.toLocaleString()} km</TableCell>
                   <TableCell className="text-right">{totals.fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="text-right bg-amber-50 dark:bg-amber-950/30 font-bold text-amber-700 dark:text-amber-300">
+                    {(() => {
+                      const fuelEntries = dailyExpenses.filter(e => e.fuel_km && e.fuel_km > 0).map(e => e.fuel_km);
+                      if (fuelEntries.length < 2) return '-';
+                      const totalFuelKm = Math.max(...fuelEntries) - Math.min(...fuelEntries);
+                      return totalFuelKm.toLocaleString() + ' km';
+                    })()}
+                  </TableCell>
                   <TableCell className="text-right">{totals.food.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-right">{totals.accommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell></TableCell>
