@@ -39,6 +39,8 @@ interface ReceiptWithCheques {
   receipt_date: string;
   customer: {
     name: string;
+    district?: string;
+    area?: string;
   };
   cheques: ChequeDetail[];
 }
@@ -86,7 +88,7 @@ export default function Cheques() {
           receipt_no,
           receipt_date,
           reference,
-          customer:contacts(name)
+          customer:contacts(name, district, area)
         `)
         .is('deleted_at', null)
         .order('receipt_date', { ascending: false });
@@ -145,7 +147,8 @@ export default function Cheques() {
       receipt_id: receipt.id,
       receipt_no: receipt.receipt_no,
       receipt_date: receipt.receipt_date,
-      customer_name: receipt.customer?.name
+      customer_name: receipt.customer?.name,
+      customer_city: receipt.customer?.district || receipt.customer?.area || ''
     }))
   );
 
@@ -290,11 +293,12 @@ export default function Cheques() {
 
     autoTable(doc, {
       startY: summaryY + 14,
-      head: [['Cheque No', 'Date', 'Customer', 'Receipt', 'Bank', 'Branch', 'Holder', 'Amount', 'Status']],
+      head: [['Cheque No', 'Date', 'Customer', 'City', 'Receipt', 'Bank', 'Branch', 'Holder', 'Amount', 'Status']],
       body: sortedCheques.map(cheque => [
         cheque.cheque_no,
         new Date(cheque.cheque_date).toLocaleDateString(),
         cheque.customer_name || 'N/A',
+        cheque.customer_city || '-',
         cheque.receipt_no,
         cheque.cheque_bank || '-',
         cheque.cheque_branch || '-',
@@ -349,6 +353,7 @@ export default function Cheques() {
               <th>Cheque No</th>
               <th>Date</th>
               <th>Customer</th>
+              <th>City</th>
               <th>Receipt</th>
               <th>Bank</th>
               <th>Branch</th>
@@ -363,6 +368,7 @@ export default function Cheques() {
                 <td>${cheque.cheque_no}</td>
                 <td>${new Date(cheque.cheque_date).toLocaleDateString()}</td>
                 <td>${cheque.customer_name || 'N/A'}</td>
+                <td>${cheque.customer_city || '-'}</td>
                 <td>${cheque.receipt_no}</td>
                 <td>${cheque.cheque_bank || '-'}</td>
                 <td>${cheque.cheque_branch || '-'}</td>
@@ -464,6 +470,7 @@ export default function Cheques() {
                   <TableHead>Cheque No</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Customer</TableHead>
+                  <TableHead>City</TableHead>
                   <TableHead>Receipt No</TableHead>
                   <TableHead>Bank</TableHead>
                   <TableHead>Branch</TableHead>
@@ -476,11 +483,11 @@ export default function Cheques() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center">Loading...</TableCell>
+                    <TableCell colSpan={11} className="text-center">Loading...</TableCell>
                   </TableRow>
                 ) : sortedCheques.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="text-center">No cheques found</TableCell>
+                    <TableCell colSpan={11} className="text-center">No cheques found</TableCell>
                   </TableRow>
                 ) : (
                   sortedCheques.map((cheque, index) => (
@@ -493,6 +500,7 @@ export default function Cheques() {
                       </TableCell>
                       <TableCell>{new Date(cheque.cheque_date).toLocaleDateString()}</TableCell>
                       <TableCell>{cheque.customer_name || 'N/A'}</TableCell>
+                      <TableCell>{cheque.customer_city || '-'}</TableCell>
                       <TableCell className="font-mono">{cheque.receipt_no}</TableCell>
                       <TableCell>{cheque.cheque_bank || '-'}</TableCell>
                       <TableCell>{cheque.cheque_branch || '-'}</TableCell>
@@ -585,6 +593,7 @@ export default function Cheques() {
                     <TableHead>Cheque No</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Customer</TableHead>
+                    <TableHead>City</TableHead>
                     <TableHead>Receipt</TableHead>
                     <TableHead>Bank</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
@@ -597,6 +606,7 @@ export default function Cheques() {
                       <TableCell className="font-mono">{cheque.cheque_no}</TableCell>
                       <TableCell>{new Date(cheque.cheque_date).toLocaleDateString()}</TableCell>
                       <TableCell>{cheque.customer_name || 'N/A'}</TableCell>
+                      <TableCell>{cheque.customer_city || '-'}</TableCell>
                       <TableCell>{cheque.receipt_no}</TableCell>
                       <TableCell>{cheque.cheque_bank || '-'}</TableCell>
                       <TableCell className="text-right font-medium">
