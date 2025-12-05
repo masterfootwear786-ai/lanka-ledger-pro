@@ -25,6 +25,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TurnDailyExpensesDialog } from "@/components/accounting/TurnDailyExpensesDialog";
 import { TurnViewDialog } from "@/components/accounting/TurnViewDialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface Route {
+  id: string;
+  name: string;
+  active: boolean;
+}
 
 interface Turn {
   id: string;
@@ -75,6 +88,7 @@ export default function Turns() {
   const [companyId, setCompanyId] = useState<string>("");
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [turnToView, setTurnToView] = useState<Turn | null>(null);
+  const [routes, setRoutes] = useState<Route[]>([]);
   const { toast } = useToast();
 
   const fetchTurns = async () => {
@@ -92,15 +106,24 @@ export default function Turns() {
       if (!profile?.company_id) throw new Error("No company found");
       setCompanyId(profile.company_id);
 
-      const { data, error } = await supabase
-        .from("turns")
-        .select("*")
-        .eq("company_id", profile.company_id)
-        .order("turn_date", { ascending: false })
-        .order("turn_no", { ascending: false });
+      const [turnsResult, routesResult] = await Promise.all([
+        supabase
+          .from("turns")
+          .select("*")
+          .eq("company_id", profile.company_id)
+          .order("turn_date", { ascending: false })
+          .order("turn_no", { ascending: false }),
+        supabase
+          .from("routes")
+          .select("id, name, active")
+          .eq("company_id", profile.company_id)
+          .eq("active", true)
+          .order("name", { ascending: true })
+      ]);
 
-      if (error) throw error;
-      setTurns(data || []);
+      if (turnsResult.error) throw turnsResult.error;
+      setTurns(turnsResult.data || []);
+      setRoutes(routesResult.data || []);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -545,6 +568,27 @@ export default function Turns() {
                   required
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="route">Route</Label>
+                <Select
+                  value={formData.route}
+                  onValueChange={(value) => setFormData({ ...formData, route: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select route" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {routes.map((route) => (
+                      <SelectItem key={route.id} value={route.name}>
+                        {route.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="driver">Driver</Label>
                 <Input
