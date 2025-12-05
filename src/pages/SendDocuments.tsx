@@ -207,7 +207,7 @@ export default function SendDocuments() {
     }
   };
 
-  const handleSendWhatsApp = async () => {
+  const handleSendWhatsApp = () => {
     if (!selectedContactData || !selectedDocumentData) {
       toast({ variant: "destructive", description: "Please select contact and document" });
       return;
@@ -237,28 +237,26 @@ export default function SendDocuments() {
       ? selectedDocumentData.invoice_no 
       : selectedDocumentData.bill_no;
 
-    const whatsappMessage = `Hello ${selectedContactData.name},\n\n${documentType} ${documentNo}\nAmount: ${selectedDocumentData.grand_total.toLocaleString()}\n\n${message}`;
+    const whatsappMessage = encodeURIComponent(
+      `Hello ${selectedContactData.name},\n\n${documentType} ${documentNo}\nAmount: ${selectedDocumentData.grand_total.toLocaleString()}\n\n${message}`
+    );
     
-    // Copy message to clipboard since WhatsApp URLs are blocked
-    try {
-      await navigator.clipboard.writeText(whatsappMessage);
-      toast({ 
-        title: "Message Copied!",
-        description: `Open WhatsApp manually and send to ${phone}. Message is copied to clipboard.`,
-      });
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement("textarea");
-      textArea.value = whatsappMessage;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand("copy");
-      document.body.removeChild(textArea);
-      toast({ 
-        title: "Message Copied!",
-        description: `Open WhatsApp manually and send to ${phone}. Message is copied to clipboard.`,
-      });
-    }
+    // Try whatsapp:// protocol first (opens app directly on mobile)
+    // Falls back to wa.me if protocol not supported
+    const whatsappAppUrl = `whatsapp://send?phone=${phone}&text=${whatsappMessage}`;
+    const waLinkUrl = `https://wa.me/${phone}?text=${whatsappMessage}`;
+    
+    // Try app protocol first
+    const appWindow = window.open(whatsappAppUrl, "_self");
+    
+    // If app protocol fails, try wa.me after a short delay
+    setTimeout(() => {
+      if (!document.hidden) {
+        window.open(waLinkUrl, "_blank");
+      }
+    }, 500);
+    
+    toast({ description: "Opening WhatsApp..." });
   };
 
   const handleSendSMS = () => {
