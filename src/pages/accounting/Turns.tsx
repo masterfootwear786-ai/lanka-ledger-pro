@@ -34,6 +34,8 @@ interface Turn {
   turn_end_date: string | null;
   vehicle_number: string;
   route: string;
+  driver: string | null;
+  sales_reps: string[] | null;
   expenses: number;
   expense_fuel: number | null;
   km: number | null;
@@ -57,6 +59,8 @@ export default function Turns() {
     turn_end_date: "",
     vehicle_number: "",
     route: "",
+    driver: "",
+    sales_reps: "",
     expense_fuel: "",
     km: "",
     expense_food: "",
@@ -120,6 +124,8 @@ export default function Turns() {
         turn_end_date: turn.turn_end_date || "",
         vehicle_number: turn.vehicle_number,
         route: turn.route,
+        driver: turn.driver || "",
+        sales_reps: turn.sales_reps?.join(", ") || "",
         expense_fuel: (turn.expense_fuel || 0).toString(),
         km: (turn.km || 0).toString(),
         expense_food: (turn.expense_food || 0).toString(),
@@ -135,6 +141,8 @@ export default function Turns() {
         turn_end_date: "",
         vehicle_number: "",
         route: "",
+        driver: "",
+        sales_reps: "",
         expense_fuel: "",
         km: "",
         expense_food: "",
@@ -189,6 +197,8 @@ export default function Turns() {
         turn_end_date: formData.turn_end_date || null,
         vehicle_number: formData.vehicle_number,
         route: formData.route,
+        driver: formData.driver || null,
+        sales_reps: formData.sales_reps ? formData.sales_reps.split(",").map(s => s.trim()).filter(s => s) : null,
         expense_fuel: parseFloat(formData.expense_fuel) || 0,
         km: parseFloat(formData.km) || 0,
         expense_food: parseFloat(formData.expense_food) || 0,
@@ -535,6 +545,26 @@ export default function Turns() {
                   required
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="driver">Driver</Label>
+                <Input
+                  id="driver"
+                  value={formData.driver}
+                  onChange={(e) => setFormData({ ...formData, driver: e.target.value })}
+                  placeholder="Driver name"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sales_reps">Sales Rep(s)</Label>
+              <Input
+                id="sales_reps"
+                value={formData.sales_reps}
+                onChange={(e) => setFormData({ ...formData, sales_reps: e.target.value })}
+                placeholder="Comma-separated names (e.g. John, Jane)"
+              />
+              <p className="text-xs text-muted-foreground">Enter multiple names separated by commas</p>
             </div>
 
             <div className="space-y-3">
