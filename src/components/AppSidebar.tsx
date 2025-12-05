@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 
 export function AppSidebar() {
   const { t } = useTranslation();
@@ -35,6 +36,31 @@ export function AppSidebar() {
   
   // Track which section is currently open (only one at a time)
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const [company, setCompany] = useState<{ name: string; logo_url: string | null } | null>(null);
+
+  // Fetch company data
+  useEffect(() => {
+    const fetchCompany = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name, logo_url')
+          .eq('id', profile.company_id)
+          .single();
+        setCompany(companyData);
+      }
+    };
+    fetchCompany();
+  }, []);
 
   const isActiveRoute = (url: string) => {
     if (url === '/') return location.pathname === '/';
@@ -112,20 +138,29 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/50">
       <SidebarContent className="bg-sidebar scrollbar-thin">
         {/* Logo Section */}
-        {/* Logo Section */}
         <div className={cn(
           "flex items-center gap-3 px-4 py-5 border-b border-sidebar-border/50",
           collapsed && "justify-center px-2"
         )}>
-          <div className="h-11 w-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg ring-2 ring-primary/20">
-            <span className="text-xl font-display font-black text-primary-foreground tracking-tighter">M</span>
-          </div>
+          {company?.logo_url ? (
+            <img 
+              src={company.logo_url} 
+              alt={company.name || 'Logo'} 
+              className="h-11 w-11 rounded-xl object-contain shadow-lg ring-2 ring-primary/20 bg-white"
+            />
+          ) : (
+            <div className="h-11 w-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg ring-2 ring-primary/20">
+              <span className="text-xl font-display font-black text-primary-foreground tracking-tighter">M</span>
+            </div>
+          )}
           {!collapsed && (
             <div className="animate-fade-in">
               <h2 className="font-display font-bold text-sidebar-foreground text-lg tracking-tight leading-tight">
-                Master
+                {company?.name?.split(' ')[0] || 'Master'}
               </h2>
-              <p className="text-[10px] text-sidebar-foreground/60 font-medium tracking-wide">FOOTWEAR PVT LTD</p>
+              <p className="text-[10px] text-sidebar-foreground/60 font-medium tracking-wide">
+                {company?.name?.split(' ').slice(1).join(' ').toUpperCase() || 'FOOTWEAR PVT LTD'}
+              </p>
             </div>
           )}
         </div>
