@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
@@ -8,7 +9,7 @@ import {
   ShoppingCart,
   Calendar,
   ArrowRight,
-  Sparkles
+  Clock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -16,6 +17,15 @@ import { format } from 'date-fns';
 const Dashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const quickActions = [
     {
@@ -67,26 +77,50 @@ const Dashboard = () => {
         {/* Decorative Elements */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-32 translate-x-32" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-info/10 rounded-full blur-3xl translate-y-24 -translate-x-24" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-primary/5 to-transparent rounded-full blur-3xl" />
         
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg">
-                <Sparkles className="h-5 w-5 text-primary-foreground" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="space-y-3">
+            {/* Company Logo & Name */}
+            <div className="flex items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-xl shadow-primary/30 ring-4 ring-primary/20">
+                <span className="text-2xl font-display font-black text-primary-foreground tracking-tighter">M</span>
               </div>
-              <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">
-                {t('app.dashboard')}
-              </h1>
+              <div>
+                <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
+                  Master Footwear
+                </h1>
+                <p className="text-lg text-primary font-semibold tracking-wide">PVT LTD</p>
+              </div>
             </div>
-            <p className="text-muted-foreground flex items-center gap-2">
+            
+            {/* Date Display */}
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Calendar className="h-4 w-4" />
-              {format(new Date(), 'EEEE, MMMM d, yyyy')}
-            </p>
+              <span>{format(new Date(), 'EEEE, MMMM d, yyyy')}</span>
+            </div>
           </div>
           
-          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 backdrop-blur-sm rounded-full px-4 py-2 border border-border/50">
-            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            System Online
+          {/* Time & Status */}
+          <div className="flex flex-col items-end gap-3">
+            {/* Live Clock */}
+            <div className="flex items-center gap-3 bg-background/80 backdrop-blur-md rounded-2xl px-5 py-3 border border-border/50 shadow-lg">
+              <Clock className="h-5 w-5 text-primary" />
+              <div className="flex flex-col">
+                <span className="text-3xl font-display font-bold tracking-tight tabular-nums">
+                  {format(currentTime, 'hh:mm:ss')}
+                </span>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                  {format(currentTime, 'a')}
+                </span>
+              </div>
+            </div>
+            
+            {/* System Status */}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-background/50 backdrop-blur-sm rounded-full px-4 py-2 border border-border/50">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              System Online
+            </div>
           </div>
         </div>
       </div>
