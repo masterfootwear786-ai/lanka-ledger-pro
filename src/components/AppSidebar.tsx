@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Send,
   Users,
-  Sparkles,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -113,19 +112,20 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/50">
       <SidebarContent className="bg-sidebar scrollbar-thin">
         {/* Logo Section */}
+        {/* Logo Section */}
         <div className={cn(
           "flex items-center gap-3 px-4 py-5 border-b border-sidebar-border/50",
           collapsed && "justify-center px-2"
         )}>
-          <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
+          <div className="h-11 w-11 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg ring-2 ring-primary/20">
+            <span className="text-xl font-display font-black text-primary-foreground tracking-tighter">M</span>
           </div>
           {!collapsed && (
             <div className="animate-fade-in">
-              <h2 className="font-display font-bold text-sidebar-foreground text-lg tracking-tight">
+              <h2 className="font-display font-bold text-sidebar-foreground text-lg tracking-tight leading-tight">
                 Master
               </h2>
-              <p className="text-xs text-sidebar-foreground/60">Footwear PVT LTD</p>
+              <p className="text-[10px] text-sidebar-foreground/60 font-medium tracking-wide">FOOTWEAR PVT LTD</p>
             </div>
           )}
         </div>
