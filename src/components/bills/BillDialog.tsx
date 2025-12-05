@@ -27,18 +27,10 @@ type BillFormData = z.infer<typeof billSchema>;
 
 interface LineItem {
   id: string;
-  item_id: string;
-  art_no: string;
-  color: string;
-  size_39: number;
-  size_40: number;
-  size_41: number;
-  size_42: number;
-  size_43: number;
-  size_44: number;
-  size_45: number;
-  total_pairs: number;
+  description: string;
+  quantity: number;
   unit_price: number;
+  tax_rate: number;
   line_total: number;
   discount_selected: boolean;
 }
@@ -50,32 +42,11 @@ interface BillDialogProps {
   onSuccess?: () => void;
 }
 
-const SIZES = ['39', '40', '41', '42', '43', '44', '45'] as const;
-
-const createEmptyLineItem = (): LineItem => ({
-  id: Date.now().toString(),
-  item_id: '',
-  art_no: '',
-  color: '',
-  size_39: 0,
-  size_40: 0,
-  size_41: 0,
-  size_42: 0,
-  size_43: 0,
-  size_44: 0,
-  size_45: 0,
-  total_pairs: 0,
-  unit_price: 0,
-  line_total: 0,
-  discount_selected: false,
-});
-
 export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogProps) {
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
-  const [colors, setColors] = useState<any[]>([]);
-  const [lineItems, setLineItems] = useState<LineItem[]>([createEmptyLineItem()]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
 
   const form = useForm<BillFormData>({
@@ -89,7 +60,6 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
     if (open) {
       fetchSuppliers();
       fetchItems();
-      fetchColors();
       
       if (bill) {
         loadBillData();
@@ -97,7 +67,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
         form.reset({
           bill_date: new Date().toISOString().split('T')[0],
         });
-        setLineItems([createEmptyLineItem()]);
+        setLineItems([{ id: '1', description: '', quantity: 1, unit_price: 0, tax_rate: 0, line_total: 0, discount_selected: false }]);
         setDiscountAmount(0);
       }
     }
@@ -118,14 +88,6 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
       .select('*')
       .eq('active', true);
     if (data) setItems(data);
-  };
-
-  const fetchColors = async () => {
-    const { data } = await supabase
-      .from('colors')
-      .select('*')
-      .eq('active', true);
-    if (data) setColors(data);
   };
 
   const loadBillData = async () => {
@@ -149,57 +111,42 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
       .order('line_no');
 
     if (lines && lines.length > 0) {
-      // Try to match description with items to get art_no and color
-      setLineItems(lines.map((line, idx) => {
-        const matchedItem = items.find(i => i.name === line.description || i.code === line.description);
-        return {
-          id: line.id || `${idx}`,
-          item_id: line.item_id || '',
-          art_no: matchedItem?.code || line.description?.split(' - ')[0] || '',
-          color: matchedItem?.color || line.description?.split(' - ')[1] || '',
-          size_39: 0,
-          size_40: 0,
-          size_41: 0,
-          size_42: 0,
-          size_43: 0,
-          size_44: 0,
-          size_45: 0,
-          total_pairs: line.quantity,
-          unit_price: line.unit_price,
-          line_total: line.line_total,
-          discount_selected: false,
-        };
-      }));
+      setLineItems(lines.map((line, idx) => ({
+        id: line.id || `${idx}`,
+        description: line.description,
+        quantity: line.quantity,
+        unit_price: line.unit_price,
+        tax_rate: line.tax_rate || 0,
+        line_total: line.line_total,
+        discount_selected: false,
+      })));
     }
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, createEmptyLineItem()]);
+    setLineItems([...lineItems, {
+      id: Date.now().toString(),
+      description: '',
+      quantity: 1,
+      unit_price: 0,
+      tax_rate: 0,
+      line_total: 0,
+      discount_selected: false,
+    }]);
   };
 
   const removeLineItem = (id: string) => {
-    if (lineItems.length > 1) {
-      setLineItems(lineItems.filter(item => item.id !== id));
-    }
+    setLineItems(lineItems.filter(item => item.id !== id));
   };
 
   const updateLineItem = (id: string, field: keyof LineItem, value: any) => {
     setLineItems(lineItems.map(item => {
       if (item.id === id) {
         const updated = { ...item, [field]: value };
-        
-        // Recalculate total pairs if size field changed
-        if (field.startsWith('size_')) {
-          updated.total_pairs = 
-            updated.size_39 + updated.size_40 + updated.size_41 + 
-            updated.size_42 + updated.size_43 + updated.size_44 + updated.size_45;
+        if (field === 'quantity' || field === 'unit_price' || field === 'tax_rate') {
+          const subtotal = updated.quantity * updated.unit_price;
+          updated.line_total = subtotal + (subtotal * updated.tax_rate / 100);
         }
-        
-        // Recalculate line total
-        if (field.startsWith('size_') || field === 'unit_price') {
-          updated.line_total = updated.total_pairs * updated.unit_price;
-        }
-        
         return updated;
       }
       return item;
@@ -209,18 +156,8 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
   const selectItem = (lineId: string, itemId: string) => {
     const item = items.find(i => i.id === itemId);
     if (item) {
-      setLineItems(lineItems.map(line => {
-        if (line.id === lineId) {
-          return {
-            ...line,
-            item_id: itemId,
-            art_no: item.code || '',
-            color: item.color || '',
-            unit_price: item.purchase_price || 0,
-          };
-        }
-        return line;
-      }));
+      updateLineItem(lineId, 'description', item.name);
+      updateLineItem(lineId, 'unit_price', item.purchase_price || 0);
     }
   };
 
@@ -235,21 +172,21 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
   };
 
   const calculateTotals = () => {
-    const subtotal = lineItems.reduce((sum, item) => sum + (item.total_pairs * item.unit_price), 0);
-    const grand_total = subtotal - discountAmount;
-    return { subtotal, discount: discountAmount, grand_total };
+    const subtotal = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const tax_total = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price * item.tax_rate / 100), 0);
+    const grand_total = subtotal + tax_total - discountAmount;
+    return { subtotal, tax_total, discount: discountAmount, grand_total };
   };
 
   const onSubmit = async (data: BillFormData) => {
-    const validLines = lineItems.filter(item => item.art_no || item.total_pairs > 0);
-    if (validLines.length === 0) {
+    if (lineItems.length === 0 || !lineItems.some(item => item.description)) {
       toast.error("Please add at least one line item");
       return;
     }
 
     try {
       setLoading(true);
-      const { subtotal, discount, grand_total } = calculateTotals();
+      const { subtotal, tax_total, discount, grand_total } = calculateTotals();
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -265,6 +202,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
       if (!profile.company_id) throw new Error("No company assigned to user");
 
       let billId = bill?.id;
+      let bill_no = data.bill_no;
 
       if (bill) {
         const { error: updateError } = await supabase
@@ -277,7 +215,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
             supplier_ref: data.supplier_ref,
             notes: data.notes,
             subtotal,
-            tax_total: 0,
+            tax_total,
             discount,
             grand_total,
           })
@@ -303,7 +241,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
             supplier_ref: data.supplier_ref,
             notes: data.notes,
             subtotal,
-            tax_total: 0,
+            tax_total,
             discount,
             grand_total,
             status: 'draft',
@@ -315,17 +253,18 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
         billId = newBill.id;
       }
 
-      const lines = validLines.map((item, idx) => ({
-        bill_id: billId,
-        line_no: idx + 1,
-        item_id: item.item_id || null,
-        description: item.art_no && item.color ? `${item.art_no} - ${item.color}` : item.art_no || 'Item',
-        quantity: item.total_pairs,
-        unit_price: item.unit_price,
-        tax_rate: 0,
-        tax_amount: 0,
-        line_total: item.line_total,
-      }));
+      const lines = lineItems
+        .filter(item => item.description)
+        .map((item, idx) => ({
+          bill_id: billId,
+          line_no: idx + 1,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          tax_rate: item.tax_rate,
+          tax_amount: (item.quantity * item.unit_price) * (item.tax_rate / 100),
+          line_total: item.line_total,
+        }));
 
       const { error: linesError } = await supabase
         .from('bill_lines')
@@ -343,13 +282,13 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
     }
   };
 
-  const { subtotal, discount, grand_total } = calculateTotals();
+  const { subtotal, tax_total, discount, grand_total } = calculateTotals();
   const allSelected = lineItems.length > 0 && lineItems.every(item => item.discount_selected);
   const selectedTotal = getSelectedItemsTotal();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{bill ? "Edit Bill" : "Create Bill"}</DialogTitle>
         </DialogHeader>
@@ -424,25 +363,23 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                 Add Line
               </Button>
             </div>
-            <div className="border rounded-lg overflow-x-auto">
+            <div className="border rounded-lg">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10">
+                    <TableHead className="w-12">
                       <Checkbox
                         checked={allSelected}
                         onCheckedChange={(checked) => toggleSelectAll(!!checked)}
                       />
                     </TableHead>
-                    <TableHead className="min-w-[120px]">Art No</TableHead>
-                    <TableHead className="min-w-[100px]">Color</TableHead>
-                    {SIZES.map(size => (
-                      <TableHead key={size} className="w-16 text-center">{size}</TableHead>
-                    ))}
-                    <TableHead className="w-20 text-center">Total</TableHead>
-                    <TableHead className="w-24">Price</TableHead>
-                    <TableHead className="w-28 text-right">Line Total</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                    <TableHead>Item</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="w-24">Qty</TableHead>
+                    <TableHead className="w-32">Unit Price</TableHead>
+                    <TableHead className="w-24">Tax %</TableHead>
+                    <TableHead className="w-32">Total</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -455,48 +392,34 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                         />
                       </TableCell>
                       <TableCell>
-                        <Input
-                          value={line.art_no}
-                          onChange={(e) => updateLineItem(line.id, 'art_no', e.target.value)}
-                          placeholder="Art No"
-                          className="min-w-[100px]"
-                          list={`items-${line.id}`}
-                        />
-                        <datalist id={`items-${line.id}`}>
-                          {items.map((item) => (
-                            <option key={item.id} value={item.code}>
-                              {item.name}
-                            </option>
-                          ))}
-                        </datalist>
+                        <Select onValueChange={(value) => selectItem(line.id, value)}>
+                          <SelectTrigger className="w-32">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {items.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                {item.code}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </TableCell>
                       <TableCell>
                         <Input
-                          value={line.color}
-                          onChange={(e) => updateLineItem(line.id, 'color', e.target.value)}
-                          placeholder="Color"
-                          className="min-w-[80px]"
-                          list={`colors-${line.id}`}
+                          value={line.description}
+                          onChange={(e) => updateLineItem(line.id, 'description', e.target.value)}
+                          placeholder="Description"
                         />
-                        <datalist id={`colors-${line.id}`}>
-                          {colors.map((color) => (
-                            <option key={color.id} value={color.name} />
-                          ))}
-                        </datalist>
                       </TableCell>
-                      {SIZES.map(size => (
-                        <TableCell key={size}>
-                          <Input
-                            type="number"
-                            min="0"
-                            value={(line[`size_${size}` as keyof LineItem] as number) || 0}
-                            onChange={(e) => updateLineItem(line.id, `size_${size}` as keyof LineItem, parseInt(e.target.value) || 0)}
-                            className="w-14 text-center px-1"
-                          />
-                        </TableCell>
-                      ))}
-                      <TableCell className="text-center font-medium">
-                        {line.total_pairs}
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={line.quantity}
+                          onChange={(e) => updateLineItem(line.id, 'quantity', parseFloat(e.target.value) || 0)}
+                        />
                       </TableCell>
                       <TableCell>
                         <Input
@@ -505,10 +428,19 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                           step="0.01"
                           value={line.unit_price}
                           onChange={(e) => updateLineItem(line.id, 'unit_price', parseFloat(e.target.value) || 0)}
-                          className="w-20"
                         />
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={line.tax_rate}
+                          onChange={(e) => updateLineItem(line.id, 'tax_rate', parseFloat(e.target.value) || 0)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
                         {line.line_total.toFixed(2)}
                       </TableCell>
                       <TableCell>
@@ -517,7 +449,6 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                           variant="ghost"
                           size="sm"
                           onClick={() => removeLineItem(line.id)}
-                          disabled={lineItems.length === 1}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -529,21 +460,15 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <Textarea
-              id="notes"
-              {...form.register("notes")}
-              placeholder="Additional notes..."
-              rows={2}
-            />
-          </div>
-
           <div className="flex justify-end">
             <div className="w-72 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span className="font-medium">{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax:</span>
+                <span className="font-medium">{tax_total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Discount:</span>
@@ -566,10 +491,20 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                 </div>
               )}
               <div className="flex justify-between text-lg font-bold pt-2 border-t">
-                <span>Grand Total:</span>
+                <span>Total:</span>
                 <span>{grand_total.toFixed(2)}</span>
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              {...form.register("notes")}
+              rows={3}
+              placeholder="Additional notes..."
+            />
           </div>
 
           <DialogFooter>
@@ -577,7 +512,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Saving..." : bill ? "Update Bill" : "Create Bill"}
+              {loading ? "Saving..." : "Save Bill"}
             </Button>
           </DialogFooter>
         </form>
