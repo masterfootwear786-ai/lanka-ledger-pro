@@ -24,6 +24,8 @@ import { Card, CardContent } from "@/components/ui/card";
 interface DailyExpense {
   id?: string;
   expense_date: string;
+  start_km: number;
+  end_km: number;
   expense_fuel: number;
   km: number;
   expense_food: number;
@@ -75,9 +77,11 @@ export function TurnDailyExpensesDialog({
 
       if (data && data.length > 0) {
         setDailyExpenses(
-          data.map((d) => ({
+          data.map((d: any) => ({
             id: d.id,
             expense_date: d.expense_date,
+            start_km: d.start_km || 0,
+            end_km: d.end_km || 0,
             expense_fuel: d.expense_fuel || 0,
             km: d.km || 0,
             expense_food: d.expense_food || 0,
@@ -113,6 +117,8 @@ export function TurnDailyExpensesDialog({
     while (currentDate <= endDate) {
       rows.push({
         expense_date: currentDate.toISOString().split("T")[0],
+        start_km: 0,
+        end_km: 0,
         expense_fuel: 0,
         km: 0,
         expense_food: 0,
@@ -139,6 +145,8 @@ export function TurnDailyExpensesDialog({
     const sourceRow = dailyExpenses[index];
     const newRow: DailyExpense = {
       expense_date: sourceRow.expense_date,
+      start_km: 0,
+      end_km: 0,
       expense_fuel: 0,
       km: 0,
       expense_food: 0,
@@ -166,6 +174,8 @@ export function TurnDailyExpensesDialog({
 
     const newRow: DailyExpense = {
       expense_date: newExpenseDate,
+      start_km: 0,
+      end_km: 0,
       expense_fuel: 0,
       km: 0,
       expense_food: 0,
@@ -200,6 +210,8 @@ export function TurnDailyExpensesDialog({
       ...dailyExpenses,
       {
         expense_date: lastDate.toISOString().split("T")[0],
+        start_km: 0,
+        end_km: 0,
         expense_fuel: 0,
         km: 0,
         expense_food: 0,
@@ -251,6 +263,8 @@ export function TurnDailyExpensesDialog({
           turn_id: turn.id,
           company_id: companyId,
           expense_date: exp.expense_date,
+          start_km: exp.start_km || 0,
+          end_km: exp.end_km || 0,
           expense_fuel: exp.expense_fuel || 0,
           km: exp.km || 0,
           expense_food: exp.expense_food || 0,
@@ -397,6 +411,8 @@ export function TurnDailyExpensesDialog({
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-[120px]">Date</TableHead>
+                  <TableHead className="text-right w-[80px]">Start KM</TableHead>
+                  <TableHead className="text-right w-[80px]">End KM</TableHead>
                   <TableHead className="text-right w-[100px]">
                     <span className="flex items-center justify-end gap-1">
                       <Fuel className="h-4 w-4 text-amber-500" /> Fuel
@@ -436,6 +452,26 @@ export function TurnDailyExpensesDialog({
                         value={expense.expense_date}
                         onChange={(e) => handleUpdateExpense(index, "expense_date", e.target.value)}
                         className="h-8 text-sm"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={expense.start_km || ""}
+                        onChange={(e) => handleUpdateExpense(index, "start_km", parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        className="h-8 text-sm text-right"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={expense.end_km || ""}
+                        onChange={(e) => handleUpdateExpense(index, "end_km", parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        className="h-8 text-sm text-right"
                       />
                     </TableCell>
                     <TableCell>

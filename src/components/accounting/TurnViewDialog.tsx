@@ -5,8 +5,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Truck, MapPin, Fuel, UtensilsCrossed, Hotel, MoreHorizontal } from "lucide-react";
+import { Truck, MapPin, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, User, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface TurnViewDialogProps {
   open: boolean;
@@ -48,6 +49,24 @@ export function TurnViewDialog({ open, onOpenChange, turn }: TurnViewDialogProps
             <div className="space-y-2">
               <Label className="text-muted-foreground">End Date</Label>
               <p>{turn.turn_end_date ? new Date(turn.turn_end_date).toLocaleDateString() : '-'}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Driver</Label>
+              <p className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                {turn.driver || '-'}
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Sales Rep(s)</Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                {turn.sales_reps && turn.sales_reps.length > 0 ? (
+                  turn.sales_reps.map((rep: string, index: number) => (
+                    <Badge key={index} variant="secondary">{rep}</Badge>
+                  ))
+                ) : '-'}
+              </div>
             </div>
             <div className="space-y-2 col-span-2">
               <Label className="text-muted-foreground">Route</Label>

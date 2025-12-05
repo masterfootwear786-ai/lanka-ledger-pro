@@ -2478,6 +2478,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
+          end_km: number | null
           expense_accommodation: number | null
           expense_date: string
           expense_food: number | null
@@ -2486,6 +2487,7 @@ export type Database = {
           id: string
           km: number | null
           notes: string | null
+          start_km: number | null
           turn_id: string
         }
         Insert: {
@@ -2493,6 +2495,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
+          end_km?: number | null
           expense_accommodation?: number | null
           expense_date: string
           expense_food?: number | null
@@ -2501,6 +2504,7 @@ export type Database = {
           id?: string
           km?: number | null
           notes?: string | null
+          start_km?: number | null
           turn_id: string
         }
         Update: {
@@ -2508,6 +2512,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
+          end_km?: number | null
           expense_accommodation?: number | null
           expense_date?: string
           expense_food?: number | null
@@ -2516,6 +2521,7 @@ export type Database = {
           id?: string
           km?: number | null
           notes?: string | null
+          start_km?: number | null
           turn_id?: string
         }
         Relationships: [
@@ -2541,6 +2547,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
+          driver: string | null
           expense_accommodation: number | null
           expense_food: number | null
           expense_fuel: number | null
@@ -2550,6 +2557,7 @@ export type Database = {
           km: number | null
           notes: string | null
           route: string
+          sales_reps: string[] | null
           turn_date: string
           turn_end_date: string | null
           turn_no: string
@@ -2563,6 +2571,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
+          driver?: string | null
           expense_accommodation?: number | null
           expense_food?: number | null
           expense_fuel?: number | null
@@ -2572,6 +2581,7 @@ export type Database = {
           km?: number | null
           notes?: string | null
           route: string
+          sales_reps?: string[] | null
           turn_date?: string
           turn_end_date?: string | null
           turn_no: string
@@ -2585,6 +2595,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
+          driver?: string | null
           expense_accommodation?: number | null
           expense_food?: number | null
           expense_fuel?: number | null
@@ -2594,6 +2605,7 @@ export type Database = {
           km?: number | null
           notes?: string | null
           route?: string
+          sales_reps?: string[] | null
           turn_date?: string
           turn_end_date?: string | null
           turn_no?: string
