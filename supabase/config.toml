@@ -1,1 +1,7 @@
 project_id = "fmwbtytzecwneovwerrx"
+
+[functions.send-document-details]
+verify_jwt = false
+
+[functions.send-customer-statement]
+verify_jwt = false
