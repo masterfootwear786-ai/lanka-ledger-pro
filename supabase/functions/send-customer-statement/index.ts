@@ -23,15 +23,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending statement email to:", to);
 
-    // Create SMTP client
+    // Create SMTP client - trim values to remove any trailing whitespace
+    const smtpHost = (Deno.env.get("SMTP_HOST") || "server.cloudmail.lk").trim();
+    const smtpPort = parseInt((Deno.env.get("SMTP_PORT") || "465").trim());
+    const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
+    const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
+    
     const client = new SMTPClient({
       connection: {
-        hostname: Deno.env.get("SMTP_HOST") || "server.cloudmail.lk",
-        port: parseInt(Deno.env.get("SMTP_PORT") || "465"),
+        hostname: smtpHost,
+        port: smtpPort,
         tls: true,
         auth: {
-          username: Deno.env.get("SMTP_USER") || "",
-          password: Deno.env.get("SMTP_PASS") || "",
+          username: smtpUser,
+          password: smtpPass,
         },
       },
     });
