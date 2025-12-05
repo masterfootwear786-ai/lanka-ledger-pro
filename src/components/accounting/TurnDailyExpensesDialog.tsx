@@ -423,6 +423,7 @@ export function TurnDailyExpensesDialog({
                       <MoreHorizontal className="h-4 w-4" /> Other
                     </span>
                   </TableHead>
+                  <TableHead className="w-[150px]">Notes</TableHead>
                   <TableHead className="w-[80px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -493,6 +494,14 @@ export function TurnDailyExpensesDialog({
                         onChange={(e) => handleUpdateExpense(index, "expense_other", parseFloat(e.target.value) || 0)}
                         placeholder="0"
                         className="h-8 text-sm text-right"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        value={expense.notes}
+                        onChange={(e) => handleUpdateExpense(index, "notes", e.target.value)}
+                        placeholder="Station, location..."
+                        className="h-8 text-sm"
                       />
                     </TableCell>
                     <TableCell>
