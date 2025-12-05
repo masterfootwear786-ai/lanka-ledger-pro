@@ -120,12 +120,9 @@ const Dashboard = () => {
                   <span className="text-2xl font-display font-black text-primary-foreground tracking-tighter">M</span>
                 </div>
               )}
-              <div>
-                <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
-                  {company?.name || 'Master Footwear'}
-                </h1>
-                <p className="text-lg text-primary font-semibold tracking-wide">PVT LTD</p>
-              </div>
+              <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
+                {company?.name || 'Master Footwear'}
+              </h1>
             </div>
             
             {/* Date Display */}
