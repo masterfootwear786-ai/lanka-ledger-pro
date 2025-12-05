@@ -284,6 +284,84 @@
   letter-spacing: 0.02em;
 }
 
+/* Sub-module Water Ripple - Emerald/Teal Color */
+.water-ripple-sub {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.water-ripple-sub::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
+    hsl(160 84% 45% / 0.5) 0%,
+    hsl(160 84% 45% / 0.25) 25%,
+    hsl(160 84% 45% / 0.1) 50%,
+    transparent 70%
+  );
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+.water-ripple-sub:hover::before {
+  opacity: 1;
+  transform: scale(2.5);
+}
+
+.water-ripple-sub::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    hsl(160 84% 50% / 0.15) 50%,
+    transparent 100%
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 0;
+  border-radius: inherit;
+}
+
+.water-ripple-sub:hover::after {
+  opacity: 1;
+  animation: water-shimmer-sub 1.2s ease-in-out infinite;
+}
+
+@keyframes water-shimmer-sub {
+  0%, 100% {
+    background-position: -100% 0;
+  }
+  50% {
+    background-position: 200% 0;
+  }
+}
+
+.water-ripple-sub > * {
+  position: relative;
+  z-index: 1;
+}
+
+.water-ripple-sub span {
+  display: inline-block;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
+              text-shadow 0.3s ease,
+              color 0.3s ease;
+}
+
+.water-ripple-sub:hover span {
+  transform: translateY(-1px) scale(1.03);
+  text-shadow: 0 2px 10px hsl(160 84% 45% / 0.5);
+  color: hsl(160 70% 75%);
+}
+
 /* Ripple wave animation on click */
 .water-ripple-wave {
   position: absolute;
