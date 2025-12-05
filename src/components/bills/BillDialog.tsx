@@ -39,7 +39,6 @@ interface LineItem {
   size_45: number;
   total_pairs: number;
   unit_price: number;
-  tax_rate: number;
   line_total: number;
   discount_selected: boolean;
 }
@@ -67,7 +66,6 @@ const createEmptyLineItem = (): LineItem => ({
   size_45: 0,
   total_pairs: 0,
   unit_price: 0,
-  tax_rate: 0,
   line_total: 0,
   discount_selected: false,
 });
@@ -168,7 +166,6 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
           size_45: 0,
           total_pairs: line.quantity,
           unit_price: line.unit_price,
-          tax_rate: line.tax_rate || 0,
           line_total: line.line_total,
           discount_selected: false,
         };
@@ -199,9 +196,8 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
         }
         
         // Recalculate line total
-        if (field.startsWith('size_') || field === 'unit_price' || field === 'tax_rate') {
-          const subtotal = updated.total_pairs * updated.unit_price;
-          updated.line_total = subtotal + (subtotal * updated.tax_rate / 100);
+        if (field.startsWith('size_') || field === 'unit_price') {
+          updated.line_total = updated.total_pairs * updated.unit_price;
         }
         
         return updated;
@@ -240,9 +236,8 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
 
   const calculateTotals = () => {
     const subtotal = lineItems.reduce((sum, item) => sum + (item.total_pairs * item.unit_price), 0);
-    const tax_total = lineItems.reduce((sum, item) => sum + (item.total_pairs * item.unit_price * item.tax_rate / 100), 0);
-    const grand_total = subtotal + tax_total - discountAmount;
-    return { subtotal, tax_total, discount: discountAmount, grand_total };
+    const grand_total = subtotal - discountAmount;
+    return { subtotal, discount: discountAmount, grand_total };
   };
 
   const onSubmit = async (data: BillFormData) => {
@@ -254,7 +249,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
 
     try {
       setLoading(true);
-      const { subtotal, tax_total, discount, grand_total } = calculateTotals();
+      const { subtotal, discount, grand_total } = calculateTotals();
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -282,7 +277,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
             supplier_ref: data.supplier_ref,
             notes: data.notes,
             subtotal,
-            tax_total,
+            tax_total: 0,
             discount,
             grand_total,
           })
@@ -308,7 +303,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
             supplier_ref: data.supplier_ref,
             notes: data.notes,
             subtotal,
-            tax_total,
+            tax_total: 0,
             discount,
             grand_total,
             status: 'draft',
@@ -327,8 +322,8 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
         description: item.art_no && item.color ? `${item.art_no} - ${item.color}` : item.art_no || 'Item',
         quantity: item.total_pairs,
         unit_price: item.unit_price,
-        tax_rate: item.tax_rate,
-        tax_amount: (item.total_pairs * item.unit_price) * (item.tax_rate / 100),
+        tax_rate: 0,
+        tax_amount: 0,
         line_total: item.line_total,
       }));
 
@@ -348,7 +343,7 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
     }
   };
 
-  const { subtotal, tax_total, discount, grand_total } = calculateTotals();
+  const { subtotal, discount, grand_total } = calculateTotals();
   const allSelected = lineItems.length > 0 && lineItems.every(item => item.discount_selected);
   const selectedTotal = getSelectedItemsTotal();
 
@@ -446,7 +441,6 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                     ))}
                     <TableHead className="w-20 text-center">Total</TableHead>
                     <TableHead className="w-24">Price</TableHead>
-                    <TableHead className="w-20">Tax %</TableHead>
                     <TableHead className="w-28 text-right">Line Total</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
@@ -514,17 +508,6 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
                           className="w-20"
                         />
                       </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          value={line.tax_rate}
-                          onChange={(e) => updateLineItem(line.id, 'tax_rate', parseFloat(e.target.value) || 0)}
-                          className="w-16"
-                        />
-                      </TableCell>
                       <TableCell className="text-right font-medium">
                         {line.line_total.toFixed(2)}
                       </TableCell>
@@ -561,10 +544,6 @@ export function BillDialog({ open, onOpenChange, bill, onSuccess }: BillDialogPr
               <div className="flex justify-between">
                 <span>Subtotal:</span>
                 <span className="font-medium">{subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Tax:</span>
-                <span className="font-medium">{tax_total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span>Discount:</span>
