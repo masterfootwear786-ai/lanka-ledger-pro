@@ -585,6 +585,14 @@ export default function Turns() {
                     ))}
                   </SelectContent>
                 </Select>
+                <a 
+                  href="/settings/routes" 
+                  target="_blank"
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add Routes
+                </a>
               </div>
             </div>
 
