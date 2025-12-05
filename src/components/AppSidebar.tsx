@@ -82,13 +82,18 @@ export function AppSidebar() {
     { title: t('reports.apAging'), url: '/reports/ap-aging' },
   ];
 
+  // Check if any sub-item in a section is active
+  const isSectionActive = (items: { url: string }[]) => {
+    return items.some(item => isActiveRoute(item.url));
+  };
+
   const menuSections = [
-    { title: t('app.sales'), icon: ShoppingCart, items: salesItems, defaultOpen: true },
-    { title: 'Customers', icon: Users, items: customerItems, defaultOpen: true },
-    { title: t('app.purchasing'), icon: ShoppingBag, items: purchasingItems, defaultOpen: true },
-    { title: t('app.inventory'), icon: Package, items: inventoryItems, defaultOpen: true },
-    { title: 'Expenses and Other', icon: BookOpen, items: accountingItems, defaultOpen: true },
-    { title: t('app.reports'), icon: FileText, items: reportItems, defaultOpen: true },
+    { title: t('app.sales'), icon: ShoppingCart, items: salesItems },
+    { title: 'Customers', icon: Users, items: customerItems },
+    { title: t('app.purchasing'), icon: ShoppingBag, items: purchasingItems },
+    { title: t('app.inventory'), icon: Package, items: inventoryItems },
+    { title: 'Expenses and Other', icon: BookOpen, items: accountingItems },
+    { title: t('app.reports'), icon: FileText, items: reportItems },
   ];
 
   return (
@@ -137,25 +142,33 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Collapsible Sections */}
-        {menuSections.map((section) => (
-          <Collapsible key={section.title} defaultOpen={section.defaultOpen} className="group/collapsible">
+        {menuSections.map((section, sectionIndex) => (
+          <Collapsible 
+            key={section.title} 
+            defaultOpen={isSectionActive(section.items)} 
+            className="group/collapsible"
+          >
             <SidebarGroup className="py-0">
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="water-ripple flex w-full items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors">
-                  <div className="flex items-center gap-2 z-10">
+                <CollapsibleTrigger className="sidebar-section-trigger water-ripple flex w-full items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-all duration-200">
+                  <div className="flex items-center gap-2.5 z-10">
                     <section.icon className="h-4 w-4" />
                     {!collapsed && <span>{section.title}</span>}
                   </div>
                   {!collapsed && (
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180 z-10" />
+                    <ChevronDown className="h-4 w-4 transition-transform duration-300 ease-out group-data-[state=open]/collapsible:rotate-180 z-10" />
                   )}
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
-              <CollapsibleContent>
-                <SidebarGroupContent className="pt-1 pb-2">
-                  <SidebarMenu>
-                    {section.items.map((item) => (
-                      <SidebarMenuItem key={item.title}>
+              <CollapsibleContent className="sidebar-collapse-content">
+                <SidebarGroupContent className="pt-1 pb-2 pl-2">
+                  <SidebarMenu className="space-y-0.5">
+                    {section.items.map((item, index) => (
+                      <SidebarMenuItem 
+                        key={item.title}
+                        className="sidebar-sub-item"
+                        style={{ '--delay': `${index * 50}ms` } as React.CSSProperties}
+                      >
                         <SidebarMenuButton asChild>
                           <NavLink 
                             to={item.url} 
