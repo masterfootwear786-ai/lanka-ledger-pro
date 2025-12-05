@@ -13,11 +13,37 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 const Dashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [company, setCompany] = useState<{ name: string; logo_url: string | null } | null>(null);
+
+  // Fetch company data
+  useEffect(() => {
+    const fetchCompany = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+
+      if (profile?.company_id) {
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('name, logo_url')
+          .eq('id', profile.company_id)
+          .single();
+        setCompany(companyData);
+      }
+    };
+    fetchCompany();
+  }, []);
 
   // Update time every second
   useEffect(() => {
@@ -83,12 +109,20 @@ const Dashboard = () => {
           <div className="space-y-3">
             {/* Company Logo & Name */}
             <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-xl shadow-primary/30 ring-4 ring-primary/20">
-                <span className="text-2xl font-display font-black text-primary-foreground tracking-tighter">M</span>
-              </div>
+              {company?.logo_url ? (
+                <img 
+                  src={company.logo_url} 
+                  alt={company.name || 'Company Logo'} 
+                  className="h-16 w-16 rounded-2xl object-contain shadow-xl shadow-primary/30 ring-4 ring-primary/20 bg-white"
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-xl shadow-primary/30 ring-4 ring-primary/20">
+                  <span className="text-2xl font-display font-black text-primary-foreground tracking-tighter">M</span>
+                </div>
+              )}
               <div>
                 <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
-                  Master Footwear
+                  {company?.name || 'Master Footwear'}
                 </h1>
                 <p className="text-lg text-primary font-semibold tracking-wide">PVT LTD</p>
               </div>
