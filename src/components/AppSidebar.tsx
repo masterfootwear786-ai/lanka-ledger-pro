@@ -121,14 +121,14 @@ export function AppSidebar() {
                   <NavLink 
                     to={item.url} 
                     className={({ isActive }) => cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                      "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
                       isActive 
                         ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
-                        : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                        : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
                     )}
                   >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span className="font-medium">{item.title}</span>}
+                    <item.icon className="h-4 w-4 shrink-0 z-10" />
+                    {!collapsed && <span>{item.title}</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -141,13 +141,13 @@ export function AppSidebar() {
           <Collapsible key={section.title} defaultOpen={section.defaultOpen} className="group/collapsible">
             <SidebarGroup className="py-0">
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="flex w-full items-center justify-between px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/80 transition-colors">
-                  <div className="flex items-center gap-2">
+                <CollapsibleTrigger className="water-ripple flex w-full items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors">
+                  <div className="flex items-center gap-2 z-10">
                     <section.icon className="h-4 w-4" />
                     {!collapsed && <span>{section.title}</span>}
                   </div>
                   {!collapsed && (
-                    <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                    <ChevronDown className="h-3.5 w-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180 z-10" />
                   )}
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
@@ -190,14 +190,14 @@ export function AppSidebar() {
                 <NavLink 
                   to="/settings" 
                   className={({ isActive }) => cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                    "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
                     isActive 
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
                   )}
                 >
-                  <Settings className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span className="font-medium">{t('app.settings')}</span>}
+                  <Settings className="h-4 w-4 shrink-0 z-10" />
+                  {!collapsed && <span>{t('app.settings')}</span>}
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
