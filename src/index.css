@@ -52,14 +52,14 @@
 
     --radius: 0.75rem;
 
-    /* Sidebar - Light Premium */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 20%;
+    /* Sidebar - Premium Slate */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 239 84% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 239 84% 97%;
-    --sidebar-accent-foreground: 239 84% 50%;
-    --sidebar-border: 239 30% 92%;
+    --sidebar-accent: 222 47% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 40% 20%;
     --sidebar-ring: 239 84% 67%;
 
     /* Premium Gradients */
