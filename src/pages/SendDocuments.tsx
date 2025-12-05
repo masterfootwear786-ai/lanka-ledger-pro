@@ -241,9 +241,10 @@ export default function SendDocuments() {
       `Hello ${selectedContactData.name},\n\n${documentType} ${documentNo}\nAmount: ${selectedDocumentData.grand_total.toLocaleString()}\n\n${message}`
     );
     
-    const whatsappUrl = `https://wa.me/${phone}?text=${whatsappMessage}`;
+    // Use web.whatsapp.com directly instead of wa.me (which redirects to api.whatsapp.com and can be blocked)
+    const whatsappUrl = `https://web.whatsapp.com/send?phone=${phone}&text=${whatsappMessage}`;
     window.open(whatsappUrl, "_blank");
-    toast({ description: "Opening WhatsApp..." });
+    toast({ description: "Opening WhatsApp Web..." });
   };
 
   const handleSendSMS = () => {
