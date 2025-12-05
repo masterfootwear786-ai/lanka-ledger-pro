@@ -2484,6 +2484,7 @@ export type Database = {
           expense_food: number | null
           expense_fuel: number | null
           expense_other: number | null
+          fuel_km: number | null
           id: string
           km: number | null
           notes: string | null
@@ -2501,6 +2502,7 @@ export type Database = {
           expense_food?: number | null
           expense_fuel?: number | null
           expense_other?: number | null
+          fuel_km?: number | null
           id?: string
           km?: number | null
           notes?: string | null
@@ -2518,6 +2520,7 @@ export type Database = {
           expense_food?: number | null
           expense_fuel?: number | null
           expense_other?: number | null
+          fuel_km?: number | null
           id?: string
           km?: number | null
           notes?: string | null
