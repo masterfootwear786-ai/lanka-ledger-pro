@@ -284,64 +284,41 @@
   letter-spacing: 0.02em;
 }
 
-/* Sub-module Water Ripple - Emerald/Teal Color */
+/* Sub-module Water Ripple - Clean Teal Effect */
 .water-ripple-sub {
   position: relative;
   overflow: hidden;
-  isolation: isolate;
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
 
 .water-ripple-sub::before {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
   background: radial-gradient(
-    circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-    hsl(160 84% 45% / 0.5) 0%,
-    hsl(160 84% 45% / 0.25) 25%,
-    hsl(160 84% 45% / 0.1) 50%,
+    circle,
+    hsl(160 84% 50% / 0.6) 0%,
+    hsl(160 84% 45% / 0.3) 40%,
     transparent 70%
   );
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease-out, height 0.4s ease-out, opacity 0.3s ease;
   opacity: 0;
-  transform: scale(0);
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   z-index: 0;
-  border-radius: inherit;
 }
 
 .water-ripple-sub:hover::before {
+  width: 250%;
+  height: 250%;
   opacity: 1;
-  transform: scale(2.5);
 }
 
-.water-ripple-sub::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    transparent 0%,
-    hsl(160 84% 50% / 0.15) 50%,
-    transparent 100%
-  );
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 0;
-  border-radius: inherit;
-}
-
-.water-ripple-sub:hover::after {
-  opacity: 1;
-  animation: water-shimmer-sub 1.2s ease-in-out infinite;
-}
-
-@keyframes water-shimmer-sub {
-  0%, 100% {
-    background-position: -100% 0;
-  }
-  50% {
-    background-position: 200% 0;
-  }
+.water-ripple-sub:hover {
+  transform: scale(1.02);
 }
 
 .water-ripple-sub > * {
@@ -351,32 +328,36 @@
 
 .water-ripple-sub span {
   display: inline-block;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), 
-              text-shadow 0.3s ease,
-              color 0.3s ease;
+  transition: transform 0.25s ease, text-shadow 0.25s ease;
 }
 
 .water-ripple-sub:hover span {
-  transform: translateY(-1px) scale(1.03);
-  text-shadow: 0 2px 10px hsl(160 84% 45% / 0.5);
-  color: hsl(160 70% 75%);
+  transform: translateX(2px);
+  text-shadow: 0 0 8px hsl(160 84% 50% / 0.5);
 }
 
-/* Active/Selected state pop effect */
-.water-ripple-sub.active-pop {
-  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+/* Active/Selected - Popup Effect */
+.water-ripple-sub.selected-popup {
+  background: linear-gradient(135deg, hsl(160 70% 40% / 0.9), hsl(160 60% 30% / 0.9)) !important;
+  box-shadow: 0 4px 15px hsl(160 84% 40% / 0.4), inset 0 1px 0 hsl(160 80% 70% / 0.2);
+  transform: scale(1.03);
 }
 
-@keyframes pop-in {
-  0% {
-    transform: scale(0.95);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-  100% {
-    transform: scale(1);
-  }
+.water-ripple-sub.selected-popup::before {
+  width: 200%;
+  height: 200%;
+  opacity: 0.5;
+  background: radial-gradient(
+    circle,
+    hsl(160 90% 60% / 0.4) 0%,
+    transparent 60%
+  );
+}
+
+.water-ripple-sub.selected-popup span {
+  color: white;
+  font-weight: 500;
+  text-shadow: 0 1px 3px hsl(160 50% 20% / 0.5);
 }
 
 .water-ripple-sub.active-pop::before {

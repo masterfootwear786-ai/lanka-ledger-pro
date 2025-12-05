@@ -160,15 +160,15 @@ export function AppSidebar() {
                           <NavLink 
                             to={item.url} 
                             className={({ isActive }) => cn(
-                              "water-ripple-sub flex items-center gap-3 px-3 py-2 ml-2 rounded-lg text-sm transition-all duration-200",
+                              "water-ripple-sub flex items-center gap-3 px-3 py-2 ml-2 rounded-lg text-sm",
                               isActive 
-                                ? "active-pop bg-sidebar-primary/90 text-sidebar-primary-foreground shadow-md" 
-                                : "text-sidebar-foreground/70 hover:text-sidebar-foreground"
+                                ? "selected-popup text-white" 
+                                : "text-sidebar-foreground/70"
                             )}
                           >
                             <div className={cn(
-                              "w-1.5 h-1.5 rounded-full transition-all duration-300 z-10 shrink-0",
-                              isActiveRoute(item.url) ? "bg-sidebar-primary-foreground scale-150" : "bg-sidebar-foreground/30"
+                              "w-1.5 h-1.5 rounded-full z-10 shrink-0 transition-all duration-200",
+                              isActiveRoute(item.url) ? "bg-white scale-125" : "bg-sidebar-foreground/40"
                             )} />
                             {!collapsed && <span>{item.title}</span>}
                           </NavLink>
