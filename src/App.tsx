@@ -58,7 +58,7 @@ import { Layout } from "./components/Layout";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient(); // Rebuild trigger
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
