@@ -319,6 +319,7 @@ export function TurnDailyExpensesDialog({
   const totals = {
     fuel: dailyExpenses.reduce((sum, e) => sum + (e.expense_fuel || 0), 0),
     km: dailyExpenses.reduce((sum, e) => sum + (e.km || 0), 0),
+    dayKm: dailyExpenses.reduce((sum, e) => sum + ((e.end_km || 0) - (e.start_km || 0)), 0),
     food: dailyExpenses.reduce((sum, e) => sum + (e.expense_food || 0), 0),
     accommodation: dailyExpenses.reduce((sum, e) => sum + (e.expense_accommodation || 0), 0),
     other: dailyExpenses.reduce((sum, e) => sum + (e.expense_other || 0), 0),
@@ -339,7 +340,15 @@ export function TurnDailyExpensesDialog({
         </DialogHeader>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <Card className="bg-primary/10 border-primary/30">
+            <CardContent className="p-3">
+              <div className="text-xs text-primary">Total KM</div>
+              <div className="text-lg font-bold text-primary">
+                {totals.dayKm.toLocaleString()} km
+              </div>
+            </CardContent>
+          </Card>
           <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200">
             <CardContent className="p-3">
               <div className="text-xs text-amber-700 dark:text-amber-300">Total Fuel</div>
@@ -413,14 +422,10 @@ export function TurnDailyExpensesDialog({
                   <TableHead className="w-[120px]">Date</TableHead>
                   <TableHead className="text-right w-[80px]">Start KM</TableHead>
                   <TableHead className="text-right w-[80px]">End KM</TableHead>
+                  <TableHead className="text-right w-[80px] bg-primary/10">Day KM</TableHead>
                   <TableHead className="text-right w-[100px]">
                     <span className="flex items-center justify-end gap-1">
                       <Fuel className="h-4 w-4 text-amber-500" /> Fuel
-                    </span>
-                  </TableHead>
-                  <TableHead className="text-right w-[80px]">
-                    <span className="flex items-center justify-end gap-1">
-                      <MapPin className="h-4 w-4" /> KM
                     </span>
                   </TableHead>
                   <TableHead className="text-right w-[100px]">
@@ -474,22 +479,15 @@ export function TurnDailyExpensesDialog({
                         className="h-8 text-sm text-right"
                       />
                     </TableCell>
+                    <TableCell className="text-right bg-primary/5 font-semibold">
+                      {((expense.end_km || 0) - (expense.start_km || 0)).toLocaleString()}
+                    </TableCell>
                     <TableCell>
                       <Input
                         type="number"
                         step="0.01"
                         value={expense.expense_fuel || ""}
                         onChange={(e) => handleUpdateExpense(index, "expense_fuel", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.km || ""}
-                        onChange={(e) => handleUpdateExpense(index, "km", parseFloat(e.target.value) || 0)}
                         placeholder="0"
                         className="h-8 text-sm text-right"
                       />
@@ -566,12 +564,15 @@ export function TurnDailyExpensesDialog({
                 {/* Totals Row */}
                 <TableRow className="bg-muted/30 font-semibold">
                   <TableCell>Total ({totalDays} days)</TableCell>
+                  <TableCell></TableCell>
+                  <TableCell></TableCell>
+                  <TableCell className="text-right bg-primary/10 font-bold">{totals.dayKm.toLocaleString()} km</TableCell>
                   <TableCell className="text-right">{totals.fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell className="text-right">{totals.km.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-right">{totals.food.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell className="text-right">{totals.accommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
                   <TableCell></TableCell>
                   <TableCell className="text-right">{totals.other.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell></TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               </TableBody>
