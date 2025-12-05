@@ -3,11 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Calendar, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, MapPin, Copy } from "lucide-react";
+import { Plus, Trash2, Calendar, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, Copy, ArrowLeft } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -329,15 +329,22 @@ export function TurnDailyExpensesDialog({
   const totalDays = new Set(dailyExpenses.map(e => e.expense_date)).size;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Daily Expenses - {turn?.turn_no}
-            {turn?.route && <span className="text-muted-foreground font-normal">({turn.route})</span>}
-          </DialogTitle>
-        </DialogHeader>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full sm:max-w-full p-0 flex flex-col">
+        <SheetHeader className="p-6 pb-4 border-b">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <SheetTitle className="flex items-center gap-2 text-xl">
+              <Calendar className="h-6 w-6" />
+              Daily Expenses - {turn?.turn_no}
+              {turn?.route && <span className="text-muted-foreground font-normal text-base">({turn.route})</span>}
+            </SheetTitle>
+          </div>
+        </SheetHeader>
+        
+        <div className="flex-1 overflow-auto p-6 space-y-6">
 
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
@@ -415,7 +422,7 @@ export function TurnDailyExpensesDialog({
             <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
           </div>
         ) : (
-          <ScrollArea className="max-h-[45vh]">
+          <ScrollArea className="flex-1">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -579,16 +586,17 @@ export function TurnDailyExpensesDialog({
             </Table>
           </ScrollArea>
         )}
+        </div>
 
-        <div className="flex justify-end items-center gap-2 pt-4 border-t">
+        <div className="flex justify-end items-center gap-4 p-6 border-t bg-muted/30">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
+          <Button onClick={handleSave} disabled={saving} size="lg">
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
