@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, CreditCard, CheckCircle, XCircle, Clock, ArrowUpDown, ArrowUp, ArrowDown, Printer, FileDown } from "lucide-react";
+import { Search, CreditCard, CheckCircle, XCircle, Clock, ArrowUpDown, ArrowUp, ArrowDown, Printer, FileDown, Eye, SortAsc, SortDesc } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,7 +43,7 @@ interface ReceiptWithCheques {
   cheques: ChequeDetail[];
 }
 
-type SortOrder = 'asc' | 'desc' | null;
+type SortOrder = 'asc' | 'desc';
 
 export default function Cheques() {
   const { toast } = useToast();
@@ -47,6 +53,7 @@ export default function Cheques() {
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [companyInfo, setCompanyInfo] = useState<any>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     fetchCheques();
@@ -86,7 +93,6 @@ export default function Cheques() {
 
       if (error) throw error;
 
-      // Filter receipts that have cheque payments
       const chequesData: ReceiptWithCheques[] = [];
       
       data?.forEach((receipt: any) => {
@@ -133,7 +139,6 @@ export default function Cheques() {
     );
   });
 
-  // Flatten all cheques for display
   const allCheques = filteredCheques.flatMap(receipt => 
     receipt.cheques.map(cheque => ({
       ...cheque,
@@ -144,43 +149,26 @@ export default function Cheques() {
     }))
   );
 
-  // Sort cheques by date
   const sortedCheques = [...allCheques].sort((a, b) => {
-    if (!sortOrder) return 0;
     const dateA = new Date(a.cheque_date).getTime();
     const dateB = new Date(b.cheque_date).getTime();
     return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
   });
 
-  const toggleSort = () => {
-    if (sortOrder === null) setSortOrder('asc');
-    else if (sortOrder === 'asc') setSortOrder('desc');
-    else setSortOrder('asc');
-  };
-
-  const getSortIcon = () => {
-    if (sortOrder === 'asc') return <ArrowUp className="h-4 w-4 ml-1" />;
-    if (sortOrder === 'desc') return <ArrowDown className="h-4 w-4 ml-1" />;
-    return <ArrowUpDown className="h-4 w-4 ml-1" />;
-  };
-
   const updateChequeStatus = async (receiptId: string, chequeNo: string, status: 'passed' | 'returned') => {
     try {
-      // Find the receipt
       const receipt = receiptsWithCheques.find(r => r.id === receiptId);
       if (!receipt) return;
 
       const cheque = receipt.cheques.find(c => c.cheque_no === chequeNo);
       if (!cheque) return;
 
-      // Update cheque status in the array
       const updatedCheques = receipt.cheques.map(cheque => 
         cheque.cheque_no === chequeNo 
           ? { ...cheque, status }
           : cheque
       );
 
-      // Update receipt reference field
       const { error: updateError } = await supabase
         .from('receipts')
         .update({ reference: JSON.stringify(updatedCheques) })
@@ -188,9 +176,7 @@ export default function Cheques() {
 
       if (updateError) throw updateError;
 
-      // If marking as returned, reverse the receipt allocations for this cheque amount
       if (status === 'returned') {
-        // Get receipt allocations for this receipt
         const { data: allocations, error: allocError } = await supabase
           .from('receipt_allocations')
           .select('id, amount')
@@ -199,18 +185,14 @@ export default function Cheques() {
         if (allocError) throw allocError;
 
         if (allocations && allocations.length > 0) {
-          // Calculate proportional amount to reverse based on cheque amount
-          const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
           let remainingToReverse = cheque.amount;
 
-          // Delete allocations proportionally
           for (const allocation of allocations) {
             if (remainingToReverse <= 0) break;
             
             const amountToReverse = Math.min(allocation.amount, remainingToReverse);
             
             if (amountToReverse >= allocation.amount) {
-              // Delete entire allocation
               const { error: deleteError } = await supabase
                 .from('receipt_allocations')
                 .delete()
@@ -218,7 +200,6 @@ export default function Cheques() {
               
               if (deleteError) throw deleteError;
             } else {
-              // Reduce allocation amount
               const { error: reduceError } = await supabase
                 .from('receipt_allocations')
                 .update({ amount: allocation.amount - amountToReverse })
@@ -283,10 +264,15 @@ export default function Cheques() {
     }
   };
 
+  // Calculate totals
+  const totalAmount = sortedCheques.reduce((sum, c) => sum + Number(c.amount), 0);
+  const pendingCount = sortedCheques.filter(c => !c.status || c.status === 'pending').length;
+  const passedCount = sortedCheques.filter(c => c.status === 'passed').length;
+  const returnedCount = sortedCheques.filter(c => c.status === 'returned').length;
+
   const handleExportPDF = () => {
     const doc = new jsPDF();
     
-    // Header
     doc.setFontSize(18);
     doc.text(companyInfo?.name || 'Company', 14, 20);
     doc.setFontSize(12);
@@ -298,18 +284,10 @@ export default function Cheques() {
       doc.text(`Filter: "${searchTerm}"`, 14, 50);
     }
 
-    // Calculate totals
-    const totalAmount = sortedCheques.reduce((sum, c) => sum + Number(c.amount), 0);
-    const pendingCount = sortedCheques.filter(c => !c.status || c.status === 'pending').length;
-    const passedCount = sortedCheques.filter(c => c.status === 'passed').length;
-    const returnedCount = sortedCheques.filter(c => c.status === 'returned').length;
-
-    // Summary
     const summaryY = searchTerm ? 56 : 50;
     doc.text(`Total Cheques: ${sortedCheques.length} | Pending: ${pendingCount} | Passed: ${passedCount} | Returned: ${returnedCount}`, 14, summaryY);
     doc.text(`Total Amount: Rs. ${totalAmount.toLocaleString()}`, 14, summaryY + 6);
 
-    // Table
     autoTable(doc, {
       startY: summaryY + 14,
       head: [['Cheque No', 'Date', 'Customer', 'Receipt', 'Bank', 'Branch', 'Holder', 'Amount', 'Status']],
@@ -360,10 +338,10 @@ export default function Cheques() {
           <p><strong>Sort:</strong> By Date (${sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})</p>
           ${searchTerm ? `<p><strong>Filter:</strong> "${searchTerm}"</p>` : ''}
           <p><strong>Total Cheques:</strong> ${sortedCheques.length} | 
-             <strong>Pending:</strong> ${sortedCheques.filter(c => !c.status || c.status === 'pending').length} | 
-             <strong>Passed:</strong> ${sortedCheques.filter(c => c.status === 'passed').length} | 
-             <strong>Returned:</strong> ${sortedCheques.filter(c => c.status === 'returned').length}</p>
-          <p><strong>Total Amount:</strong> Rs. ${sortedCheques.reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()}</p>
+             <strong>Pending:</strong> ${pendingCount} | 
+             <strong>Passed:</strong> ${passedCount} | 
+             <strong>Returned:</strong> ${returnedCount}</p>
+          <p><strong>Total Amount:</strong> Rs. ${totalAmount.toLocaleString()}</p>
         </div>
         <table>
           <thead>
@@ -409,12 +387,40 @@ export default function Cheques() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Cheques</h1>
           <p className="text-muted-foreground mt-2">View and manage cheque payments</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {/* Sort Button */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                {sortOrder === 'asc' ? <SortAsc className="h-4 w-4 mr-2" /> : <SortDesc className="h-4 w-4 mr-2" />}
+                Sort by Date
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setSortOrder('asc')}>
+                <SortAsc className="h-4 w-4 mr-2" />
+                Oldest First
+                {sortOrder === 'asc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortOrder('desc')}>
+                <SortDesc className="h-4 w-4 mr-2" />
+                Newest First
+                {sortOrder === 'desc' && <CheckCircle className="h-4 w-4 ml-2 text-green-500" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Preview Button */}
+          <Button variant="outline" onClick={() => setPreviewOpen(true)}>
+            <Eye className="h-4 w-4 mr-2" />
+            Preview
+          </Button>
+
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
@@ -444,8 +450,11 @@ export default function Cheques() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Cheque List ({sortedCheques.length})</CardTitle>
+          <Badge variant="secondary" className="text-xs">
+            {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+          </Badge>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -453,17 +462,7 @@ export default function Cheques() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cheque No</TableHead>
-                  <TableHead>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={toggleSort}
-                      className="h-auto p-0 font-semibold hover:bg-transparent"
-                    >
-                      Date
-                      {getSortIcon()}
-                    </Button>
-                  </TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Receipt No</TableHead>
                   <TableHead>Bank</TableHead>
@@ -535,6 +534,102 @@ export default function Cheques() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cheques Report Preview</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Header */}
+            <div className="border-b pb-4">
+              <h2 className="text-xl font-bold">{companyInfo?.name || 'Company'}</h2>
+              <p className="text-muted-foreground">Cheques Report - {new Date().toLocaleDateString()}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Sort: By Date ({sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})
+                {searchTerm && ` | Filter: "${searchTerm}"`}
+              </p>
+            </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Total Cheques</p>
+                <p className="text-lg font-bold">{sortedCheques.length}</p>
+              </Card>
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-lg font-bold text-orange-500">{pendingCount}</p>
+              </Card>
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Passed</p>
+                <p className="text-lg font-bold text-green-500">{passedCount}</p>
+              </Card>
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Returned</p>
+                <p className="text-lg font-bold text-red-500">{returnedCount}</p>
+              </Card>
+              <Card className="p-3">
+                <p className="text-xs text-muted-foreground">Total Amount</p>
+                <p className="text-lg font-bold">Rs. {totalAmount.toLocaleString()}</p>
+              </Card>
+            </div>
+
+            {/* Cheques Table */}
+            <div className="border rounded-lg overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cheque No</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Receipt</TableHead>
+                    <TableHead>Bank</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedCheques.map((cheque, index) => (
+                    <TableRow key={`preview-${cheque.receipt_no}-${index}`}>
+                      <TableCell className="font-mono">{cheque.cheque_no}</TableCell>
+                      <TableCell>{new Date(cheque.cheque_date).toLocaleDateString()}</TableCell>
+                      <TableCell>{cheque.customer_name || 'N/A'}</TableCell>
+                      <TableCell>{cheque.receipt_no}</TableCell>
+                      <TableCell>{cheque.cheque_bank || '-'}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {Number(cheque.amount).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`text-sm ${
+                          cheque.status === 'passed' ? 'text-green-600' :
+                          cheque.status === 'returned' ? 'text-red-600' : 'text-muted-foreground'
+                        }`}>
+                          {getStatusText(cheque.status)}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+              <Button onClick={handleExportPDF}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
