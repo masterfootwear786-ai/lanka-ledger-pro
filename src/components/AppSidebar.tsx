@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -32,6 +33,9 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  
+  // Track which section is currently open (only one at a time)
+  const [openSection, setOpenSection] = useState<string | null>(null);
 
   const isActiveRoute = (url: string) => {
     if (url === '/') return location.pathname === '/';
@@ -82,19 +86,28 @@ export function AppSidebar() {
     { title: t('reports.apAging'), url: '/reports/ap-aging' },
   ];
 
-  // Check if any sub-item in a section is active
-  const isSectionActive = (items: { url: string }[]) => {
-    return items.some(item => isActiveRoute(item.url));
-  };
-
   const menuSections = [
-    { title: t('app.sales'), icon: ShoppingCart, items: salesItems },
-    { title: 'Customers', icon: Users, items: customerItems },
-    { title: t('app.purchasing'), icon: ShoppingBag, items: purchasingItems },
-    { title: t('app.inventory'), icon: Package, items: inventoryItems },
-    { title: 'Expenses and Other', icon: BookOpen, items: accountingItems },
-    { title: t('app.reports'), icon: FileText, items: reportItems },
+    { id: 'sales', title: t('app.sales'), icon: ShoppingCart, items: salesItems },
+    { id: 'customers', title: 'Customers', icon: Users, items: customerItems },
+    { id: 'purchasing', title: t('app.purchasing'), icon: ShoppingBag, items: purchasingItems },
+    { id: 'inventory', title: t('app.inventory'), icon: Package, items: inventoryItems },
+    { id: 'accounting', title: 'Expenses and Other', icon: BookOpen, items: accountingItems },
+    { id: 'reports', title: t('app.reports'), icon: FileText, items: reportItems },
   ];
+
+  // Auto-open section based on current route
+  useEffect(() => {
+    const activeSection = menuSections.find(section => 
+      section.items.some(item => isActiveRoute(item.url))
+    );
+    if (activeSection) {
+      setOpenSection(activeSection.id);
+    }
+  }, [location.pathname]);
+
+  const handleSectionToggle = (sectionId: string) => {
+    setOpenSection(prev => prev === sectionId ? null : sectionId);
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border/50">
@@ -141,11 +154,12 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Collapsible Sections */}
-        {menuSections.map((section, sectionIndex) => (
+        {/* Collapsible Sections - Only one open at a time */}
+        {menuSections.map((section) => (
           <Collapsible 
-            key={section.title} 
-            defaultOpen={isSectionActive(section.items)} 
+            key={section.id} 
+            open={openSection === section.id}
+            onOpenChange={() => handleSectionToggle(section.id)}
             className="group/collapsible"
           >
             <SidebarGroup className="py-0">
