@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Pencil, Trash2, Truck, MapPin, DollarSign, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, Calendar } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Truck, MapPin, DollarSign, Fuel, UtensilsCrossed, Hotel, MoreHorizontal, Calendar, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TurnDailyExpensesDialog } from "@/components/accounting/TurnDailyExpensesDialog";
+import { TurnViewDialog } from "@/components/accounting/TurnViewDialog";
 
 interface Turn {
   id: string;
@@ -68,6 +69,8 @@ export default function Turns() {
   const [isDailyExpensesOpen, setIsDailyExpensesOpen] = useState(false);
   const [turnForDailyExpenses, setTurnForDailyExpenses] = useState<Turn | null>(null);
   const [companyId, setCompanyId] = useState<string>("");
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [turnToView, setTurnToView] = useState<Turn | null>(null);
   const { toast } = useToast();
 
   const fetchTurns = async () => {
@@ -458,6 +461,17 @@ export default function Turns() {
                           variant="ghost"
                           size="icon"
                           onClick={() => {
+                            setTurnToView(turn);
+                            setIsViewDialogOpen(true);
+                          }}
+                          title="View"
+                        >
+                          <Eye className="h-4 w-4 text-green-500" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
                             setTurnForDailyExpenses(turn);
                             setIsDailyExpensesOpen(true);
                           }}
@@ -658,6 +672,13 @@ export default function Turns() {
         turn={turnForDailyExpenses}
         companyId={companyId}
         onExpensesUpdated={fetchTurns}
+      />
+
+      {/* View Dialog */}
+      <TurnViewDialog
+        open={isViewDialogOpen}
+        onOpenChange={setIsViewDialogOpen}
+        turn={turnToView}
       />
     </div>
   );
