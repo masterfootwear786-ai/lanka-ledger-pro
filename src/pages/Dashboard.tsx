@@ -1,20 +1,53 @@
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   FileText, 
   Users, 
   Receipt, 
   PackageX, 
   ShoppingCart,
-  Calendar
+  Calendar,
+  ArrowRight
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
 const Dashboard = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const quickActions = [
+    {
+      title: 'Create Invoice',
+      icon: FileText,
+      gradient: 'from-blue-500 to-blue-600',
+      path: '/sales/invoices',
+    },
+    {
+      title: 'Create Order',
+      icon: ShoppingCart,
+      gradient: 'from-emerald-500 to-emerald-600',
+      path: '/sales/orders',
+    },
+    {
+      title: 'Add Receipt',
+      icon: Receipt,
+      gradient: 'from-violet-500 to-violet-600',
+      path: '/sales/receipts',
+    },
+    {
+      title: 'Add Return Note',
+      icon: PackageX,
+      gradient: 'from-orange-500 to-orange-600',
+      path: '/sales/return-notes',
+    },
+    {
+      title: 'Add Customer',
+      icon: Users,
+      gradient: 'from-pink-500 to-pink-600',
+      path: '/sales/customers',
+    },
+  ];
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -27,54 +60,31 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="max-w-md shadow-lg border-0 bg-gradient-to-br from-slate-700 to-slate-800 text-white">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-medium text-white/90">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <Button 
-            variant="secondary" 
-            size="lg" 
-            className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
-            onClick={() => navigate('/sales/invoices')}
-          >
-            <FileText className="h-5 w-5 mr-3" /> Create Invoice
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="lg" 
-            className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
-            onClick={() => navigate('/sales/orders')}
-          >
-            <ShoppingCart className="h-5 w-5 mr-3" /> Create Order
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="lg" 
-            className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
-            onClick={() => navigate('/sales/receipts')}
-          >
-            <Receipt className="h-5 w-5 mr-3" /> Add Receipt
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="lg" 
-            className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
-            onClick={() => navigate('/sales/return-notes')}
-          >
-            <PackageX className="h-5 w-5 mr-3" /> Add Return Note
-          </Button>
-          <Button 
-            variant="secondary" 
-            size="lg" 
-            className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-0"
-            onClick={() => navigate('/sales/customers')}
-          >
-            <Users className="h-5 w-5 mr-3" /> Add Customer
-          </Button>
-        </CardContent>
-      </Card>
+      {/* Quick Actions Grid */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {quickActions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <Card 
+              key={action.title}
+              className={`group relative overflow-hidden border-0 bg-gradient-to-br ${action.gradient} text-white shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:scale-105`}
+              onClick={() => navigate(action.path)}
+            >
+              {/* Decorative circles */}
+              <div className="absolute top-0 right-0 w-20 h-20 bg-white/10 rounded-full -translate-y-10 translate-x-10" />
+              <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-8 -translate-x-8" />
+              
+              <CardContent className="p-5 flex flex-col items-center justify-center text-center min-h-[140px] relative z-10">
+                <div className="p-3 bg-white/20 rounded-xl mb-3 group-hover:bg-white/30 transition-colors">
+                  <Icon className="h-7 w-7" />
+                </div>
+                <h3 className="font-semibold text-sm">{action.title}</h3>
+                <ArrowRight className="h-4 w-4 mt-2 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 };
