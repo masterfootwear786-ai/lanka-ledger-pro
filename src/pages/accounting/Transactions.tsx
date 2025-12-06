@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Eye, Pencil, Trash2, Package, Wallet, TrendingDown, CreditCard, Building, Car, Utensils, Home, Wrench, ShieldCheck, Briefcase, MoreHorizontal, Users, UserMinus, UserPlus } from "lucide-react";
+import { Plus, Search, Eye, Pencil, Trash2, Package, Wallet, TrendingDown, CreditCard, Building, Car, Utensils, Home, Wrench, ShieldCheck, Briefcase, MoreHorizontal, Users, UserMinus, UserPlus, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
@@ -606,6 +607,15 @@ interface ExpenseTableProps {
 }
 
 function ExpenseTable({ transactions, loading, onView, onEdit, onDelete, getCategoryBadge }: ExpenseTableProps) {
+  const navigate = useNavigate();
+  
+  const handleReferenceClick = (transaction: Transaction) => {
+    if (transaction.turn) {
+      // Navigate to turns page with the turn ID to open view dialog
+      navigate(`/accounting/turns?view=${transaction.turn.id}`);
+    }
+  };
+  
   return (
     <Card>
       <CardContent className="p-0">
@@ -661,17 +671,23 @@ function ExpenseTable({ transactions, loading, onView, onEdit, onDelete, getCate
                     })}
                   </TableCell>
                   <TableCell>
-                    {transaction.reference ? (
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-primary/10 border border-primary/20">
-                          <svg className="h-3.5 w-3.5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                          </svg>
-                          <span className="text-xs font-medium text-primary">{transaction.reference}</span>
-                        </span>
-                      </div>
+                    {transaction.turn ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 bg-primary/5 border-primary/20 hover:bg-primary/10 hover:border-primary/40 text-primary"
+                        onClick={() => handleReferenceClick(transaction)}
+                      >
+                        <Car className="h-3.5 w-3.5" />
+                        <span className="text-xs font-medium">{transaction.turn.turn_no}</span>
+                        <ExternalLink className="h-3 w-3 ml-1" />
+                      </Button>
+                    ) : transaction.reference ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-muted border border-border">
+                        <span className="text-xs font-medium text-muted-foreground">{transaction.reference}</span>
+                      </span>
                     ) : (
-                      <span className="text-muted-foreground text-xs">No reference</span>
+                      <span className="text-muted-foreground text-xs">-</span>
                     )}
                   </TableCell>
                   <TableCell className="text-right">

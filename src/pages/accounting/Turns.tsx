@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -138,9 +139,25 @@ export default function Turns() {
     }
   };
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useEffect(() => {
     fetchTurns();
   }, []);
+
+  // Handle view query parameter from Expenses page
+  useEffect(() => {
+    const viewTurnId = searchParams.get('view');
+    if (viewTurnId && turns.length > 0) {
+      const turnToOpen = turns.find(t => t.id === viewTurnId);
+      if (turnToOpen) {
+        setTurnToView(turnToOpen);
+        setIsViewDialogOpen(true);
+        // Clear the query parameter after opening
+        setSearchParams({});
+      }
+    }
+  }, [searchParams, turns]);
 
   const handleOpenDialog = (turn?: Turn) => {
     if (turn) {
