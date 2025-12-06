@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Trash2, ArrowLeft, Truck, Warehouse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 const invoiceSchema = z.object({
   invoice_no: z.string().min(1, "Invoice number is required"),
@@ -60,7 +60,12 @@ interface Cheque {
 export default function CreateInvoice() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  
+  // Determine if we're in order mode based on route
+  const isOrderRoute = location.pathname.includes('/orders/');
+  
   const [customers, setCustomers] = useState<any[]>([]);
   const [items, setItems] = useState<any[]>([]);
   const [stockData, setStockData] = useState<any[]>([]);
@@ -70,8 +75,9 @@ export default function CreateInvoice() {
   const [discountPercent, setDiscountPercent] = useState(0);
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [useManualEntry, setUseManualEntry] = useState(false);
-  const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
+  const [documentType, setDocumentType] = useState<'invoice' | 'order'>(isOrderRoute ? 'order' : 'invoice');
   const [invoice, setInvoice] = useState<any>(null);
+  const [order, setOrder] = useState<any>(null);
   const [selectAllDiscount, setSelectAllDiscount] = useState(false);
   const [stockType, setStockType] = useState<'lorry' | 'store'>('lorry');
 
@@ -90,13 +96,20 @@ export default function CreateInvoice() {
     fetchStockData();
     
     if (id) {
-      // Load existing invoice data
-      loadInvoiceData();
+      // Load existing data based on route
+      if (isOrderRoute) {
+        loadOrderData();
+      } else {
+        loadInvoiceData();
+      }
     } else {
-      // New invoice
+      // New document - set default number based on document type
+      if (isOrderRoute) {
+        form.setValue('invoice_no', `ORD-${Date.now()}`);
+      }
       addLineItem();
     }
-  }, [id]);
+  }, [id, isOrderRoute]);
 
   useEffect(() => {
     const customerId = form.watch("customer_id");
@@ -250,6 +263,103 @@ export default function CreateInvoice() {
         variant: "destructive",
       });
       navigate('/sales/invoices');
+    }
+  };
+
+  const loadOrderData = async () => {
+    if (!id) return;
+
+    try {
+      const { data: orderData, error: orderError } = await supabase
+        .from('sales_orders')
+        .select('*, customer:contacts(name)')
+        .eq('id', id)
+        .single();
+
+      if (orderError) throw orderError;
+      setOrder(orderData);
+      setDocumentType('order');
+
+      form.reset({
+        invoice_no: orderData.order_no,
+        customer_id: orderData.customer_id,
+        invoice_date: orderData.order_date,
+        due_date: orderData.delivery_date || '',
+        notes: orderData.notes || '',
+        payment_method: (orderData.terms?.includes('cheque') ? 'cheque' : (orderData.terms || 'cash')) as "cash" | "cheque" | "credit",
+      });
+
+      const { data: lines } = await supabase
+        .from('sales_order_lines')
+        .select('*')
+        .eq('order_id', id)
+        .order('line_no', { ascending: true });
+
+      if (lines && lines.length > 0) {
+        // Group lines by Art No and Color
+        const grouped = lines.reduce((acc: any, line: any) => {
+          const parts = (line.description || "").split(" - ");
+          const artNo = parts[0] || "";
+          const color = parts[1] || "";
+          const sizeInfo = parts[2] || "";
+          const size = sizeInfo.replace("Size ", "");
+          
+          const key = `${artNo}|||${color}`;
+          
+          if (!acc[key]) {
+            acc[key] = {
+              id: Math.random().toString(),
+              art_no: artNo,
+              description: '',
+              color: color,
+              size_39: 0,
+              size_40: 0,
+              size_41: 0,
+              size_42: 0,
+              size_43: 0,
+              size_44: 0,
+              size_45: 0,
+              total_pairs: 0,
+              unit_price: line.unit_price || 0,
+              tax_rate: 0,
+              line_total: 0,
+              tax_amount: 0,
+              discount_selected: false,
+            };
+          }
+          
+          // Set size quantity
+          if (size && ['39', '40', '41', '42', '43', '44', '45'].includes(size)) {
+            acc[key][`size_${size}`] = line.quantity || 0;
+          }
+          
+          return acc;
+        }, {} as Record<string, any>);
+
+        // Calculate totals for each group
+        const reconstructedLines = Object.values(grouped).map((line: any) => {
+          line.total_pairs = line.size_39 + line.size_40 + line.size_41 + 
+                             line.size_42 + line.size_43 + line.size_44 + line.size_45;
+          line.line_total = line.total_pairs * line.unit_price;
+          return line;
+        });
+
+        setLineItems(reconstructedLines as LineItem[]);
+      }
+
+      if (orderData.discount && orderData.discount > 0) {
+        const discountableAmount = lines?.reduce((sum: number, line: any) => sum + (line.quantity * line.unit_price), 0) || 0;
+        if (discountableAmount > 0) {
+          setDiscountPercent((orderData.discount / discountableAmount) * 100);
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      navigate('/sales/orders');
     }
   };
 
@@ -419,30 +529,68 @@ export default function CreateInvoice() {
       if (!customerId) throw new Error("Customer is required");
 
       if (documentType === 'order') {
-        const order_no = `ORD-${Date.now()}`;
-        
-        const { data: newOrder, error: orderError } = await supabase
-          .from('sales_orders')
-          .insert({
-            company_id: profile.company_id,
-            customer_id: customerId,
-            order_no,
-            order_date: data.invoice_date,
-            delivery_date: data.due_date,
-            notes: data.notes,
-            subtotal,
-            tax_total,
-            discount: discount_amount,
-            grand_total,
-            status: 'pending',
-            terms: data.payment_method === 'cheque' 
-              ? JSON.stringify({ payment_method: 'cheque', cheques }) 
-              : data.payment_method,
-          })
-          .select()
-          .single();
+        let orderId: string;
+        let order_no: string;
 
-        if (orderError) throw orderError;
+        if (order) {
+          // Update existing order
+          order_no = data.invoice_no;
+          orderId = order.id;
+
+          const { error: orderError } = await supabase
+            .from('sales_orders')
+            .update({
+              order_no: data.invoice_no,
+              customer_id: customerId,
+              order_date: data.invoice_date,
+              delivery_date: data.due_date,
+              notes: data.notes,
+              subtotal,
+              tax_total,
+              discount: discount_amount,
+              grand_total,
+              terms: data.payment_method === 'cheque' 
+                ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+                : data.payment_method,
+            })
+            .eq('id', order.id);
+
+          if (orderError) throw orderError;
+
+          // Delete existing lines
+          await supabase
+            .from('sales_order_lines')
+            .delete()
+            .eq('order_id', order.id);
+
+        } else {
+          // Create new order
+          order_no = data.invoice_no || `ORD-${Date.now()}`;
+          
+          const { data: newOrder, error: orderError } = await supabase
+            .from('sales_orders')
+            .insert({
+              company_id: profile.company_id,
+              customer_id: customerId,
+              order_no,
+              order_date: data.invoice_date,
+              delivery_date: data.due_date,
+              notes: data.notes,
+              subtotal,
+              tax_total,
+              discount: discount_amount,
+              grand_total,
+              status: 'pending',
+              terms: data.payment_method === 'cheque' 
+                ? JSON.stringify({ payment_method: 'cheque', cheques }) 
+                : data.payment_method,
+            })
+            .select()
+            .single();
+
+          if (orderError) throw orderError;
+          orderId = newOrder.id;
+        }
 
         const itemsMap = new Map();
         items.forEach(i => {
@@ -455,7 +603,7 @@ export default function CreateInvoice() {
           const itemId = itemsMap.get(itemKey);
           
           return {
-            order_id: newOrder.id,
+            order_id: orderId,
             item_id: itemId || null,
             line_no: index + 1,
             description: `${item.art_no} - ${item.color}`,
@@ -482,7 +630,7 @@ export default function CreateInvoice() {
 
         toast({
           title: "Success",
-          description: "Order created successfully",
+          description: order ? "Order updated successfully" : "Order created successfully",
         });
       } else {
         let invoiceId: string;
@@ -610,7 +758,7 @@ export default function CreateInvoice() {
         });
       }
 
-      navigate('/sales/invoices');
+      navigate(documentType === 'order' ? '/sales/orders' : '/sales/invoices');
     } catch (error: any) {
       toast({
         title: "Error",
@@ -630,18 +778,23 @@ export default function CreateInvoice() {
         <Button 
           variant="ghost" 
           size="icon"
-          onClick={() => navigate('/sales/invoices')}
+          onClick={() => navigate(isOrderRoute ? '/sales/orders' : '/sales/invoices')}
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-3xl font-bold">{invoice ? 'Edit Invoice' : 'Create New Document'}</h1>
+          <h1 className="text-3xl font-bold">
+            {isOrderRoute 
+              ? (order ? 'Edit Order' : 'Create New Order')
+              : (invoice ? 'Edit Invoice' : 'Create New Document')
+            }
+          </h1>
           <p className="text-muted-foreground">Fill in the details below</p>
         </div>
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {!invoice && (
+        {!invoice && !order && !isOrderRoute && (
           <Card>
             <CardHeader>
               <CardTitle>Document Type</CardTitle>
@@ -719,14 +872,14 @@ export default function CreateInvoice() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Invoice Number</CardTitle>
+            <CardTitle>{documentType === 'order' ? 'Order Number' : 'Invoice Number'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <Label htmlFor="invoice_no">Invoice Number *</Label>
+              <Label htmlFor="invoice_no">{documentType === 'order' ? 'Order Number' : 'Invoice Number'} *</Label>
               <Input
                 {...form.register("invoice_no")}
-                placeholder="Enter invoice number"
+                placeholder={documentType === 'order' ? 'Enter order number' : 'Enter invoice number'}
               />
               {form.formState.errors.invoice_no && (
                 <p className="text-sm text-destructive">{form.formState.errors.invoice_no.message}</p>

@@ -27,7 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { OrderEditDialog } from "@/components/orders/OrderEditDialog";
+
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -39,7 +39,6 @@ export default function Orders() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<any>(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [orderLines, setOrderLines] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
@@ -127,8 +126,7 @@ export default function Orders() {
   };
 
   const handleEdit = (order: any) => {
-    setSelectedOrder(order);
-    setEditDialogOpen(true);
+    navigate(`/sales/orders/edit/${order.id}`);
   };
 
   const handlePrint = async (order: any) => {
@@ -608,16 +606,6 @@ export default function Orders() {
         </div>
       )}
 
-      <OrderEditDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        order={selectedOrder}
-        onSuccess={() => {
-          fetchOrders();
-          setEditDialogOpen(false);
-          setSelectedOrder(null);
-        }}
-      />
 
       {/* View Order Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
