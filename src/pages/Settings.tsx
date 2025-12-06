@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download, Database, MapPin } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download, Database, MapPin, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -49,6 +49,14 @@ export default function Settings() {
       icon: Users,
       path: "/settings/users",
       color: "text-green-600 dark:text-green-400",
+      adminOnly: true,
+    },
+    {
+      title: "Sales Rep Activity",
+      description: "Monitor sales rep performance and activity",
+      icon: Activity,
+      path: "/settings/sales-rep-activity",
+      color: "text-purple-600 dark:text-purple-400",
       adminOnly: true,
     },
     {

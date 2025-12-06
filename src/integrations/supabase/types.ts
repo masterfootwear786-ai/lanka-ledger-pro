@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action_type: string
+          company_id: string
+          created_at: string | null
+          details: Json | null
+          entity_id: string | null
+          entity_name: string | null
+          entity_type: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          company_id: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          company_id?: string
+          created_at?: string | null
+          details?: Json | null
+          entity_id?: string | null
+          entity_name?: string | null
+          entity_type?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_statements: {
         Row: {
           amount: number
@@ -1388,6 +1432,44 @@ export type Database = {
           },
         ]
       }
+      login_history: {
+        Row: {
+          company_id: string | null
+          id: string
+          ip_address: string | null
+          login_at: string | null
+          logout_at: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          id?: string
+          ip_address?: string | null
+          login_at?: string | null
+          logout_at?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string | null
+          id?: string
+          ip_address?: string | null
+          login_at?: string | null
+          logout_at?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_history_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_template_lines: {
         Row: {
           art_no: string | null
@@ -1598,8 +1680,10 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_sales_rep: boolean | null
           language: string | null
           updated_at: string | null
+          username: string | null
         }
         Insert: {
           active?: boolean | null
@@ -1608,8 +1692,10 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          is_sales_rep?: boolean | null
           language?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Update: {
           active?: boolean | null
@@ -1618,8 +1704,10 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_sales_rep?: boolean | null
           language?: string | null
           updated_at?: string | null
+          username?: string | null
         }
         Relationships: [
           {
@@ -2220,6 +2308,56 @@ export type Database = {
           },
         ]
       }
+      sales_rep_stats: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          invoices_created: number | null
+          orders_created: number | null
+          period_date: string
+          receipts_created: number | null
+          total_collections: number | null
+          total_sales: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          invoices_created?: number | null
+          orders_created?: number | null
+          period_date: string
+          receipts_created?: number | null
+          total_collections?: number | null
+          total_sales?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          invoices_created?: number | null
+          orders_created?: number | null
+          period_date?: string
+          receipts_created?: number | null
+          total_collections?: number | null
+          total_sales?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_rep_stats_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_by_size: {
         Row: {
           company_id: string
@@ -2758,6 +2896,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_by_username: {
+        Args: { p_username: string }
+        Returns: {
+          email: string
+          id: string
+        }[]
+      }
       get_user_company: { Args: { _user_id: string }; Returns: string }
       has_permission: {
         Args: { _module: string; _permission: string; _user_id: string }
