@@ -6,11 +6,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-interface EmailRequest {
+interface StatementRequest {
   to: string;
   customerName: string;
-  pdfBase64: string;
-  fileName: string;
+  customerCode: string;
+  stats: {
+    totalInvoiced: number;
+    totalPaid: number;
+    pendingCheques: number;
+    totalReturns: number;
+    outstanding: number;
+  };
+  message?: string;
+  pdfBase64?: string;
+  companyName?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -19,16 +28,101 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { to, customerName, pdfBase64, fileName }: EmailRequest = await req.json();
+    const {
+      to,
+      customerName,
+      customerCode,
+      stats,
+      message,
+      pdfBase64,
+      companyName = "Master Footwear",
+    }: StatementRequest = await req.json();
 
-    console.log("Sending statement email to:", to);
+    console.log("Sending customer statement to:", to);
+    console.log("Customer:", customerName, customerCode);
 
-    // Create SMTP client - trim values to remove any trailing whitespace
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
+        <div style="background-color: #1e293b; color: white; padding: 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
+          <p style="margin: 5px 0 0 0; font-size: 14px;">Customer Statement</p>
+        </div>
+        
+        <div style="padding: 20px;">
+          <p>Dear <strong>${customerName}</strong>,</p>
+          <p>Please find your account statement below:</p>
+          
+          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+            <tr>
+              <td style="padding: 15px; background-color: #eff6ff; border-radius: 8px; width: 50%;">
+                <div style="font-size: 12px; color: #64748b;">Total Invoiced</div>
+                <div style="font-size: 18px; font-weight: bold; color: #2563eb; margin-top: 5px;">Rs. ${stats.totalInvoiced.toLocaleString()}</div>
+              </td>
+              <td style="width: 10px;"></td>
+              <td style="padding: 15px; background-color: #f0fdf4; border-radius: 8px; width: 50%;">
+                <div style="font-size: 12px; color: #64748b;">Total Paid</div>
+                <div style="font-size: 18px; font-weight: bold; color: #16a34a; margin-top: 5px;">Rs. ${stats.totalPaid.toLocaleString()}</div>
+              </td>
+            </tr>
+            <tr><td colspan="3" style="height: 10px;"></td></tr>
+            <tr>
+              <td style="padding: 15px; background-color: #faf5ff; border-radius: 8px;">
+                <div style="font-size: 12px; color: #64748b;">Total Returns</div>
+                <div style="font-size: 18px; font-weight: bold; color: #9333ea; margin-top: 5px;">Rs. ${stats.totalReturns.toLocaleString()}</div>
+              </td>
+              <td style="width: 10px;"></td>
+              <td style="padding: 15px; background-color: #fef2f2; border-radius: 8px;">
+                <div style="font-size: 12px; color: #64748b;">Outstanding Balance</div>
+                <div style="font-size: 18px; font-weight: bold; color: #dc2626; margin-top: 5px;">Rs. ${stats.outstanding.toLocaleString()}</div>
+              </td>
+            </tr>
+          </table>
+          
+          ${stats.pendingCheques > 0 ? `
+            <p style="color: #c2410c; background-color: #fff7ed; padding: 10px; border-radius: 5px;">
+              <strong>Pending Cheques:</strong> Rs. ${stats.pendingCheques.toLocaleString()}
+            </p>
+          ` : ''}
+          
+          ${pdfBase64 ? `
+            <div style="background-color: #dbeafe; padding: 10px; border-radius: 5px; text-align: center; margin: 15px 0;">
+              <strong>📎 Detailed statement PDF attached</strong>
+            </div>
+          ` : ''}
+          
+          ${message ? `
+            <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Message:</strong></p>
+              <p style="margin: 5px 0 0 0;">${message}</p>
+            </div>
+          ` : ''}
+          
+          <p>If you have any questions about this statement, please don't hesitate to contact us.</p>
+          <p>Thank you for your business!</p>
+          <p>Best regards,<br><strong>${companyName} Accounts Team</strong></p>
+        </div>
+        
+        <div style="background-color: #1e293b; color: white; padding: 15px; text-align: center; font-size: 12px;">
+          <p style="margin: 0;">${companyName}</p>
+        </div>
+      </body>
+      </html>
+    `;
+
     const smtpHost = (Deno.env.get("SMTP_HOST") || "server.cloudmail.lk").trim();
     const smtpPort = parseInt((Deno.env.get("SMTP_PORT") || "465").trim());
     const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
-    
+    const fromEmail = (Deno.env.get("SMTP_FROM_EMAIL") || "info@masterfootwear.lk").trim();
+    const fromName = (Deno.env.get("SMTP_FROM_NAME") || "Master Footwear").trim();
+
+    console.log("Using SMTP Host:", smtpHost);
+
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
@@ -41,54 +135,27 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #1a365d; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0;">
-          <h1 style="margin: 0; font-size: 24px;">Master Footwear</h1>
-        </div>
-        
-        <div style="background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd;">
-          <h2 style="color: #1a365d; margin-top: 0;">Customer Statement</h2>
-          
-          <p>Dear ${customerName},</p>
-          
-          <p>Please find attached your account statement.</p>
-          
-          <p>If you have any questions regarding this statement, please don't hesitate to contact us.</p>
-          
-          <p>Best regards,<br><strong>Master Footwear Accounts Team</strong></p>
-        </div>
-        
-        <div style="background-color: #1a365d; color: white; padding: 15px; text-align: center; border-radius: 0 0 5px 5px; font-size: 12px;">
-          <p style="margin: 0;">Master Footwear Pvt Ltd</p>
-          <p style="margin: 5px 0;">info@masterfootwear.lk</p>
-        </div>
-      </body>
-      </html>
-    `;
-
-    // Send email with attachment
-    await client.send({
-      from: `${Deno.env.get("SMTP_FROM_NAME") || "Master Footwear"} <${Deno.env.get("SMTP_FROM_EMAIL") || "info@masterfootwear.lk"}>`,
+    const emailConfig: any = {
+      from: `${fromName} <${fromEmail}>`,
       to: to,
-      subject: `Customer Statement - ${customerName}`,
+      subject: `Customer Statement - ${customerCode} - ${companyName}`,
       content: "Please view this email in an HTML-compatible email client.",
       html: htmlContent,
-      attachments: [
+    };
+
+    // Add PDF attachment if provided
+    if (pdfBase64) {
+      emailConfig.attachments = [
         {
-          filename: fileName,
+          filename: `Statement_${customerCode}_${new Date().toISOString().split('T')[0]}.pdf`,
           content: pdfBase64,
           encoding: "base64",
           contentType: "application/pdf",
         },
-      ],
-    });
+      ];
+    }
 
+    await client.send(emailConfig);
     await client.close();
 
     console.log("Statement email sent successfully to:", to);
@@ -98,9 +165,15 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    console.error("Error sending statement email:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        success: false,
+        error: {
+          message: error.message || "Failed to send email",
+          details: error.toString(),
+        },
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
