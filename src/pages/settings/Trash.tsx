@@ -225,13 +225,22 @@ export default function Trash() {
 
         if (!profile?.company_id) throw new Error("No company assigned to user");
 
+        // Fetch invoice to get stock_type
+        const { data: invoice } = await supabase
+          .from("invoices")
+          .select("stock_type")
+          .eq("id", id)
+          .maybeSingle();
+
+        const stockType = invoice?.stock_type || 'main';
+
         // Fetch invoice lines
         const { data: invoiceLines } = await supabase
           .from("invoice_lines")
           .select("*")
           .eq("invoice_id", id);
 
-        // Deduct stock for each line item
+        // Deduct stock for each line item from the correct stock type
         if (invoiceLines && invoiceLines.length > 0) {
           for (const line of invoiceLines) {
             if (!line.item_id) continue;
@@ -249,29 +258,58 @@ export default function Trash() {
             for (const { size, qty } of sizes) {
               if (qty <= 0) continue;
 
+              // Deduct from the specific stock type (lorry or store)
               const { data: existingStock } = await supabase
                 .from('stock_by_size')
                 .select('id, quantity')
                 .eq('item_id', line.item_id)
                 .eq('size', size)
+                .eq('stock_type', stockType)
                 .eq('company_id', profile.company_id)
                 .maybeSingle();
 
               if (existingStock) {
-                // Deduct the quantity
                 const newQuantity = (existingStock.quantity || 0) - qty;
                 await supabase
                   .from('stock_by_size')
                   .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
                   .eq('id', existingStock.id);
               } else {
-                // Create stock record with negative quantity
                 await supabase
                   .from('stock_by_size')
                   .insert({
                     company_id: profile.company_id,
                     item_id: line.item_id,
                     size,
+                    stock_type: stockType,
+                    quantity: -qty,
+                  });
+              }
+
+              // Also update main stock
+              const { data: mainStock } = await supabase
+                .from('stock_by_size')
+                .select('id, quantity')
+                .eq('item_id', line.item_id)
+                .eq('size', size)
+                .eq('stock_type', 'main')
+                .eq('company_id', profile.company_id)
+                .maybeSingle();
+
+              if (mainStock) {
+                const newMainQty = (mainStock.quantity || 0) - qty;
+                await supabase
+                  .from('stock_by_size')
+                  .update({ quantity: newMainQty, updated_at: new Date().toISOString() })
+                  .eq('id', mainStock.id);
+              } else {
+                await supabase
+                  .from('stock_by_size')
+                  .insert({
+                    company_id: profile.company_id,
+                    item_id: line.item_id,
+                    size,
+                    stock_type: 'main',
                     quantity: -qty,
                   });
               }
