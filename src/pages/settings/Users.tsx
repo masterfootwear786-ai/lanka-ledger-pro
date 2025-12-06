@@ -358,7 +358,7 @@ export default function Users() {
                       {user.full_name || "Unnamed User"}
                       {isProtectedUser && (
                         <Badge variant="outline" className="ml-auto text-xs bg-primary/10 text-primary border-primary/30">
-                          Protected
+                          System Owner
                         </Badge>
                       )}
                     </CardTitle>
@@ -394,7 +394,7 @@ export default function Users() {
                       Language: {user.language || "en"}
                     </div>
 
-                    {canManagePermissions() && (
+                    {canManagePermissions() && !isProtectedUser && (
                       <div className="flex gap-2 pt-2">
                         <Button
                           size="sm"
@@ -405,16 +405,14 @@ export default function Users() {
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
                         </Button>
-                        {!isProtectedUser && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteClick(user)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteClick(user)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     )}
                   </CardContent>
