@@ -1,15 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, AlertTriangle, Package, Truck, ArrowRight, Store } from "lucide-react";
+import { Search, AlertTriangle, Truck, ArrowRight, Store, MoreHorizontal, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { StockBySizeDialog } from "@/components/inventory/StockBySizeDialog";
 import { StockTransferDialog } from "@/components/inventory/StockTransferDialog";
 import { Badge } from "@/components/ui/badge";
-import { useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface StockItem {
   id: string;
@@ -35,9 +39,7 @@ export default function LorryStock() {
   const [searchTerm, setSearchTerm] = useState("");
   const [stockData, setStockData] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
   useEffect(() => {
@@ -139,57 +141,25 @@ export default function LorryStock() {
   const lowStockItems = filteredStock.filter(item => item.hasLowStock);
   const totalPairs = filteredStock.reduce((sum, item) => sum + item.totalStock, 0);
 
-  const updateStockQuantity = async (itemId: string, size: string, newQty: number) => {
+  const handleDeleteStock = async (item: StockItem) => {
+    if (!confirm(`Are you sure you want to delete all lorry stock for ${item.code} - ${item.color}?`)) {
+      return;
+    }
+
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
-      if (!profile?.company_id) throw new Error("No company assigned");
-
-      const { data: stockRecord } = await supabase
+      const { error } = await supabase
         .from("stock_by_size")
-        .select("id")
-        .eq("item_id", itemId)
-        .eq("size", size)
-        .eq("stock_type", "lorry")
-        .eq("company_id", profile.company_id)
-        .maybeSingle();
+        .delete()
+        .eq("item_id", item.item_id)
+        .eq("stock_type", "lorry");
 
-      if (stockRecord) {
-        await supabase
-          .from("stock_by_size")
-          .update({
-            quantity: newQty,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", stockRecord.id);
-      } else {
-        await supabase.from("stock_by_size").insert({
-          company_id: profile.company_id,
-          item_id: itemId,
-          size: size,
-          quantity: newQty,
-          stock_type: "lorry",
-        });
-      }
+      if (error) throw error;
 
+      toast.success("Lorry stock deleted successfully");
       fetchStock();
-      toast.success("Stock updated");
     } catch (error: any) {
       toast.error(error.message);
     }
-  };
-
-  const handleManageStock = (item: StockItem) => {
-    setSelectedItem({
-      id: item.item_id,
-      code: item.code,
-      color: item.color,
-      name: item.name,
-      low_stock_threshold: item.low_stock_threshold
-    });
-    setStockDialogOpen(true);
   };
 
   return (
@@ -204,25 +174,16 @@ export default function LorryStock() {
             <p className="text-muted-foreground mt-1">View and manage lorry stock levels</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline"
-            onClick={() => setTransferDialogOpen(true)}
-            className="gap-2"
-          >
-            <Store className="h-4 w-4" />
-            <ArrowRight className="h-3 w-3" />
-            <Truck className="h-4 w-4" />
-            Transfer from Store
-          </Button>
-          <Button onClick={() => {
-            setSelectedItem(null);
-            setStockDialogOpen(true);
-          }}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Stock
-          </Button>
-        </div>
+        <Button 
+          variant="outline"
+          onClick={() => setTransferDialogOpen(true)}
+          className="gap-2"
+        >
+          <Store className="h-4 w-4" />
+          <ArrowRight className="h-3 w-3" />
+          <Truck className="h-4 w-4" />
+          Transfer from Store
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -341,15 +302,7 @@ export default function LorryStock() {
                               key={size} 
                               className={`text-center ${isNegative ? 'text-red-600 font-bold' : isLow ? 'text-orange-600' : ''}`}
                             >
-                              <Input
-                                type="number"
-                                value={qty}
-                                onChange={async (e) => {
-                                  const newQty = parseFloat(e.target.value) || 0;
-                                  await updateStockQuantity(item.item_id, size, newQty);
-                                }}
-                                className="w-16 h-8 text-center"
-                              />
+                              {qty}
                             </TableCell>
                           );
                         })}
@@ -360,14 +313,22 @@ export default function LorryStock() {
                           {item.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleManageStock(item)}
-                            title="Manage Stock"
-                          >
-                            <Package className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteStock(item)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Stock
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
@@ -378,14 +339,6 @@ export default function LorryStock() {
           )}
         </CardContent>
       </Card>
-
-      <StockBySizeDialog
-        open={stockDialogOpen}
-        onOpenChange={setStockDialogOpen}
-        preSelectedItem={selectedItem}
-        stockType="lorry"
-        onSuccess={fetchStock}
-      />
       
       <StockTransferDialog
         open={transferDialogOpen}
