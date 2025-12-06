@@ -153,21 +153,30 @@ export default function StoreStock() {
   };
 
   const handleDeleteStock = async (item: StockItem) => {
-    if (!confirm(`Are you sure you want to delete all store stock for ${item.code} - ${item.color}?`)) {
+    if (!confirm(`Are you sure you want to delete all store stock for ${item.code} - ${item.color}? This will also delete from main stock.`)) {
       return;
     }
 
     try {
-      // Delete all store stock records for this item
-      const { error } = await supabase
+      // Delete store stock
+      const { error: storeError } = await supabase
         .from("stock_by_size")
         .delete()
         .eq("item_id", item.item_id)
         .eq("stock_type", "store");
 
-      if (error) throw error;
+      if (storeError) throw storeError;
 
-      toast.success("Store stock deleted successfully");
+      // Also delete from main stock
+      const { error: mainError } = await supabase
+        .from("stock_by_size")
+        .delete()
+        .eq("item_id", item.item_id)
+        .eq("stock_type", "main");
+
+      if (mainError) throw mainError;
+
+      toast.success("Store and main stock deleted successfully");
       fetchStock();
     } catch (error: any) {
       toast.error(error.message);
