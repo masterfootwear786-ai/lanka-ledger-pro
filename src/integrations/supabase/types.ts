@@ -518,7 +518,6 @@ export type Database = {
           contact_type: Database["public"]["Enums"]["contact_type"]
           created_at: string | null
           created_by: string | null
-          credit_balance: number | null
           credit_limit: number | null
           deleted_at: string | null
           deleted_by: string | null
@@ -544,7 +543,6 @@ export type Database = {
           contact_type?: Database["public"]["Enums"]["contact_type"]
           created_at?: string | null
           created_by?: string | null
-          credit_balance?: number | null
           credit_limit?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -570,7 +568,6 @@ export type Database = {
           contact_type?: Database["public"]["Enums"]["contact_type"]
           created_at?: string | null
           created_by?: string | null
-          credit_balance?: number | null
           credit_limit?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
