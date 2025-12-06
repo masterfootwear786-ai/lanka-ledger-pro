@@ -29,6 +29,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Truck, Store, Warehouse } from "lucide-react";
 
 type StatusFilter = "all" | "draft" | "approved" | "paid";
 
@@ -48,6 +51,7 @@ export default function Invoices() {
   const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
   const [invoiceLines, setInvoiceLines] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
+  const [stockRestoreType, setStockRestoreType] = useState<'lorry' | 'store'>('lorry');
   const {
     isPasswordDialogOpen,
     setIsPasswordDialogOpen,
@@ -179,60 +183,20 @@ export default function Invoices() {
 
         if (!profile?.company_id) throw new Error("No company assigned to user");
 
-        // First, fetch invoice lines to restore stock
-        const { data: invoiceLines } = await supabase
+        // Update invoice lines with the selected stock_type before deletion
+        // This ensures the database trigger restores to the correct stock type
+        await supabase
           .from("invoice_lines")
-          .select("*")
+          .update({ stock_type: stockRestoreType })
           .eq("invoice_id", invoiceToDelete.id);
 
-        // Restore stock for each line item
-        if (invoiceLines && invoiceLines.length > 0) {
-          for (const line of invoiceLines) {
-            if (!line.item_id) continue;
+        // Delete invoice lines first (triggers will restore stock based on stock_type)
+        const { error: linesError } = await supabase
+          .from("invoice_lines")
+          .delete()
+          .eq("invoice_id", invoiceToDelete.id);
 
-            const sizes = [
-              { size: '39', qty: line.size_39 || 0 },
-              { size: '40', qty: line.size_40 || 0 },
-              { size: '41', qty: line.size_41 || 0 },
-              { size: '42', qty: line.size_42 || 0 },
-              { size: '43', qty: line.size_43 || 0 },
-              { size: '44', qty: line.size_44 || 0 },
-              { size: '45', qty: line.size_45 || 0 },
-            ];
-
-            for (const { size, qty } of sizes) {
-              if (qty <= 0) continue;
-
-              // Get current stock
-              const { data: existingStock } = await supabase
-                .from('stock_by_size')
-                .select('id, quantity')
-                .eq('item_id', line.item_id)
-                .eq('size', size)
-                .eq('company_id', profile.company_id)
-                .maybeSingle();
-
-              if (existingStock) {
-                // Add back the quantity
-                const newQuantity = (existingStock.quantity || 0) + qty;
-                await supabase
-                  .from('stock_by_size')
-                  .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-                  .eq('id', existingStock.id);
-              } else {
-                // Create stock record with restored quantity
-                await supabase
-                  .from('stock_by_size')
-                  .insert({
-                    company_id: profile.company_id,
-                    item_id: line.item_id,
-                    size,
-                    quantity: qty,
-                  });
-              }
-            }
-          }
-        }
+        if (linesError) throw linesError;
 
         // Soft delete invoice
         const { error } = await supabase
@@ -247,11 +211,12 @@ export default function Invoices() {
 
         toast({
           title: "Success",
-          description: "Invoice moved to trash and stock restored.",
+          description: `Invoice moved to trash and stock restored to ${stockRestoreType === 'lorry' ? 'Lorry Stock' : 'Store Stock'}.`,
         });
 
         setDeleteDialogOpen(false);
         setInvoiceToDelete(null);
+        setStockRestoreType('lorry');
         fetchInvoices();
       } catch (error: any) {
         toast({
@@ -948,12 +913,52 @@ export default function Invoices() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Invoice</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete invoice {invoiceToDelete?.invoice_no}? This action cannot be undone.
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>Are you sure you want to delete invoice {invoiceToDelete?.invoice_no}?</p>
+                
+                <div className="bg-muted/50 rounded-lg p-4 border">
+                  <Label className="text-sm font-medium text-foreground mb-3 block">
+                    Where should the stock be restored to?
+                  </Label>
+                  <RadioGroup 
+                    value={stockRestoreType} 
+                    onValueChange={(value: 'lorry' | 'store') => setStockRestoreType(value)}
+                    className="grid grid-cols-2 gap-3"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="lorry" id="restore-lorry" />
+                      <Label 
+                        htmlFor="restore-lorry" 
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Truck className="h-4 w-4 text-blue-500" />
+                        <span>Lorry Stock</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="store" id="restore-store" />
+                      <Label 
+                        htmlFor="restore-store" 
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Store className="h-4 w-4 text-emerald-500" />
+                        <span>Store Stock</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Main stock will also be updated automatically.
+                  </p>
+                </div>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => {
+              setInvoiceToDelete(null);
+              setStockRestoreType('lorry');
+            }}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
