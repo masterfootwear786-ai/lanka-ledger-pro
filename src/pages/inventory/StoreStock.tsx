@@ -69,7 +69,10 @@ export default function StoreStock() {
         stockMap.get(stock.item_id)!.set(stock.size, stock.quantity || 0);
       });
 
-      const combinedData: StockItem[] = items?.map(item => {
+      // Get unique item IDs that have store stock
+      const itemsWithStoreStock = new Set(stockBySizeData?.map(s => s.item_id) || []);
+
+      const combinedData: StockItem[] = items?.filter(item => itemsWithStoreStock.has(item.id)).map(item => {
         const sizeStock = stockMap.get(item.id) || new Map();
         const size_39 = sizeStock.get('39') || 0;
         const size_40 = sizeStock.get('40') || 0;
@@ -108,7 +111,7 @@ export default function StoreStock() {
           stockValue: totalStock * (item.sale_price || 0),
           hasLowStock
         };
-      }).filter(item => item.totalStock !== 0) || [];
+      }) || [];
 
       setStockData(combinedData);
     } catch (error: any) {
