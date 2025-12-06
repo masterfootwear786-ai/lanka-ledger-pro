@@ -36,6 +36,7 @@ export default function MainStock() {
   const [loading, setLoading] = useState(true);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
   const [colorFilter, setColorFilter] = useState<string>("all");
+  const [artNoFilter, setArtNoFilter] = useState<string>("all");
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
@@ -124,8 +125,9 @@ export default function MainStock() {
     }
   };
 
-  // Get unique colors for filter
+  // Get unique colors and art nos for filters
   const uniqueColors = Array.from(new Set(stockData.map(item => item.color))).filter(c => c && c !== '-').sort();
+  const uniqueArtNos = Array.from(new Set(stockData.map(item => item.code))).filter(c => c).sort();
 
   const filteredStock = stockData.filter(item => {
     const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,8 +136,9 @@ export default function MainStock() {
     
     const matchesLowStockFilter = !showLowStockOnly || item.hasLowStock;
     const matchesColorFilter = colorFilter === "all" || item.color === colorFilter;
+    const matchesArtNoFilter = artNoFilter === "all" || item.code === artNoFilter;
     
-    return matchesSearch && matchesLowStockFilter && matchesColorFilter;
+    return matchesSearch && matchesLowStockFilter && matchesColorFilter && matchesArtNoFilter;
   });
 
   const totalValue = filteredStock.reduce((sum, item) => sum + item.stockValue, 0);
@@ -210,22 +213,32 @@ export default function MainStock() {
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+              {/* Art No Filter */}
+              <Select value={artNoFilter} onValueChange={setArtNoFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Art No" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Art No</SelectItem>
+                  {uniqueArtNos.map(artNo => (
+                    <SelectItem key={artNo} value={artNo}>{artNo}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               {/* Color Filter */}
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={colorFilter} onValueChange={setColorFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="All Colors" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Colors</SelectItem>
-                    {uniqueColors.map(color => (
-                      <SelectItem key={color} value={color}>{color}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={colorFilter} onValueChange={setColorFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="All Colors" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Colors</SelectItem>
+                  {uniqueColors.map(color => (
+                    <SelectItem key={color} value={color}>{color}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               
               {/* Search */}
               <div className="relative flex-1 md:w-72">
