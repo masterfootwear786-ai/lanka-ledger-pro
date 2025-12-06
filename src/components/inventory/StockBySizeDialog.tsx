@@ -11,10 +11,11 @@ interface StockBySizeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preSelectedItem?: any;
+  stockType?: 'main' | 'lorry' | 'store';
   onSuccess?: () => void;
 }
 
-export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSuccess }: StockBySizeDialogProps) {
+export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, stockType = 'main', onSuccess }: StockBySizeDialogProps) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<any[]>([]);
   const [currentStock, setCurrentStock] = useState<any>({});
@@ -78,7 +79,8 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
     const { data, error } = await supabase
       .from("stock_by_size")
       .select("*")
-      .eq("item_id", itemId);
+      .eq("item_id", itemId)
+      .eq("stock_type", stockType);
 
     if (error) {
       toast.error(error.message);
@@ -118,12 +120,13 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
         const quantity = formData[`size_${size}` as keyof typeof formData] as number;
         
         if (quantity !== 0) {
-          // Check if record exists
+          // Check if record exists for this stock type
           const { data: existing } = await supabase
             .from("stock_by_size")
             .select("*")
             .eq("item_id", formData.item_id)
             .eq("size", size)
+            .eq("stock_type", stockType)
             .maybeSingle();
 
           if (existing) {
@@ -134,14 +137,15 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, onSucce
               .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
               .eq("id", existing.id);
           } else {
-            // Insert new
+            // Insert new with stock type
             await supabase
               .from("stock_by_size")
               .insert({
                 company_id: profile.company_id,
                 item_id: formData.item_id,
                 size: size,
-                quantity: quantity
+                quantity: quantity,
+                stock_type: stockType
               });
           }
         }

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Warehouse, Truck, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -73,6 +73,7 @@ export default function CreateInvoice() {
   const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
   const [invoice, setInvoice] = useState<any>(null);
   const [selectAllDiscount, setSelectAllDiscount] = useState(false);
+  const [stockType, setStockType] = useState<'main' | 'lorry' | 'store'>('main');
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -127,7 +128,8 @@ export default function CreateInvoice() {
   const fetchStockData = async () => {
     const { data: stockBySizeData, error } = await supabase
       .from("stock_by_size")
-      .select("*");
+      .select("*")
+      .eq("stock_type", stockType);
     
     if (error) {
       toast({
@@ -154,6 +156,11 @@ export default function CreateInvoice() {
     setStockData(Array.from(stockMap.values()));
   };
 
+  // Refetch stock when stock type changes
+  useEffect(() => {
+    fetchStockData();
+  }, [stockType]);
+
   const loadInvoiceData = async () => {
     if (!id) return;
 
@@ -166,6 +173,11 @@ export default function CreateInvoice() {
 
       if (invoiceError) throw invoiceError;
       setInvoice(invoiceData);
+      
+      // Set stock type from loaded invoice
+      if (invoiceData.stock_type) {
+        setStockType(invoiceData.stock_type as 'main' | 'lorry' | 'store');
+      }
 
       form.reset({
         invoice_no: invoiceData.invoice_no,
@@ -524,6 +536,7 @@ export default function CreateInvoice() {
               grand_total,
               status: 'draft',
               posted: false,
+              stock_type: stockType,
               terms: data.payment_method === 'cheque' 
                 ? JSON.stringify({ payment_method: 'cheque', cheques }) 
                 : data.payment_method,
@@ -562,6 +575,7 @@ export default function CreateInvoice() {
             tax_rate: item.tax_rate,
             tax_amount: item.tax_amount,
             line_total: item.line_total,
+            stock_type: stockType,
           };
         });
 
@@ -630,7 +644,7 @@ export default function CreateInvoice() {
             <CardHeader>
               <CardTitle>Document Type</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -654,6 +668,64 @@ export default function CreateInvoice() {
                   />
                   <span className="font-medium">Order</span>
                 </label>
+              </div>
+
+              {/* Stock Type Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Stock to Deduct From</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStockType('main')}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                      stockType === 'main' 
+                        ? 'border-primary bg-primary/10 text-primary' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg ${stockType === 'main' ? 'bg-primary text-primary-foreground' : 'bg-blue-500/10 text-blue-600'}`}>
+                      <Warehouse className="h-5 w-5" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold">Main Stock</div>
+                      <div className="text-xs text-muted-foreground">Warehouse inventory</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStockType('lorry')}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                      stockType === 'lorry' 
+                        ? 'border-primary bg-primary/10 text-primary' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg ${stockType === 'lorry' ? 'bg-primary text-primary-foreground' : 'bg-orange-500/10 text-orange-600'}`}>
+                      <Truck className="h-5 w-5" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold">Lorry Stock</div>
+                      <div className="text-xs text-muted-foreground">Vehicle inventory</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setStockType('store')}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                      stockType === 'store' 
+                        ? 'border-primary bg-primary/10 text-primary' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg ${stockType === 'store' ? 'bg-primary text-primary-foreground' : 'bg-green-500/10 text-green-600'}`}>
+                      <Store className="h-5 w-5" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold">Store Stock</div>
+                      <div className="text-xs text-muted-foreground">Shop inventory</div>
+                    </div>
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>

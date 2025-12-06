@@ -96,7 +96,9 @@ export function AppSidebar() {
 
   const inventoryItems = [
     { title: t('inventory.items'), url: '/inventory/items' },
-    { title: 'Stock', url: '/inventory/stock' },
+    { title: 'Main Stock', url: '/inventory/main-stock' },
+    { title: 'Lorry Stock', url: '/inventory/lorry-stock' },
+    { title: 'Store Stock', url: '/inventory/store-stock' },
   ];
 
   const accountingItems = [
