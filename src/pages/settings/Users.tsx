@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus, Clock } from "lucide-react";
+import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus, Clock, RefreshCw } from "lucide-react";
 import { UserDialog } from "@/components/settings/UserDialog";
 import { UserPermissionsSheet } from "@/components/settings/UserPermissionsSheet";
 import { useUserRole, PERMISSION_MANAGER_EMAILS } from "@/hooks/useUserRole";
@@ -90,16 +90,26 @@ export default function Users() {
 
       setCompanyId(profile.company_id);
 
-      // Fetch all users in the same company
-      const { data: profiles } = await supabase
+      // Fetch users in the same company
+      const { data: companyProfiles } = await supabase
         .from('profiles')
         .select('*')
         .eq('company_id', profile.company_id);
 
-      if (profiles) {
+      // Also fetch users WITHOUT company_id (new signups waiting to be assigned)
+      const { data: pendingProfiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .is('company_id', null)
+        .eq('active', true);
+
+      // Combine both lists
+      const allProfiles = [...(companyProfiles || []), ...(pendingProfiles || [])];
+
+      if (allProfiles.length > 0) {
         // Fetch roles for each user
         const usersWithRoles = await Promise.all(
-          profiles.map(async (profile) => {
+          allProfiles.map(async (profile) => {
             const { data: roles } = await supabase
               .from('user_roles')
               .select('role')
@@ -108,11 +118,14 @@ export default function Users() {
             return {
               ...profile,
               roles: roles?.map(r => r.role) || [],
+              isPendingAssignment: !profile.company_id, // Mark users without company
             };
           })
         );
 
         setUsers(usersWithRoles);
+      } else {
+        setUsers([]);
       }
     } catch (error: any) {
       toast({
@@ -219,8 +232,9 @@ export default function Users() {
     }
   };
 
+  // Pending = users with no roles (either in company or new signups without company_id)
   const pendingUsers = users.filter(u => u.roles.length === 0 && u.active);
-  const activeUsers = users.filter(u => u.roles.length > 0);
+  const activeUsers = users.filter(u => u.roles.length > 0 && u.company_id);
 
   if (loading || roleLoading) {
     return (
@@ -255,15 +269,20 @@ export default function Users() {
             View and manage user accounts and their roles
           </p>
         </div>
-        {canManagePermissions() && (
-          <div className="flex gap-2">
-            <UserPermissionsSheet companyId={companyId} onSuccess={fetchUsers} />
-            <Button onClick={handleAddUser}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add User
-            </Button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={fetchUsers} title="Refresh">
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          {canManagePermissions() && (
+            <>
+              <UserPermissionsSheet companyId={companyId} onSuccess={fetchUsers} />
+              <Button onClick={handleAddUser}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Authorization notice */}
@@ -309,7 +328,7 @@ export default function Users() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {pendingUsers.map((user) => (
-                    <Card key={user.id} className="border-amber-300 dark:border-amber-700">
+                    <Card key={user.id} className={`border-amber-300 dark:border-amber-700 ${user.isPendingAssignment ? 'border-dashed' : ''}`}>
                       <CardHeader className="pb-2">
                         <CardTitle className="flex items-center gap-2 text-base">
                           <Shield className="h-4 w-4 text-amber-600" />
@@ -321,9 +340,16 @@ export default function Users() {
                           <Mail className="h-4 w-4 text-muted-foreground" />
                           <span className="text-xs break-all">{user.email}</span>
                         </div>
-                        <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                          Waiting for permissions
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                            Waiting for permissions
+                          </Badge>
+                          {user.isPendingAssignment && (
+                            <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                              New Signup
+                            </Badge>
+                          )}
+                        </div>
                         {canManagePermissions() && (
                           <div className="flex gap-2 pt-2">
                             <Button
