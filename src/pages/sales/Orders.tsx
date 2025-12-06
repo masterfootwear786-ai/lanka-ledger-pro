@@ -88,7 +88,7 @@ export default function Orders() {
         .from('sales_orders')
         .select(`
           *,
-          customer:contacts(id, code, name)
+          customer:contacts(id, code, name, area, district)
         `)
         .eq('company_id', profileData.company_id)
         .is('deleted_at', null)
@@ -645,6 +645,7 @@ export default function Orders() {
                 <TableHead>Order No</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Customer</TableHead>
+                <TableHead>City</TableHead>
                 <TableHead>Delivery Date</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Total</TableHead>
@@ -654,7 +655,7 @@ export default function Orders() {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     No orders found
                   </TableCell>
                 </TableRow>
@@ -664,6 +665,7 @@ export default function Orders() {
                     <TableCell className="font-medium">{order.order_no}</TableCell>
                     <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
                     <TableCell>{order.customer?.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{order.customer?.area || order.customer?.district || '-'}</TableCell>
                     <TableCell>
                       {order.delivery_date 
                         ? new Date(order.delivery_date).toLocaleDateString()
