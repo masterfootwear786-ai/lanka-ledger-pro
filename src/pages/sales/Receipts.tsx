@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit, Trash2, CreditCard, Printer, Eye, Download } from "lucide-react";
+import { Plus, Search, Edit, Trash2, CreditCard, Printer, Eye, Download, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ReceiptDialog } from "@/components/receipts/ReceiptDialog";
 import { ReceiptPreviewDialog } from "@/components/receipts/ReceiptPreviewDialog";
@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function Receipts() {
   const { t } = useTranslation();
@@ -177,6 +179,186 @@ export default function Receipts() {
     }
   };
 
+  const handleDownloadPDF = async (receipt: any) => {
+    try {
+      const { data: allocations } = await supabase
+        .from("receipt_allocations")
+        .select("*, invoices(invoice_no, invoice_date)")
+        .eq("receipt_id", receipt.id);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      let company = null;
+      if (user) {
+        const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user.id).single();
+        if (profile?.company_id) {
+          const { data } = await supabase.from('companies').select('*').eq('id', profile.company_id).single();
+          company = data;
+        }
+      }
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // Header
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(company?.name || "Company", 14, 20);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(company?.address || "", 14, 27);
+
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.text("RECEIPT", pageWidth - 14, 20, { align: "right" });
+
+      doc.setLineWidth(0.5);
+      doc.line(14, 34, pageWidth - 14, 34);
+
+      // Receipt details
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Receipt No: ${receipt.receipt_no}`, 14, 44);
+      doc.text(`Date: ${new Date(receipt.receipt_date).toLocaleDateString()}`, 14, 51);
+      doc.text(`Customer: ${receipt.customer?.name || ""}`, 14, 58);
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Amount: ${receipt.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 14, 68);
+
+      if (receipt.reference) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Reference: ${receipt.reference}`, 14, 78);
+      }
+
+      // Allocations
+      if (allocations && allocations.length > 0) {
+        autoTable(doc, {
+          startY: 85,
+          head: [["Invoice No", "Invoice Date", "Amount"]],
+          body: allocations.map((alloc: any) => [
+            alloc.invoices?.invoice_no || "",
+            alloc.invoices?.invoice_date ? new Date(alloc.invoices.invoice_date).toLocaleDateString() : "",
+            alloc.amount?.toLocaleString('en-US', { minimumFractionDigits: 2 }),
+          ]),
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [66, 66, 66] },
+          columnStyles: { 2: { halign: "right" } },
+        });
+      }
+
+      doc.save(`receipt-${receipt.receipt_no}.pdf`);
+      toast({ title: "PDF downloaded successfully" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handlePrintList = () => {
+    const filteredReceipts = receipts.filter((receipt) => {
+      if (!searchTerm) return true;
+      const search = searchTerm.toLowerCase();
+      return (
+        receipt.receipt_no?.toLowerCase().includes(search) ||
+        receipt.customer?.name?.toLowerCase().includes(search)
+      );
+    });
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipts List</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { font-size: 24px; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f5f5f5; }
+            .text-right { text-align: right; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Receipts List</h1>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Receipt #</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>City</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredReceipts.map(r => `
+                <tr>
+                  <td>${r.receipt_no}</td>
+                  <td>${new Date(r.receipt_date).toLocaleDateString()}</td>
+                  <td>${r.customer?.name || 'N/A'}</td>
+                  <td>${r.customer?.area || '-'}</td>
+                  <td class="text-right">${r.amount.toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const handleExportListPDF = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    let company = null;
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('company_id').eq('id', user.id).single();
+      if (profile?.company_id) {
+        const { data } = await supabase.from('companies').select('*').eq('id', profile.company_id).single();
+        company = data;
+      }
+    }
+
+    const filteredReceipts = receipts.filter((receipt) => {
+      if (!searchTerm) return true;
+      const search = searchTerm.toLowerCase();
+      return (
+        receipt.receipt_no?.toLowerCase().includes(search) ||
+        receipt.customer?.name?.toLowerCase().includes(search)
+      );
+    });
+
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text(company?.name || 'Receipts List', 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+
+    autoTable(doc, {
+      startY: 35,
+      head: [["Receipt #", "Date", "Customer", "City", "Amount"]],
+      body: filteredReceipts.map(r => [
+        r.receipt_no,
+        new Date(r.receipt_date).toLocaleDateString(),
+        r.customer?.name || 'N/A',
+        r.customer?.area || '-',
+        r.amount.toLocaleString(),
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: { 4: { halign: "right" } },
+    });
+
+    doc.save(`receipts-list-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast({ title: "PDF exported successfully" });
+  };
+
   const handleDelete = async () => {
     if (!receiptToDelete) return;
 
@@ -281,10 +463,20 @@ export default function Receipts() {
           <h1 className="text-3xl font-bold">{t('sales.receipts')}</h1>
           <p className="text-muted-foreground mt-2">Manage customer payments</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Receipt
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePrintList}>
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button variant="outline" onClick={handleExportListPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Receipt
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -397,6 +589,14 @@ export default function Receipts() {
                           title="Print"
                         >
                           <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDownloadPDF(receipt)}
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
