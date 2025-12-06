@@ -183,27 +183,102 @@ export default function Invoices() {
 
         if (!profile?.company_id) throw new Error("No company assigned to user");
 
-        // Update invoice lines with the selected stock_type before deletion
-        // This ensures the database trigger restores to the correct stock type
+        // Fetch invoice lines before soft delete
+        const { data: invoiceLines } = await supabase
+          .from("invoice_lines")
+          .select("*")
+          .eq("invoice_id", invoiceToDelete.id);
+
+        // Restore stock to the selected stock type
+        if (invoiceLines && invoiceLines.length > 0) {
+          for (const line of invoiceLines) {
+            if (!line.item_id) continue;
+
+            const sizes = [
+              { size: '39', qty: line.size_39 || 0 },
+              { size: '40', qty: line.size_40 || 0 },
+              { size: '41', qty: line.size_41 || 0 },
+              { size: '42', qty: line.size_42 || 0 },
+              { size: '43', qty: line.size_43 || 0 },
+              { size: '44', qty: line.size_44 || 0 },
+              { size: '45', qty: line.size_45 || 0 },
+            ];
+
+            for (const { size, qty } of sizes) {
+              if (qty <= 0) continue;
+
+              // Restore to the selected stock type (lorry or store)
+              const { data: existingStock } = await supabase
+                .from('stock_by_size')
+                .select('id, quantity')
+                .eq('item_id', line.item_id)
+                .eq('size', size)
+                .eq('stock_type', stockRestoreType)
+                .eq('company_id', profile.company_id)
+                .maybeSingle();
+
+              if (existingStock) {
+                const newQuantity = (existingStock.quantity || 0) + qty;
+                await supabase
+                  .from('stock_by_size')
+                  .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
+                  .eq('id', existingStock.id);
+              } else {
+                await supabase
+                  .from('stock_by_size')
+                  .insert({
+                    company_id: profile.company_id,
+                    item_id: line.item_id,
+                    size,
+                    stock_type: stockRestoreType,
+                    quantity: qty,
+                  });
+              }
+
+              // Also update main stock
+              const { data: mainStock } = await supabase
+                .from('stock_by_size')
+                .select('id, quantity')
+                .eq('item_id', line.item_id)
+                .eq('size', size)
+                .eq('stock_type', 'main')
+                .eq('company_id', profile.company_id)
+                .maybeSingle();
+
+              if (mainStock) {
+                const newMainQty = (mainStock.quantity || 0) + qty;
+                await supabase
+                  .from('stock_by_size')
+                  .update({ quantity: newMainQty, updated_at: new Date().toISOString() })
+                  .eq('id', mainStock.id);
+              } else {
+                await supabase
+                  .from('stock_by_size')
+                  .insert({
+                    company_id: profile.company_id,
+                    item_id: line.item_id,
+                    size,
+                    stock_type: 'main',
+                    quantity: qty,
+                  });
+              }
+            }
+          }
+        }
+
+        // Update invoice lines with the selected stock_type for reference when restoring
         await supabase
           .from("invoice_lines")
           .update({ stock_type: stockRestoreType })
           .eq("invoice_id", invoiceToDelete.id);
 
-        // Delete invoice lines first (triggers will restore stock based on stock_type)
-        const { error: linesError } = await supabase
-          .from("invoice_lines")
-          .delete()
-          .eq("invoice_id", invoiceToDelete.id);
-
-        if (linesError) throw linesError;
-
-        // Soft delete invoice
+        // Soft delete invoice (keep lines intact for restore)
         const { error } = await supabase
           .from("invoices")
           .update({
             deleted_at: new Date().toISOString(),
-            deleted_by: user?.id
+            deleted_by: user?.id,
+            stock_type: stockRestoreType
           })
           .eq("id", invoiceToDelete.id);
 

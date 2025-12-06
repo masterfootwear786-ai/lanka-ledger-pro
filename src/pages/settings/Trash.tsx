@@ -225,25 +225,28 @@ export default function Trash() {
 
         if (!profile?.company_id) throw new Error("No company assigned to user");
 
-        // Fetch invoice to get stock_type
+        // Fetch invoice to get stock_type (the type used when deleted/restored)
         const { data: invoice } = await supabase
           .from("invoices")
           .select("stock_type")
           .eq("id", id)
           .maybeSingle();
 
-        const stockType = invoice?.stock_type || 'main';
+        const stockType = invoice?.stock_type || 'lorry';
 
-        // Fetch invoice lines
+        // Fetch invoice lines (they were preserved during soft delete)
         const { data: invoiceLines } = await supabase
           .from("invoice_lines")
           .select("*")
           .eq("invoice_id", id);
 
-        // Deduct stock for each line item from the correct stock type
+        // Deduct stock for each line item from the stored stock type
         if (invoiceLines && invoiceLines.length > 0) {
           for (const line of invoiceLines) {
             if (!line.item_id) continue;
+
+            // Use the stock_type from the line (saved during deletion)
+            const lineStockType = line.stock_type || stockType;
 
             const sizes = [
               { size: '39', qty: line.size_39 || 0 },
@@ -264,7 +267,7 @@ export default function Trash() {
                 .select('id, quantity')
                 .eq('item_id', line.item_id)
                 .eq('size', size)
-                .eq('stock_type', stockType)
+                .eq('stock_type', lineStockType)
                 .eq('company_id', profile.company_id)
                 .maybeSingle();
 
@@ -281,7 +284,7 @@ export default function Trash() {
                     company_id: profile.company_id,
                     item_id: line.item_id,
                     size,
-                    stock_type: stockType,
+                    stock_type: lineStockType,
                     quantity: -qty,
                   });
               }
