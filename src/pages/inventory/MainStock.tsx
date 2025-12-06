@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, AlertTriangle, Warehouse } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Search, AlertTriangle, Warehouse, Eye, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MainStockPreviewDialog } from "@/components/inventory/MainStockPreviewDialog";
 
 interface StockItem {
   id: string;
@@ -32,6 +35,8 @@ export default function MainStock() {
   const [stockData, setStockData] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [colorFilter, setColorFilter] = useState<string>("all");
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
     fetchStock();
@@ -119,14 +124,18 @@ export default function MainStock() {
     }
   };
 
+  // Get unique colors for filter
+  const uniqueColors = Array.from(new Set(stockData.map(item => item.color))).filter(c => c && c !== '-').sort();
+
   const filteredStock = stockData.filter(item => {
     const matchesSearch = item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.color?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesLowStockFilter = !showLowStockOnly || item.hasLowStock;
+    const matchesColorFilter = colorFilter === "all" || item.color === colorFilter;
     
-    return matchesSearch && matchesLowStockFilter;
+    return matchesSearch && matchesLowStockFilter && matchesColorFilter;
   });
 
   const totalValue = filteredStock.reduce((sum, item) => sum + item.stockValue, 0);
@@ -146,6 +155,10 @@ export default function MainStock() {
             <p className="text-muted-foreground mt-1">Combined total of Lorry Stock + Warehouse Stock (Read-only)</p>
           </div>
         </div>
+        <Button onClick={() => setPreviewOpen(true)} className="gap-2">
+          <Eye className="h-4 w-4" />
+          Preview / Print
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -187,7 +200,7 @@ export default function MainStock() {
 
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-4">
               <CardTitle>Main Stock Items (Lorry + Warehouse)</CardTitle>
               {showLowStockOnly && (
@@ -197,14 +210,33 @@ export default function MainStock() {
                 </Badge>
               )}
             </div>
-            <div className="relative w-96">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by Art No, Name, or Color..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              {/* Color Filter */}
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={colorFilter} onValueChange={setColorFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="All Colors" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Colors</SelectItem>
+                    {uniqueColors.map(color => (
+                      <SelectItem key={color} value={color}>{color}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Search */}
+              <div className="relative flex-1 md:w-72">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by Art No, Name, or Color..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -275,6 +307,13 @@ export default function MainStock() {
           )}
         </CardContent>
       </Card>
+
+      {/* Preview Dialog */}
+      <MainStockPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        stockData={filteredStock}
+      />
     </div>
   );
 }
