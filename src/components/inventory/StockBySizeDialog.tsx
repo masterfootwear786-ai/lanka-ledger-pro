@@ -161,13 +161,9 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, stockTy
         const quantity = formData[`size_${size}` as keyof typeof formData] as number;
         
         if (quantity !== 0) {
-          // Update the target stock type (store/lorry/main)
+          // Update the target stock type (store/lorry) only
+          // Main stock is now calculated as aggregate of lorry + store, so we don't add to 'main' separately
           await updateStockForType(stockType, size, quantity);
-          
-          // If adding to store or lorry, also add to main stock
-          if (stockType === 'store' || stockType === 'lorry') {
-            await updateStockForType('main', size, quantity);
-          }
         }
       }
 
