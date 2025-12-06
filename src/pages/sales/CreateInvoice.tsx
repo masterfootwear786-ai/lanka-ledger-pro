@@ -707,7 +707,7 @@ export default function CreateInvoice() {
                     </div>
                     <div className="text-left">
                       <div className="font-semibold">Warehouse</div>
-                      <div className="text-xs text-muted-foreground">Shop inventory</div>
+                      <div className="text-xs text-muted-foreground">Store Inventory</div>
                     </div>
                   </button>
                 </div>
