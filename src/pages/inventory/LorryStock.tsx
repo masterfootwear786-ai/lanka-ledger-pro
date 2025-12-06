@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, AlertTriangle, Truck, ArrowRight, Store, MoreHorizontal, Trash2 } from "lucide-react";
+import { Search, AlertTriangle, Truck, ArrowRight, Store, MoreHorizontal, Trash2, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StockTransferDialog } from "@/components/inventory/StockTransferDialog";
+import { LorryStockPreviewDialog } from "@/components/inventory/LorryStockPreviewDialog";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -40,6 +41,7 @@ export default function LorryStock() {
   const [stockData, setStockData] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
   useEffect(() => {
@@ -174,16 +176,25 @@ export default function LorryStock() {
             <p className="text-muted-foreground mt-1">View and manage lorry stock levels</p>
           </div>
         </div>
-        <Button 
-          variant="outline"
-          onClick={() => setTransferDialogOpen(true)}
-          className="gap-2"
-        >
-          <Store className="h-4 w-4" />
-          <ArrowRight className="h-3 w-3" />
-          <Truck className="h-4 w-4" />
-          Transfer from Store
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => setPreviewDialogOpen(true)}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Preview
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => setTransferDialogOpen(true)}
+            className="gap-2"
+          >
+            <Store className="h-4 w-4" />
+            <ArrowRight className="h-3 w-3" />
+            <Truck className="h-4 w-4" />
+            Transfer from Store
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -344,6 +355,12 @@ export default function LorryStock() {
         open={transferDialogOpen}
         onOpenChange={setTransferDialogOpen}
         onSuccess={fetchStock}
+      />
+
+      <LorryStockPreviewDialog
+        open={previewDialogOpen}
+        onOpenChange={setPreviewDialogOpen}
+        stockData={filteredStock}
       />
     </div>
   );
