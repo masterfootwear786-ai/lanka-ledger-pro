@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Eye, Edit, Trash2, FileText, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,14 +27,13 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { InvoiceDialog } from "@/components/invoices/InvoiceDialog";
 import { OrderEditDialog } from "@/components/orders/OrderEditDialog";
 
 export default function Orders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [viewOnly, setViewOnly] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -501,11 +501,7 @@ export default function Orders() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Sales Orders</h1>
-        <Button onClick={() => {
-          setSelectedOrder(null);
-          setViewOnly(false);
-          setDialogOpen(true);
-        }}>
+        <Button onClick={() => navigate('/sales/orders/create')}>
           <Plus className="h-4 w-4 mr-2" />
           Add Order
         </Button>
@@ -611,18 +607,6 @@ export default function Orders() {
           </Table>
         </div>
       )}
-
-      <InvoiceDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        invoice={selectedOrder}
-        onSuccess={() => {
-          fetchOrders();
-          setDialogOpen(false);
-          setSelectedOrder(null);
-          setViewOnly(false);
-        }}
-      />
 
       <OrderEditDialog
         open={editDialogOpen}

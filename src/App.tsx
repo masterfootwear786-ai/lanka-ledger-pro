@@ -32,6 +32,7 @@ import CustomerProfiles from "./pages/sales/CustomerProfiles";
 import CustomerOutstanding from "./pages/sales/CustomerOutstanding";
 import ReturnNotes from "./pages/sales/ReturnNotes";
 import Orders from "./pages/sales/Orders";
+import CreateOrder from "./pages/sales/CreateOrder";
 import Receipts from "./pages/sales/Receipts";
 import Cheques from "./pages/sales/Cheques";
 import Bills from "./pages/purchasing/Bills";
@@ -99,6 +100,7 @@ const App = () => (
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
               {/* Sales routes */}
               <Route path="/sales/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+              <Route path="/sales/orders/create" element={<ProtectedRoute><CreateOrder /></ProtectedRoute>} />
               <Route path="/sales/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
               <Route path="/sales/invoices/create" element={<ProtectedRoute><CreateInvoice /></ProtectedRoute>} />
               <Route path="/sales/invoices/edit/:id" element={<ProtectedRoute><CreateInvoice /></ProtectedRoute>} />
