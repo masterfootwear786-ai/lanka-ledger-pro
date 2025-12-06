@@ -71,22 +71,24 @@ const queryClient = new QueryClient();
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  const { roles, loading: rolesLoading, isAdmin } = useUserRole();
+  const { user, loading: authLoading } = useAuth();
+  const { roles, loading: rolesLoading } = useUserRole();
+  
+  // Always call hooks in consistent order
   useOfflineSync();
   
-  if (loading || rolesLoading) {
+  // Handle loading states
+  if (authLoading || rolesLoading) {
     return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
   }
   
+  // Check authentication
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Check if user has admin role or any permissions
-  const hasAnyRole = roles.length > 0;
-  
-  if (!hasAnyRole) {
+  // Check if user has any assigned role
+  if (roles.length === 0) {
     return <WaitingPermissions />;
   }
   
