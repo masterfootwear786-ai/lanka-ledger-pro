@@ -64,20 +64,30 @@ import AppUpdate from "./pages/settings/AppUpdate";
 import { Layout } from "./components/Layout";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useOfflineSync } from "./hooks/useOfflineSync";
+import { WaitingPermissions } from "./components/WaitingPermissions";
+import { useUserRole } from "./hooks/useUserRole";
 
 const queryClient = new QueryClient();
 
 // Protected route wrapper
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const { roles, loading: rolesLoading, isAdmin } = useUserRole();
   useOfflineSync();
   
-  if (loading) {
+  if (loading || rolesLoading) {
     return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
   }
   
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Check if user has admin role or any permissions
+  const hasAnyRole = roles.length > 0;
+  
+  if (!hasAnyRole) {
+    return <WaitingPermissions />;
   }
   
   return <Layout>{children}</Layout>;
