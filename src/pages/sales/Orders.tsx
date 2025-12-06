@@ -612,7 +612,7 @@ export default function Orders() {
 
       {/* View Order Dialog */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle className="text-2xl font-bold">Order Details</DialogTitle>
@@ -649,9 +649,6 @@ export default function Orders() {
                       {companyData?.phone && <span>Tel: {companyData.phone}</span>}
                       {companyData?.email && <span>Email: {companyData.email}</span>}
                     </div>
-                    {companyData?.tax_number && (
-                      <div className="text-sm text-muted-foreground">Tax No: {companyData.tax_number}</div>
-                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -668,16 +665,47 @@ export default function Orders() {
                 </div>
               </div>
 
-              {/* Order For Section */}
-              <div className="bg-muted/30 rounded-lg p-4">
-                <div className="text-sm font-semibold text-primary mb-2">ORDER FOR:</div>
-                <div className="space-y-1">
-                  <div className="font-semibold text-lg">{selectedOrder.customer?.name || "N/A"}</div>
-                  {selectedOrder.customer?.area && (
-                    <div className="text-sm text-muted-foreground">City: {selectedOrder.customer.area}</div>
-                  )}
-                  <div className="mt-2">
-                    {getStatusBadge(selectedOrder.status)}
+              {/* Info Grid - 3 columns like Invoice */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                  <div className="text-sm font-semibold text-primary mb-3">ORDER FOR:</div>
+                  <div className="space-y-2">
+                    <div className="font-semibold text-lg">{selectedOrder.customer?.name || "N/A"}</div>
+                    {selectedOrder.customer?.area && (
+                      <div className="text-sm text-muted-foreground">{selectedOrder.customer.area}</div>
+                    )}
+                    {selectedOrder.customer?.phone && (
+                      <div className="text-sm flex items-center gap-2">
+                        <span className="text-muted-foreground">Tel:</span>
+                        <span className="font-medium">{selectedOrder.customer.phone}</span>
+                      </div>
+                    )}
+                    <div className="mt-3 pt-2 border-t border-border">
+                      {getStatusBadge(selectedOrder.status)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-primary mb-2">ORDER INFORMATION:</div>
+                  <div className="space-y-1">
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">Order Date:</span>{" "}
+                      <span className="font-medium">{new Date(selectedOrder.order_date).toLocaleDateString()}</span>
+                    </div>
+                    {selectedOrder.delivery_date && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">Delivery Date:</span>{" "}
+                        <span className="font-medium">{new Date(selectedOrder.delivery_date).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-primary mb-2">TERMS:</div>
+                  <div className="text-sm">
+                    {selectedOrder.terms || "Standard terms"}
                   </div>
                 </div>
               </div>
@@ -685,117 +713,110 @@ export default function Orders() {
               {/* Items Table */}
               <div>
                 <div className="text-sm font-semibold text-primary mb-3">ORDER ITEMS</div>
-                <div className="overflow-x-auto">
-                  <div className="min-w-[1200px]">
-                    <div className="overflow-hidden rounded-lg border-2 border-border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-primary/10">
-                            <TableHead className="w-32 font-bold border-r">Art No</TableHead>
-                            <TableHead className="w-48 font-bold border-r">Description</TableHead>
-                            <TableHead className="w-32 text-center font-bold border-r">Color</TableHead>
-                            <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">39</TableHead>
-                            <TableHead className="w-20 text-center font-bold border-r">40</TableHead>
-                            <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">41</TableHead>
-                            <TableHead className="w-20 text-center font-bold border-r">42</TableHead>
-                            <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">43</TableHead>
-                            <TableHead className="w-20 text-center font-bold border-r">44</TableHead>
-                            <TableHead className="w-20 bg-primary/5 text-center font-bold border-r">45</TableHead>
-                            <TableHead className="w-28 text-center font-bold border-r">Total Pairs</TableHead>
-                            <TableHead className="w-32 text-right font-bold border-r">Unit Price</TableHead>
-                            <TableHead className="w-36 text-right font-bold">Line Total</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(() => {
-                            // Group lines by Art No and Color
-                            const groupedLines = orderLines.reduce((acc, line) => {
-                              const parts = (line.description || "").split(" - ");
-                              const artNo = parts[0] || "-";
-                              const color = parts[1] || "-";
-                              const sizeInfo = parts[2] || "";
-                              
-                              const key = `${artNo}|||${color}`;
-                              
-                              if (!acc[key]) {
-                                acc[key] = {
-                                  artNo,
-                                  color,
-                                  description: `${artNo} - ${color}`,
-                                  size_39: 0,
-                                  size_40: 0,
-                                  size_41: 0,
-                                  size_42: 0,
-                                  size_43: 0,
-                                  size_44: 0,
-                                  size_45: 0,
-                                  unitPrice: line.unit_price,
-                                  totalPairs: 0,
-                                  lineTotal: 0
-                                };
-                              }
-                              
-                              // Check if size columns have data (new format) or parse from description (old format)
-                              if (line.size_39 > 0 || line.size_40 > 0 || line.size_41 > 0 || 
-                                  line.size_42 > 0 || line.size_43 > 0 || line.size_44 > 0 || line.size_45 > 0) {
-                                // New format: use size columns
-                                acc[key].size_39 += line.size_39 || 0;
-                                acc[key].size_40 += line.size_40 || 0;
-                                acc[key].size_41 += line.size_41 || 0;
-                                acc[key].size_42 += line.size_42 || 0;
-                                acc[key].size_43 += line.size_43 || 0;
-                                acc[key].size_44 += line.size_44 || 0;
-                                acc[key].size_45 += line.size_45 || 0;
-                              } else if (sizeInfo) {
-                                // Old format: parse size from description
-                                const size = sizeInfo.replace("Size ", "").trim();
-                                if (size === "39") acc[key].size_39 += line.quantity || 0;
-                                else if (size === "40") acc[key].size_40 += line.quantity || 0;
-                                else if (size === "41") acc[key].size_41 += line.quantity || 0;
-                                else if (size === "42") acc[key].size_42 += line.quantity || 0;
-                                else if (size === "43") acc[key].size_43 += line.quantity || 0;
-                                else if (size === "44") acc[key].size_44 += line.quantity || 0;
-                                else if (size === "45") acc[key].size_45 += line.quantity || 0;
-                              }
-                              
-                              acc[key].totalPairs += line.quantity || 0;
-                              acc[key].lineTotal += line.line_total || 0;
-                              
-                              return acc;
-                            }, {} as Record<string, any>);
+                <div className="overflow-hidden rounded-lg border-2 border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-primary/10">
+                        <TableHead className="w-20 font-bold border-r">Art No</TableHead>
+                        <TableHead className="min-w-[200px] font-bold border-r">Description</TableHead>
+                        <TableHead className="w-20 text-center font-bold border-r">Color</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">39</TableHead>
+                        <TableHead className="w-12 text-center font-bold border-r">40</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">41</TableHead>
+                        <TableHead className="w-12 text-center font-bold border-r">42</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">43</TableHead>
+                        <TableHead className="w-12 text-center font-bold border-r">44</TableHead>
+                        <TableHead className="w-12 bg-primary/5 text-center font-bold border-r">45</TableHead>
+                        <TableHead className="w-24 text-center font-bold border-r">Total Pairs</TableHead>
+                        <TableHead className="w-28 text-right font-bold border-r">Unit Price</TableHead>
+                        <TableHead className="w-32 text-right font-bold">Line Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        // Group lines by Art No and Color
+                        const groupedLines = orderLines.reduce((acc, line) => {
+                          const parts = (line.description || "").split(" - ");
+                          const artNo = parts[0] || "-";
+                          const color = parts[1] || "-";
+                          
+                          const key = `${artNo}|||${color}`;
+                          
+                          if (!acc[key]) {
+                            acc[key] = {
+                              artNo,
+                              color,
+                              description: line.description,
+                              size_39: 0,
+                              size_40: 0,
+                              size_41: 0,
+                              size_42: 0,
+                              size_43: 0,
+                              size_44: 0,
+                              size_45: 0,
+                              unitPrice: line.unit_price,
+                              totalPairs: 0,
+                              lineTotal: 0
+                            };
+                          }
+                          
+                          acc[key].size_39 += line.size_39 || 0;
+                          acc[key].size_40 += line.size_40 || 0;
+                          acc[key].size_41 += line.size_41 || 0;
+                          acc[key].size_42 += line.size_42 || 0;
+                          acc[key].size_43 += line.size_43 || 0;
+                          acc[key].size_44 += line.size_44 || 0;
+                          acc[key].size_45 += line.size_45 || 0;
+                          acc[key].totalPairs += line.quantity || 0;
+                          acc[key].lineTotal += line.line_total || 0;
+                          
+                          return acc;
+                        }, {} as Record<string, any>);
 
-                            return Object.values(groupedLines).map((group: any, idx: number) => (
-                              <TableRow key={`${group.artNo}-${group.color}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                                <TableCell className="font-mono border-r">{group.artNo}</TableCell>
-                                <TableCell className="border-r">{group.description}</TableCell>
-                                <TableCell className="text-center border-r">{group.color}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.size_39 || "-"}</TableCell>
-                                <TableCell className="text-center border-r">{group.size_40 || "-"}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.size_41 || "-"}</TableCell>
-                                <TableCell className="text-center border-r">{group.size_42 || "-"}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.size_43 || "-"}</TableCell>
-                                <TableCell className="text-center border-r">{group.size_44 || "-"}</TableCell>
-                                <TableCell className="bg-primary/5 text-center border-r">{group.size_45 || "-"}</TableCell>
-                                <TableCell className="text-center font-semibold border-r">{group.totalPairs}</TableCell>
-                                <TableCell className="text-right border-r">
-                                  {group.unitPrice ? group.unitPrice.toFixed(2) : "0.00"}
-                                </TableCell>
-                                <TableCell className="text-right font-semibold">
-                                  {group.lineTotal ? group.lineTotal.toFixed(2) : "0.00"}
-                                </TableCell>
-                              </TableRow>
-                            ));
-                          })()}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
+                        return Object.values(groupedLines).map((group: any, idx: number) => (
+                          <TableRow key={`${group.artNo}-${group.color}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                            <TableCell className="font-mono border-r">{group.artNo}</TableCell>
+                            <TableCell className="border-r">{group.description}</TableCell>
+                            <TableCell className="text-center border-r">{group.color}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{group.size_39 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{group.size_40 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{group.size_41 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{group.size_42 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{group.size_43 || "-"}</TableCell>
+                            <TableCell className="text-center border-r">{group.size_44 || "-"}</TableCell>
+                            <TableCell className="bg-primary/5 text-center border-r">{group.size_45 || "-"}</TableCell>
+                            <TableCell className="text-center font-semibold border-r">{group.totalPairs}</TableCell>
+                            <TableCell className="text-right border-r">
+                              {group.unitPrice ? group.unitPrice.toFixed(2) : "0.00"}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {group.lineTotal ? group.lineTotal.toFixed(2) : "0.00"}
+                            </TableCell>
+                          </TableRow>
+                        ));
+                      })()}
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
 
               {/* Summary Section */}
               <div className="flex justify-end">
                 <div className="w-80 space-y-2 bg-muted/30 rounded-lg p-4 border-2 border-border">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">Subtotal:</span>
+                    <span className="font-mono">{selectedOrder.subtotal?.toFixed(2) || "0.00"}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium">Tax:</span>
+                    <span className="font-mono">{selectedOrder.tax_total?.toFixed(2) || "0.00"}</span>
+                  </div>
+                  {selectedOrder.discount > 0 && (
+                    <div className="flex justify-between text-sm text-destructive">
+                      <span className="font-medium">Discount:</span>
+                      <span className="font-mono">-{selectedOrder.discount?.toFixed(2) || "0.00"}</span>
+                    </div>
+                  )}
                   <div className="border-t-2 border-primary pt-2 mt-2"></div>
                   <div className="flex justify-between text-lg font-bold text-primary">
                     <span>Grand Total:</span>
@@ -812,13 +833,17 @@ export default function Orders() {
                 </div>
               )}
 
-              {/* Terms Section */}
-              {selectedOrder.terms && (
-                <div className="bg-muted/30 rounded-lg p-4 border">
-                  <div className="text-sm font-semibold text-primary mb-2">TERMS:</div>
-                  <p className="text-sm whitespace-pre-wrap">{selectedOrder.terms}</p>
+              {/* Signature Section */}
+              <div className="flex justify-between mt-24 pt-12">
+                <div className="flex-1 text-center px-4">
+                  <div className="border-b border-foreground w-4/5 mx-auto mb-2"></div>
+                  <div className="text-sm text-muted-foreground">Customer Signature</div>
                 </div>
-              )}
+                <div className="flex-1 text-center px-4">
+                  <div className="border-b border-foreground w-4/5 mx-auto mb-2"></div>
+                  <div className="text-sm text-muted-foreground">Sales Rep Signature</div>
+                </div>
+              </div>
 
               {/* Footer */}
               <div className="text-center text-xs text-muted-foreground pt-4 border-t">
