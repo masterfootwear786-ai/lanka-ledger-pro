@@ -4,20 +4,30 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export type UserRole = 'admin' | 'accountant' | 'clerk' | 'sales_rep' | 'storekeeper';
 
+// Only these emails can manage user permissions
+export const PERMISSION_MANAGER_EMAILS = [
+  'masterfootwear786@gmail.com',
+  'ksm.nafran@gmail.com'
+];
+
 export const useUserRole = () => {
   const { user } = useAuth();
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchRoles = async () => {
       if (!user) {
         setRoles([]);
+        setUserEmail(null);
         setLoading(false);
         return;
       }
 
       try {
+        setUserEmail(user.email || null);
+        
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
@@ -61,14 +71,21 @@ export const useUserRole = () => {
     return roles.includes('storekeeper');
   };
 
+  // Check if current user can manage permissions
+  const canManagePermissions = (): boolean => {
+    return userEmail ? PERMISSION_MANAGER_EMAILS.includes(userEmail) : false;
+  };
+
   return {
     roles,
     loading,
+    userEmail,
     hasRole,
     isAdmin,
     isAccountant,
     isClerk,
     isSalesRep,
     isStorekeeper,
+    canManagePermissions,
   };
 };

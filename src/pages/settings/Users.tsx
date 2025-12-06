@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus } from "lucide-react";
+import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus, Clock } from "lucide-react";
 import { UserDialog } from "@/components/settings/UserDialog";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useUserRole, PERMISSION_MANAGER_EMAILS } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,17 +22,54 @@ import {
 
 export default function Users() {
   const { toast } = useToast();
-  const { isAdmin, loading: roleLoading } = useUserRole();
+  const { isAdmin, loading: roleLoading, canManagePermissions, userEmail } = useUserRole();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [companyId, setCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  // Realtime subscription for pending users
+  useEffect(() => {
+    if (!companyId) return;
+
+    const channel = supabase
+      .channel('user-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+          filter: `company_id=eq.${companyId}`
+        },
+        () => {
+          fetchUsers();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles',
+        },
+        () => {
+          fetchUsers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [companyId]);
 
   const fetchUsers = async () => {
     try {
@@ -48,6 +86,8 @@ export default function Users() {
         .single();
 
       if (!profile?.company_id) return;
+
+      setCompanyId(profile.company_id);
 
       // Fetch all users in the same company
       const { data: profiles } = await supabase
@@ -102,16 +142,40 @@ export default function Users() {
   };
 
   const handleEditUser = (user: any) => {
+    if (!canManagePermissions()) {
+      toast({
+        title: "Access Denied",
+        description: "Only authorized administrators can manage user permissions",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingUser(user);
     setUserDialogOpen(true);
   };
 
   const handleAddUser = () => {
+    if (!canManagePermissions()) {
+      toast({
+        title: "Access Denied",
+        description: "Only authorized administrators can add users",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingUser(null);
     setUserDialogOpen(true);
   };
 
   const handleDeleteClick = (user: any) => {
+    if (!canManagePermissions()) {
+      toast({
+        title: "Access Denied",
+        description: "Only authorized administrators can manage users",
+        variant: "destructive",
+      });
+      return;
+    }
     setUserToDelete(user);
     setDeleteDialogOpen(true);
   };
@@ -154,6 +218,9 @@ export default function Users() {
     }
   };
 
+  const pendingUsers = users.filter(u => u.roles.length === 0 && u.active);
+  const activeUsers = users.filter(u => u.roles.length > 0);
+
   if (loading || roleLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -187,124 +254,171 @@ export default function Users() {
             View and manage user accounts and their roles
           </p>
         </div>
-        <Button onClick={handleAddUser}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add User
-        </Button>
+        {canManagePermissions() && (
+          <Button onClick={handleAddUser}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
+        )}
       </div>
 
-      {/* Users Waiting for Permissions */}
-      {users.filter(u => u.roles.length === 0 && u.active).length > 0 && (
-        <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-              <AlertCircle className="h-5 w-5" />
-              Users Waiting for Permissions ({users.filter(u => u.roles.length === 0 && u.active).length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {users.filter(u => u.roles.length === 0 && u.active).map((user) => (
-                <Card key={user.id} className="border-amber-300 dark:border-amber-700">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Shield className="h-4 w-4 text-amber-600" />
-                      {user.full_name || "Unnamed User"}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs">{user.email}</span>
+      {/* Authorization notice */}
+      {!canManagePermissions() && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            You can view users but only authorized administrators ({PERMISSION_MANAGER_EMAILS.join(', ')}) can manage permissions.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="pending" className="flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Pending ({pendingUsers.length})
+          </TabsTrigger>
+          <TabsTrigger value="active" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            Active ({activeUsers.length})
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Pending Users Tab */}
+        <TabsContent value="pending" className="space-y-4">
+          <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <Clock className="h-5 w-5" />
+                Users Waiting for Permissions
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                These users have registered but are waiting for role assignment
+              </p>
+            </CardHeader>
+            <CardContent>
+              {pendingUsers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No users waiting for permissions</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {pendingUsers.map((user) => (
+                    <Card key={user.id} className="border-amber-300 dark:border-amber-700">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Shield className="h-4 w-4 text-amber-600" />
+                          {user.full_name || "Unnamed User"}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-xs break-all">{user.email}</span>
+                        </div>
+                        <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                          Waiting for permissions
+                        </Badge>
+                        {canManagePermissions() && (
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleEditUser(user)}
+                              className="flex-1"
+                            >
+                              <Shield className="h-4 w-4 mr-1" />
+                              Assign Permissions
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Active Users Tab */}
+        <TabsContent value="active" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {activeUsers.map((user) => (
+              <Card key={user.id}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    {user.full_name || "Unnamed User"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="break-all">{user.email}</span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold">Roles:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles.map((role: string) => (
+                        <Badge
+                          key={role}
+                          className={getRoleBadgeColor(role)}
+                        >
+                          {role}
+                        </Badge>
+                      ))}
                     </div>
-                    <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                      Waiting for permissions
+                  </div>
+
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-semibold">Status:</span>
+                    <Badge variant={user.active ? "default" : "secondary"}>
+                      {user.active ? "Active" : "Inactive"}
                     </Badge>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    Language: {user.language || "en"}
+                  </div>
+
+                  {canManagePermissions() && (
                     <div className="flex gap-2 pt-2">
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => handleEditUser(user)}
                         className="flex-1"
                       >
-                        <Shield className="h-4 w-4 mr-1" />
-                        Assign Permissions
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteClick(user)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {/* Active Users with Roles */}
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold">Active Users</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {users.filter(u => u.roles.length > 0).map((user) => (
-            <Card key={user.id}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  {user.full_name || "Unnamed User"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{user.email}</span>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="text-sm font-semibold">Roles:</div>
-                  <div className="flex flex-wrap gap-1">
-                    {user.roles.map((role: string) => (
-                      <Badge
-                        key={role}
-                        className={getRoleBadgeColor(role)}
-                      >
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-semibold">Status:</span>
-                  <Badge variant={user.active ? "default" : "secondary"}>
-                    {user.active ? "Active" : "Inactive"}
-                  </Badge>
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  Language: {user.language || "en"}
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleEditUser(user)}
-                    className="flex-1"
-                  >
-                    <Edit className="h-4 w-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleDeleteClick(user)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+          {activeUsers.length === 0 && (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <UsersIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No active users with roles</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <UserDialog
         open={userDialogOpen}
@@ -330,15 +444,6 @@ export default function Users() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {users.length === 0 && (
-        <Card>
-          <CardContent className="py-10 text-center">
-            <UsersIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No users found</p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
