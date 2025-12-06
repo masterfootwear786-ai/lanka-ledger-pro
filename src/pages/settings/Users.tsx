@@ -345,72 +345,82 @@ export default function Users() {
           </Card>
         </TabsContent>
 
-        {/* Active Users Tab */}
         <TabsContent value="active" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeUsers.map((user) => (
-              <Card key={user.id}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    {user.full_name || "Unnamed User"}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="break-all">{user.email}</span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="text-sm font-semibold">Roles:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {user.roles.map((role: string) => (
-                        <Badge
-                          key={role}
-                          className={getRoleBadgeColor(role)}
-                        >
-                          {role}
+            {activeUsers.map((user) => {
+              const isProtectedUser = PERMISSION_MANAGER_EMAILS.includes(user.email);
+              
+              return (
+                <Card key={user.id} className={isProtectedUser ? "border-primary/50 bg-primary/5" : ""}>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className={`h-5 w-5 ${isProtectedUser ? "text-primary" : ""}`} />
+                      {user.full_name || "Unnamed User"}
+                      {isProtectedUser && (
+                        <Badge variant="outline" className="ml-auto text-xs bg-primary/10 text-primary border-primary/30">
+                          Protected
                         </Badge>
-                      ))}
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="break-all">{user.email}</span>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-semibold">Status:</span>
-                    <Badge variant={user.active ? "default" : "secondary"}>
-                      {user.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-
-                  <div className="text-xs text-muted-foreground">
-                    Language: {user.language || "en"}
-                  </div>
-
-                  {canManagePermissions() && (
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditUser(user)}
-                        className="flex-1"
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteClick(user)}
-                        className="text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="space-y-1">
+                      <div className="text-sm font-semibold">Roles:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {user.roles.map((role: string) => (
+                          <Badge
+                            key={role}
+                            className={getRoleBadgeColor(role)}
+                          >
+                            {role}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold">Status:</span>
+                      <Badge variant={user.active ? "default" : "secondary"}>
+                        {user.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      Language: {user.language || "en"}
+                    </div>
+
+                    {canManagePermissions() && (
+                      <div className="flex gap-2 pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditUser(user)}
+                          className="flex-1"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        {!isProtectedUser && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteClick(user)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {activeUsers.length === 0 && (
