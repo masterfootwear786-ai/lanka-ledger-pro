@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Eye, TrendingUp, TrendingDown, DollarSign, Users, CreditCard } from "lucide-react";
+import { Search, Eye, TrendingUp, TrendingDown, DollarSign, Users, CreditCard, Pencil, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -147,8 +147,10 @@ export default function CustomerProfiles() {
         // Total paid includes cash + passed cheques + returns (returns act as credit)
         const totalPaid = cashPayments + passedCheques + totalReturns;
         const rawOutstanding = totalInvoiced - totalPaid;
-        // Credit balance = when customer has overpaid (outstanding is negative)
-        const creditBalance = rawOutstanding < 0 ? Math.abs(rawOutstanding) : 0;
+        // Credit balance = stored value from database OR calculated from overpayment
+        const storedCreditBalance = customer.credit_balance || 0;
+        const calculatedCreditBalance = rawOutstanding < 0 ? Math.abs(rawOutstanding) : 0;
+        const creditBalance = storedCreditBalance > 0 ? storedCreditBalance : calculatedCreditBalance;
         const outstanding = Math.max(0, rawOutstanding);
 
         return {
@@ -210,6 +212,50 @@ export default function CustomerProfiles() {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  // Editable credit balance state
+  const [editingCreditId, setEditingCreditId] = useState<string | null>(null);
+  const [editCreditValue, setEditCreditValue] = useState<string>("");
+
+  const handleEditCredit = (customer: CustomerProfile) => {
+    setEditingCreditId(customer.id);
+    setEditCreditValue(customer.creditBalance.toString());
+  };
+
+  const handleSaveCredit = async (customerId: string) => {
+    const value = parseFloat(editCreditValue) || 0;
+    try {
+      const { error } = await supabase
+        .from("contacts")
+        .update({ credit_balance: value })
+        .eq("id", customerId);
+
+      if (error) throw error;
+
+      // Update local state
+      setCustomers(prev => prev.map(c => 
+        c.id === customerId ? { ...c, creditBalance: value } : c
+      ));
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        totalCreditBalance: customers.reduce((sum, c) => 
+          sum + (c.id === customerId ? value : c.creditBalance), 0
+        ),
+      }));
+
+      toast.success("Credit balance updated");
+      setEditingCreditId(null);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCreditId(null);
+    setEditCreditValue("");
   };
 
   return (
@@ -389,8 +435,48 @@ export default function CustomerProfiles() {
                       <TableCell className={`text-right font-semibold ${customer.outstanding > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
                         {customer.outstanding > 0 ? formatCurrency(customer.outstanding) : '-'}
                       </TableCell>
-                      <TableCell className={`text-right font-semibold ${customer.creditBalance > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                        {customer.creditBalance > 0 ? formatCurrency(customer.creditBalance) : '-'}
+                      <TableCell className="text-right">
+                        {editingCreditId === customer.id ? (
+                          <div className="flex items-center justify-end gap-1">
+                            <Input
+                              type="number"
+                              value={editCreditValue}
+                              onChange={(e) => setEditCreditValue(e.target.value)}
+                              className="w-24 h-8 text-right text-sm"
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-green-600 hover:text-green-700"
+                              onClick={() => handleSaveCredit(customer.id)}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                              onClick={handleCancelEdit}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            <span className={`font-semibold ${customer.creditBalance > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                              {customer.creditBalance > 0 ? formatCurrency(customer.creditBalance) : '-'}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+                              onClick={() => handleEditCredit(customer)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={customer.active ? "default" : "secondary"}>
