@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { Plus, Eye, Edit, Trash2, FileText, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -499,9 +500,11 @@ export default function Orders() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Sales Orders</h1>
-        <Button onClick={() => navigate('/sales/orders/create')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Order
+        <Button asChild>
+          <Link to="/sales/invoices/create">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Order
+          </Link>
         </Button>
       </div>
 
