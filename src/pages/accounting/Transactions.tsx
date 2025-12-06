@@ -32,6 +32,22 @@ interface Transaction {
     name: string;
     code: string;
   };
+  turn?: {
+    id: string;
+    turn_no: string;
+    vehicle_number: string;
+    route: string;
+    driver: string;
+    sales_reps: string[];
+    turn_start_date: string;
+    turn_end_date: string;
+    expense_fuel: number;
+    expense_food: number;
+    expense_accommodation: number;
+    expense_other: number;
+    km: number;
+    accommodation_city: string;
+  };
 }
 
 const categoryConfig: Record<string, { icon: any; color: string; bgColor: string }> = {
@@ -94,7 +110,33 @@ export default function Expenses() {
 
       if (error) throw error;
 
-      setTransactions(data || []);
+      // Fetch turn details for transactions that have turn references
+      const turnRefs = (data || [])
+        .filter(t => t.reference && t.description?.startsWith('Turn '))
+        .map(t => t.reference);
+
+      let turnsMap: Record<string, any> = {};
+      if (turnRefs.length > 0) {
+        const { data: turns } = await supabase
+          .from("turns")
+          .select("*")
+          .in("id", turnRefs);
+        
+        if (turns) {
+          turnsMap = turns.reduce((acc, turn) => {
+            acc[turn.id] = turn;
+            return acc;
+          }, {} as Record<string, any>);
+        }
+      }
+
+      // Attach turn data to transactions
+      const transactionsWithTurns = (data || []).map(t => ({
+        ...t,
+        turn: t.reference && turnsMap[t.reference] ? turnsMap[t.reference] : undefined
+      }));
+
+      setTransactions(transactionsWithTurns);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -350,23 +392,93 @@ export default function Expenses() {
                   {categoryTransactions.length > 0 && (
                     <div className="ml-12 space-y-2">
                       {categoryTransactions.slice(0, 5).map((t) => (
-                        <div key={t.id} className="flex items-center justify-between text-sm py-1.5 px-3 rounded-md bg-muted/30 border border-border/50">
-                          <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
-                              {new Date(t.transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-                            </span>
-                            <span className="truncate text-foreground flex-1">
-                              {t.description || 'No description'}
-                            </span>
-                            {t.reference && (
-                              <span className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary font-medium shrink-0">
-                                Ref: {t.reference}
+                        <div key={t.id} className="text-sm py-2 px-3 rounded-md bg-muted/30 border border-border/50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                              <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
+                                {new Date(t.transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                               </span>
-                            )}
+                              <span className="truncate text-foreground flex-1">
+                                {t.description || 'No description'}
+                              </span>
+                              {t.reference && !t.turn && (
+                                <span className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary font-medium shrink-0">
+                                  Ref: {t.reference}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-semibold ml-4 shrink-0">
+                              {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
                           </div>
-                          <span className="font-semibold ml-4 shrink-0">
-                            {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </span>
+                          
+                          {/* Turn Details */}
+                          {t.turn && (
+                            <div className="mt-2 pt-2 border-t border-border/30">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <Car className="h-3 w-3 text-orange-500" />
+                                  <span className="text-muted-foreground">Vehicle:</span>
+                                  <span className="font-medium">{t.turn.vehicle_number}</span>
+                                </div>
+                                {t.turn.route && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Building className="h-3 w-3 text-purple-500" />
+                                    <span className="text-muted-foreground">Route:</span>
+                                    <span className="font-medium">{t.turn.route}</span>
+                                  </div>
+                                )}
+                                {t.turn.driver && (
+                                  <div className="flex items-center gap-1.5">
+                                    <Users className="h-3 w-3 text-blue-500" />
+                                    <span className="text-muted-foreground">Driver:</span>
+                                    <span className="font-medium">{t.turn.driver}</span>
+                                  </div>
+                                )}
+                                {t.turn.km > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <TrendingDown className="h-3 w-3 text-green-500" />
+                                    <span className="text-muted-foreground">KM:</span>
+                                    <span className="font-medium">{t.turn.km.toLocaleString()}</span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Expense Breakdown */}
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {t.turn.expense_fuel > 0 && (
+                                  <span className="px-2 py-0.5 rounded bg-orange-100 text-orange-700 text-xs font-medium">
+                                    Fuel: {t.turn.expense_fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                                {t.turn.expense_food > 0 && (
+                                  <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs font-medium">
+                                    Food: {t.turn.expense_food.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                                {t.turn.expense_accommodation > 0 && (
+                                  <span className="px-2 py-0.5 rounded bg-teal-100 text-teal-700 text-xs font-medium">
+                                    Accommodation: {t.turn.expense_accommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    {t.turn.accommodation_city && ` (${t.turn.accommodation_city})`}
+                                  </span>
+                                )}
+                                {t.turn.expense_other > 0 && (
+                                  <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-xs font-medium">
+                                    Other: {t.turn.expense_other.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {/* Sales Reps */}
+                              {t.turn.sales_reps && t.turn.sales_reps.length > 0 && (
+                                <div className="flex items-center gap-1.5 mt-2 text-xs">
+                                  <Users className="h-3 w-3 text-indigo-500" />
+                                  <span className="text-muted-foreground">Sales Reps:</span>
+                                  <span className="font-medium">{t.turn.sales_reps.join(', ')}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                       {categoryTransactions.length > 5 && (
