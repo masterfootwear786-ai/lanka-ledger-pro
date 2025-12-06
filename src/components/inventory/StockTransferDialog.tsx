@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowRight, Store, Truck } from "lucide-react";
+import { ArrowRight, Warehouse, Truck } from "lucide-react";
 
 interface StockTransferDialogProps {
   open: boolean;
@@ -17,7 +17,7 @@ interface StockTransferDialogProps {
 export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTransferDialogProps) {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<any[]>([]);
-  const [storeStock, setStoreStock] = useState<any>({});
+  const [warehouseStock, setWarehouseStock] = useState<any>({});
   const [formData, setFormData] = useState({
     item_id: "",
     size_39: 0,
@@ -42,7 +42,7 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
         size_44: 0,
         size_45: 0,
       });
-      setStoreStock({});
+      setWarehouseStock({});
     }
   }, [open]);
 
@@ -61,7 +61,7 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
     }
   };
 
-  const fetchStoreStock = async (itemId: string) => {
+  const fetchWarehouseStock = async (itemId: string) => {
     const { data, error } = await supabase
       .from("stock_by_size")
       .select("*")
@@ -75,7 +75,7 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
       data?.forEach(stock => {
         stockMap[`size_${stock.size}`] = stock.quantity || 0;
       });
-      setStoreStock(stockMap);
+      setWarehouseStock(stockMap);
     }
   };
 
@@ -102,16 +102,16 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
       
       for (const size of sizes) {
         const transferQty = formData[`size_${size}` as keyof typeof formData] as number;
-        const availableQty = storeStock[`size_${size}`] || 0;
+        const availableQty = warehouseStock[`size_${size}`] || 0;
         
         if (transferQty > 0) {
-          // Validate store has enough stock
+          // Validate warehouse has enough stock
           if (transferQty > availableQty) {
-            throw new Error(`Not enough stock in Store for size ${size}. Available: ${availableQty}`);
+            throw new Error(`Not enough stock in Warehouse for size ${size}. Available: ${availableQty}`);
           }
 
-          // Deduct from Store stock
-          const { data: storeRecord } = await supabase
+          // Deduct from Warehouse stock (stored as 'store' in database)
+          const { data: warehouseRecord } = await supabase
             .from("stock_by_size")
             .select("*")
             .eq("item_id", formData.item_id)
@@ -119,14 +119,14 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
             .eq("stock_type", "store")
             .maybeSingle();
 
-          if (storeRecord) {
+          if (warehouseRecord) {
             await supabase
               .from("stock_by_size")
               .update({ 
-                quantity: storeRecord.quantity - transferQty, 
+                quantity: warehouseRecord.quantity - transferQty, 
                 updated_at: new Date().toISOString() 
               })
-              .eq("id", storeRecord.id);
+              .eq("id", warehouseRecord.id);
           }
 
           // Add to Lorry stock
@@ -160,7 +160,7 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
         }
       }
 
-      toast.success("Stock transferred from Store to Lorry successfully");
+      toast.success("Stock transferred from Warehouse to Lorry successfully");
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (error: any) {
@@ -177,13 +177,13 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Store className="h-5 w-5 text-green-600" />
+            <Warehouse className="h-5 w-5 text-green-600" />
             <ArrowRight className="h-4 w-4" />
             <Truck className="h-5 w-5 text-orange-600" />
-            Transfer Stock: Store to Lorry
+            Transfer Stock: Warehouse to Lorry
           </DialogTitle>
           <DialogDescription>
-            Transfer stock from Store to Lorry. Select an item and enter quantities to transfer.</DialogDescription>
+            Transfer stock from Warehouse to Lorry. Select an item and enter quantities to transfer.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -197,7 +197,7 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
                   item_id: value,
                   size_39: 0, size_40: 0, size_41: 0, size_42: 0, size_43: 0, size_44: 0, size_45: 0 
                 });
-                fetchStoreStock(value);
+                fetchWarehouseStock(value);
               }}
             >
               <SelectTrigger>
@@ -218,20 +218,20 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
               <div className="flex items-center justify-between mb-4">
                 <Label className="text-base font-semibold">Transfer Quantities</Label>
                 <div className="text-sm text-muted-foreground">
-                  Available in Store → Transfer to Lorry
+                  Available in Warehouse → Transfer to Lorry
                 </div>
               </div>
               
               <div className="grid grid-cols-4 gap-4">
                 {(['39', '40', '41', '42', '43', '44', '45'] as const).map((size) => {
-                  const availableQty = storeStock[`size_${size}`] || 0;
+                  const availableQty = warehouseStock[`size_${size}`] || 0;
                   const transferQty = formData[`size_${size}` as keyof typeof formData] as number;
                   
                   return (
                     <div key={size} className="space-y-2">
                       <Label>Size {size}</Label>
                       <div className="text-xs text-green-600 font-medium">
-                        Store: {availableQty}
+                        Warehouse: {availableQty}
                       </div>
                       <Input
                         type="number"

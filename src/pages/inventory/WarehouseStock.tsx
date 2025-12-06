@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, AlertTriangle, Store, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, AlertTriangle, Warehouse, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StockBySizeDialog } from "@/components/inventory/StockBySizeDialog";
@@ -34,7 +34,7 @@ interface StockItem {
   hasLowStock: boolean;
 }
 
-export default function StoreStock() {
+export default function WarehouseStock() {
   const [searchTerm, setSearchTerm] = useState("");
   const [stockData, setStockData] = useState<StockItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,10 +74,10 @@ export default function StoreStock() {
         stockMap.get(stock.item_id)!.set(stock.size, stock.quantity || 0);
       });
 
-      // Get unique item IDs that have store stock
-      const itemsWithStoreStock = new Set(stockBySizeData?.map(s => s.item_id) || []);
+      // Get unique item IDs that have warehouse stock
+      const itemsWithWarehouseStock = new Set(stockBySizeData?.map(s => s.item_id) || []);
 
-      const combinedData: StockItem[] = items?.filter(item => itemsWithStoreStock.has(item.id)).map(item => {
+      const combinedData: StockItem[] = items?.filter(item => itemsWithWarehouseStock.has(item.id)).map(item => {
         const sizeStock = stockMap.get(item.id) || new Map();
         const size_39 = sizeStock.get('39') || 0;
         const size_40 = sizeStock.get('40') || 0;
@@ -98,7 +98,7 @@ export default function StoreStock() {
                            (size_45 > 0 && size_45 < threshold);
         
         return {
-          id: `${item.id}-store`,
+          id: `${item.id}-warehouse`,
           item_id: item.id,
           code: item.code,
           name: item.name,
@@ -153,19 +153,19 @@ export default function StoreStock() {
   };
 
   const handleDeleteStock = async (item: StockItem) => {
-    if (!confirm(`Are you sure you want to delete all store stock for ${item.code} - ${item.color}? This will also delete from main stock.`)) {
+    if (!confirm(`Are you sure you want to delete all warehouse stock for ${item.code} - ${item.color}? This will also delete from main stock.`)) {
       return;
     }
 
     try {
-      // Delete store stock
-      const { error: storeError } = await supabase
+      // Delete warehouse stock (stored as 'store' in database)
+      const { error: warehouseError } = await supabase
         .from("stock_by_size")
         .delete()
         .eq("item_id", item.item_id)
         .eq("stock_type", "store");
 
-      if (storeError) throw storeError;
+      if (warehouseError) throw warehouseError;
 
       // Also delete from main stock
       const { error: mainError } = await supabase
@@ -176,7 +176,7 @@ export default function StoreStock() {
 
       if (mainError) throw mainError;
 
-      toast.success("Store and main stock deleted successfully");
+      toast.success("Warehouse and main stock deleted successfully");
       fetchStock();
     } catch (error: any) {
       toast.error(error.message);
@@ -188,11 +188,11 @@ export default function StoreStock() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="p-3 rounded-xl bg-green-500/10 text-green-600">
-            <Store className="h-6 w-6" />
+            <Warehouse className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold">Store Stock</h1>
-            <p className="text-muted-foreground mt-1">View and manage store stock levels</p>
+            <h1 className="text-3xl font-bold">Warehouse</h1>
+            <p className="text-muted-foreground mt-1">View and manage warehouse stock levels</p>
           </div>
         </div>
         <Button onClick={() => {
@@ -245,7 +245,7 @@ export default function StoreStock() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
-              <CardTitle>Store Stock Items</CardTitle>
+              <CardTitle>Warehouse Stock Items</CardTitle>
               {showLowStockOnly && (
                 <Badge variant="destructive" className="gap-1">
                   <AlertTriangle className="h-3 w-3" />
@@ -292,8 +292,8 @@ export default function StoreStock() {
                     <TableRow>
                       <TableCell colSpan={13} className="text-center py-8">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <Store className="h-12 w-12 opacity-50" />
-                          <p>No stock found in store stock</p>
+                          <Warehouse className="h-12 w-12 opacity-50" />
+                          <p>No stock found in warehouse</p>
                           <Button 
                             variant="outline" 
                             size="sm"

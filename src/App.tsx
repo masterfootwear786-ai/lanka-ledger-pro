@@ -45,7 +45,7 @@ import Items from "./pages/inventory/Items";
 import Stock from "./pages/inventory/Stock";
 import MainStock from "./pages/inventory/MainStock";
 import LorryStock from "./pages/inventory/LorryStock";
-import StoreStock from "./pages/inventory/StoreStock";
+import WarehouseStock from "./pages/inventory/WarehouseStock";
 import Expenses from "./pages/accounting/Transactions";
 import CreditorsDebtors from "./pages/accounting/CreditorsDebtors";
 import Turns from "./pages/accounting/Turns";
@@ -126,7 +126,7 @@ const App = () => (
               <Route path="/inventory/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
               <Route path="/inventory/main-stock" element={<ProtectedRoute><MainStock /></ProtectedRoute>} />
               <Route path="/inventory/lorry-stock" element={<ProtectedRoute><LorryStock /></ProtectedRoute>} />
-              <Route path="/inventory/store-stock" element={<ProtectedRoute><StoreStock /></ProtectedRoute>} />
+              <Route path="/inventory/warehouse" element={<ProtectedRoute><WarehouseStock /></ProtectedRoute>} />
               {/* Accounting routes */}
               <Route path="/accounting/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
               <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><CreditorsDebtors /></ProtectedRoute>} />

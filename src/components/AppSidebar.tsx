@@ -98,7 +98,7 @@ export function AppSidebar() {
     { title: t('inventory.items'), url: '/inventory/items' },
     { title: 'Main Stock', url: '/inventory/main-stock' },
     { title: 'Lorry Stock', url: '/inventory/lorry-stock' },
-    { title: 'Store Stock', url: '/inventory/store-stock' },
+    { title: 'Warehouse', url: '/inventory/warehouse' },
   ];
 
   const accountingItems = [
