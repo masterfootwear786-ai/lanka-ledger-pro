@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, ArrowLeft, Truck, Store } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Truck, Warehouse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -703,10 +703,10 @@ export default function CreateInvoice() {
                     }`}
                   >
                     <div className={`p-2 rounded-lg ${stockType === 'store' ? 'bg-primary text-primary-foreground' : 'bg-green-500/10 text-green-600'}`}>
-                      <Store className="h-5 w-5" />
+                      <Warehouse className="h-5 w-5" />
                     </div>
                     <div className="text-left">
-                      <div className="font-semibold">Store Stock</div>
+                      <div className="font-semibold">Warehouse</div>
                       <div className="text-xs text-muted-foreground">Shop inventory</div>
                     </div>
                   </button>

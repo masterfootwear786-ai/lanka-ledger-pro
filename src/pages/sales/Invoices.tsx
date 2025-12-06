@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Truck, Store, Warehouse } from "lucide-react";
+import { Truck, Warehouse } from "lucide-react";
 
 type StatusFilter = "all" | "draft" | "approved" | "paid";
 
@@ -211,7 +211,7 @@ export default function Invoices() {
 
         toast({
           title: "Success",
-          description: `Invoice moved to trash and stock restored to ${stockRestoreType === 'lorry' ? 'Lorry Stock' : 'Store Stock'}.`,
+          description: `Invoice moved to trash and stock restored to ${stockRestoreType === 'lorry' ? 'Lorry Stock' : 'Warehouse'}.`,
         });
 
         setDeleteDialogOpen(false);
@@ -942,8 +942,8 @@ export default function Invoices() {
                         htmlFor="restore-store" 
                         className="flex items-center gap-2 cursor-pointer"
                       >
-                        <Store className="h-4 w-4 text-emerald-500" />
-                        <span>Store Stock</span>
+                        <Warehouse className="h-4 w-4 text-emerald-500" />
+                        <span>Warehouse</span>
                       </Label>
                     </div>
                   </RadioGroup>
