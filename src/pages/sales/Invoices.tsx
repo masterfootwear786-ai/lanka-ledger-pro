@@ -524,6 +524,7 @@ export default function Invoices() {
                 <TableHead>Customer</TableHead>
                 <TableHead>City</TableHead>
                 <TableHead>Payment Type</TableHead>
+                <TableHead>Goods Issue By</TableHead>
                 <TableHead className="text-right">{t("common.amount")}</TableHead>
                 <TableHead>{t("common.status")}</TableHead>
                 <TableHead className="text-right">{t("common.actions")}</TableHead>
@@ -532,13 +533,13 @@ export default function Invoices() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : filteredInvoices.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     No invoices found
                   </TableCell>
                 </TableRow>
@@ -600,6 +601,27 @@ export default function Invoices() {
                           <SelectItem value="cheque">Cheque</SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline" 
+                        className={invoice.stock_type === 'store' 
+                          ? 'border-green-500 text-green-600 bg-green-500/10' 
+                          : 'border-blue-500 text-blue-600 bg-blue-500/10'
+                        }
+                      >
+                        {invoice.stock_type === 'store' ? (
+                          <span className="flex items-center gap-1">
+                            <Warehouse className="h-3 w-3" />
+                            Warehouse
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <Truck className="h-3 w-3" />
+                            Lorry
+                          </span>
+                        )}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">{invoice.grand_total?.toLocaleString() || "0"}</TableCell>
                     <TableCell>
@@ -696,7 +718,7 @@ export default function Invoices() {
               </div>
 
               {/* Bill To Section */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="bg-muted/30 rounded-lg p-4 border border-border">
                   <div className="text-sm font-semibold text-primary mb-3">BILL TO:</div>
                   <div className="space-y-2">
@@ -760,6 +782,33 @@ export default function Invoices() {
                         return <div className="text-sm">Payment Method: {selectedInvoice.terms}</div>;
                       }
                     })()}
+                  </div>
+                </div>
+
+                <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-primary mb-2">GOODS ISSUE BY:</div>
+                  <div className="flex items-center gap-2 mt-2">
+                    {selectedInvoice.stock_type === 'store' ? (
+                      <>
+                        <div className="p-2 rounded-lg bg-green-500/10">
+                          <Warehouse className="h-5 w-5 text-green-600" />
+                        </div>
+                        <div>
+                          <div className="font-semibold">Warehouse</div>
+                          <div className="text-xs text-muted-foreground">Store Inventory</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-2 rounded-lg bg-blue-500/10">
+                          <Truck className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="font-semibold">Lorry</div>
+                          <div className="text-xs text-muted-foreground">Mobile Inventory</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
