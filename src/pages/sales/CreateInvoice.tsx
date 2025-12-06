@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Trash2, ArrowLeft, Warehouse, Truck, Store } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Truck, Store } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useParams } from "react-router-dom";
@@ -73,7 +73,7 @@ export default function CreateInvoice() {
   const [documentType, setDocumentType] = useState<'invoice' | 'order'>('invoice');
   const [invoice, setInvoice] = useState<any>(null);
   const [selectAllDiscount, setSelectAllDiscount] = useState(false);
-  const [stockType, setStockType] = useState<'main' | 'lorry' | 'store'>('main');
+  const [stockType, setStockType] = useState<'lorry' | 'store'>('lorry');
 
   const form = useForm<InvoiceFormData>({
     resolver: zodResolver(invoiceSchema),
@@ -174,9 +174,11 @@ export default function CreateInvoice() {
       if (invoiceError) throw invoiceError;
       setInvoice(invoiceData);
       
-      // Set stock type from loaded invoice
-      if (invoiceData.stock_type) {
-        setStockType(invoiceData.stock_type as 'main' | 'lorry' | 'store');
+      // Set stock type from loaded invoice (default to lorry if main or not set)
+      if (invoiceData.stock_type && invoiceData.stock_type !== 'main') {
+        setStockType(invoiceData.stock_type as 'lorry' | 'store');
+      } else {
+        setStockType('lorry');
       }
 
       form.reset({
@@ -673,24 +675,7 @@ export default function CreateInvoice() {
               {/* Stock Type Selection */}
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Stock to Deduct From</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStockType('main')}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                      stockType === 'main' 
-                        ? 'border-primary bg-primary/10 text-primary' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-lg ${stockType === 'main' ? 'bg-primary text-primary-foreground' : 'bg-blue-500/10 text-blue-600'}`}>
-                      <Warehouse className="h-5 w-5" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-semibold">Main Stock</div>
-                      <div className="text-xs text-muted-foreground">Warehouse inventory</div>
-                    </div>
-                  </button>
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setStockType('lorry')}
@@ -726,6 +711,7 @@ export default function CreateInvoice() {
                     </div>
                   </button>
                 </div>
+                <p className="text-xs text-muted-foreground">Main stock will also be updated automatically.</p>
               </div>
             </CardContent>
           </Card>
