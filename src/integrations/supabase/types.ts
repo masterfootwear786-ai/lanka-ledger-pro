@@ -1005,6 +1005,7 @@ export type Database = {
           size_43: number | null
           size_44: number | null
           size_45: number | null
+          stock_type: string | null
           tax_amount: number | null
           tax_code: string | null
           tax_inclusive: boolean | null
@@ -1029,6 +1030,7 @@ export type Database = {
           size_43?: number | null
           size_44?: number | null
           size_45?: number | null
+          stock_type?: string | null
           tax_amount?: number | null
           tax_code?: string | null
           tax_inclusive?: boolean | null
@@ -1053,6 +1055,7 @@ export type Database = {
           size_43?: number | null
           size_44?: number | null
           size_45?: number | null
+          stock_type?: string | null
           tax_amount?: number | null
           tax_code?: string | null
           tax_inclusive?: boolean | null
@@ -1104,6 +1107,7 @@ export type Database = {
           posted_at: string | null
           posted_by: string | null
           status: Database["public"]["Enums"]["document_status"] | null
+          stock_type: string | null
           subtotal: number | null
           tax_total: number | null
           terms: string | null
@@ -1130,6 +1134,7 @@ export type Database = {
           posted_at?: string | null
           posted_by?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
+          stock_type?: string | null
           subtotal?: number | null
           tax_total?: number | null
           terms?: string | null
@@ -1156,6 +1161,7 @@ export type Database = {
           posted_at?: string | null
           posted_by?: string | null
           status?: Database["public"]["Enums"]["document_status"] | null
+          stock_type?: string | null
           subtotal?: number | null
           tax_total?: number | null
           terms?: string | null
@@ -2222,6 +2228,7 @@ export type Database = {
           item_id: string
           quantity: number
           size: string
+          stock_type: string
           updated_at: string | null
         }
         Insert: {
@@ -2231,6 +2238,7 @@ export type Database = {
           item_id: string
           quantity?: number
           size: string
+          stock_type?: string
           updated_at?: string | null
         }
         Update: {
@@ -2240,6 +2248,7 @@ export type Database = {
           item_id?: string
           quantity?: number
           size?: string
+          stock_type?: string
           updated_at?: string | null
         }
         Relationships: [
