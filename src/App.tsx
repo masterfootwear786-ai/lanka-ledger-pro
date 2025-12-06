@@ -59,6 +59,7 @@ import CustomFields from "./pages/settings/CustomFields";
 import Trash from "./pages/settings/Trash";
 import Backup from "./pages/settings/Backup";
 import RoutesSettings from "./pages/settings/Routes";
+import SalesRepActivity from "./pages/settings/SalesRepActivity";
 import { Layout } from "./components/Layout";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useOfflineSync } from "./hooks/useOfflineSync";
@@ -152,6 +153,7 @@ const App = () => (
               <Route path="/settings/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
               <Route path="/settings/backup" element={<ProtectedRoute><Backup /></ProtectedRoute>} />
               <Route path="/settings/routes" element={<ProtectedRoute><RoutesSettings /></ProtectedRoute>} />
+              <Route path="/settings/sales-rep-activity" element={<ProtectedRoute><SalesRepActivity /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
