@@ -209,27 +209,30 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
       let userId = user?.id;
       let companyId = user?.company_id;
 
+      // Always get current user's company ID for reference
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error("Not authenticated");
+
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (!currentProfile?.company_id) {
+        throw new Error("Current user has no company assigned");
+      }
+
+      // If editing user without company_id (pending user), use current user's company
+      if (!companyId) {
+        companyId = currentProfile.company_id;
+      }
+
       if (!user) {
         // Creating new user
         if (!data.password) {
           throw new Error("Password is required for new users");
         }
-
-        // Get current user's company ID
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (!currentUser) throw new Error("Not authenticated");
-
-        const { data: currentProfile } = await supabase
-          .from('profiles')
-          .select('company_id')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (!currentProfile?.company_id) {
-          throw new Error("Current user has no company assigned");
-        }
-
-        companyId = currentProfile.company_id;
 
         // Create auth user via signup
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -263,10 +266,11 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         if (profileUpdateError) throw profileUpdateError;
 
       } else {
-        // Update existing user profile
+        // Update existing user profile (including assigning company_id for pending users)
         const { error: profileError } = await supabase
           .from("profiles")
           .update({
+            company_id: companyId, // This will assign company to pending users
             full_name: data.full_name,
             active: data.active,
             language: data.language,
