@@ -349,15 +349,19 @@ export default function StockByType({ stockType, title }: StockByTypeProps) {
                               key={size} 
                               className={`text-center ${isNegative ? 'text-red-600 font-bold' : isLow ? 'text-orange-600' : ''}`}
                             >
-                              <Input
-                                type="number"
-                                value={qty}
-                                onChange={async (e) => {
-                                  const newQty = parseFloat(e.target.value) || 0;
-                                  await updateStockQuantity(item.item_id, size, newQty);
-                                }}
-                                className="w-16 h-8 text-center"
-                              />
+                              {stockType === 'main' ? (
+                                qty
+                              ) : (
+                                <Input
+                                  type="number"
+                                  value={qty}
+                                  onChange={async (e) => {
+                                    const newQty = parseFloat(e.target.value) || 0;
+                                    await updateStockQuantity(item.item_id, size, newQty);
+                                  }}
+                                  className="w-16 h-8 text-center"
+                                />
+                              )}
                             </TableCell>
                           );
                         })}
