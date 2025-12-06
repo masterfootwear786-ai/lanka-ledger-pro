@@ -465,163 +465,248 @@ export function TurnDailyExpensesDialog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dailyExpenses.map((expense, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <Input
-                        type="date"
-                        value={expense.expense_date}
-                        onChange={(e) => handleUpdateExpense(index, "expense_date", e.target.value)}
-                        className="h-8 text-sm"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.start_km || ""}
-                        onChange={(e) => handleUpdateExpense(index, "start_km", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.end_km || ""}
-                        onChange={(e) => handleUpdateExpense(index, "end_km", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right bg-primary/5 font-semibold">
-                      {((expense.end_km || 0) - (expense.start_km || 0)).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.expense_fuel || ""}
-                        onChange={(e) => handleUpdateExpense(index, "expense_fuel", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="1"
-                        value={expense.fuel_km || ""}
-                        onChange={(e) => handleUpdateExpense(index, "fuel_km", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell className="text-right bg-amber-50 dark:bg-amber-950/30 font-semibold text-amber-700 dark:text-amber-300">
-                      {(() => {
-                        if (!expense.fuel_km || expense.fuel_km === 0) return '-';
-                        // Find previous fuel entry with fuel_km > 0
-                        let prevFuelKm = 0;
-                        for (let i = index - 1; i >= 0; i--) {
-                          if (dailyExpenses[i].fuel_km && dailyExpenses[i].fuel_km > 0) {
-                            prevFuelKm = dailyExpenses[i].fuel_km;
-                            break;
-                          }
-                        }
-                        if (prevFuelKm === 0) return '-';
-                        return (expense.fuel_km - prevFuelKm).toLocaleString() + ' km';
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.expense_food || ""}
-                        onChange={(e) => handleUpdateExpense(index, "expense_food", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.expense_accommodation || ""}
-                        onChange={(e) => handleUpdateExpense(index, "expense_accommodation", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={expense.accommodation_city}
-                        onChange={(e) => handleUpdateExpense(index, "accommodation_city", e.target.value)}
-                        placeholder="City"
-                        className="h-8 text-sm"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={expense.expense_other || ""}
-                        onChange={(e) => handleUpdateExpense(index, "expense_other", parseFloat(e.target.value) || 0)}
-                        placeholder="0"
-                        className="h-8 text-sm text-right"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        value={expense.notes}
-                        onChange={(e) => handleUpdateExpense(index, "notes", e.target.value)}
-                        placeholder="Station, location..."
-                        className="h-8 text-sm"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDuplicateRow(index)}
-                          className="h-7 w-7"
-                          title="Add another entry for same date"
-                        >
-                          <Copy className="h-3 w-3 text-muted-foreground" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveDay(index)}
-                          className="h-7 w-7"
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {dailyExpenses.map((expense, index) => {
+                  const hasFuel = expense.expense_fuel > 0 || expense.fuel_km > 0;
+                  const hasAccommodation = expense.expense_accommodation > 0 || expense.accommodation_city;
+                  const hasOther = expense.expense_other > 0;
+                  const hasFood = expense.expense_food > 0;
+                  const dayKm = (expense.end_km || 0) - (expense.start_km || 0);
+                  
+                  // Calculate fuel trip
+                  const getFuelTrip = () => {
+                    if (!expense.fuel_km || expense.fuel_km === 0) return null;
+                    let prevFuelKm = 0;
+                    for (let i = index - 1; i >= 0; i--) {
+                      if (dailyExpenses[i].fuel_km && dailyExpenses[i].fuel_km > 0) {
+                        prevFuelKm = dailyExpenses[i].fuel_km;
+                        break;
+                      }
+                    }
+                    if (prevFuelKm === 0) return null;
+                    return expense.fuel_km - prevFuelKm;
+                  };
+                  
+                  const fuelTrip = getFuelTrip();
+                  
+                  return (
+                    <TableRow key={index} className={`${hasFuel || hasAccommodation || hasOther || hasFood ? 'bg-muted/20' : ''}`}>
+                      <TableCell className="align-top">
+                        <Input
+                          type="date"
+                          value={expense.expense_date}
+                          onChange={(e) => handleUpdateExpense(index, "expense_date", e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={expense.start_km || ""}
+                          onChange={(e) => handleUpdateExpense(index, "start_km", parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="h-8 text-sm text-right"
+                        />
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={expense.end_km || ""}
+                          onChange={(e) => handleUpdateExpense(index, "end_km", parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className="h-8 text-sm text-right"
+                        />
+                      </TableCell>
+                      <TableCell className={`text-right align-top bg-primary/5 font-semibold ${dayKm > 0 ? 'text-primary' : ''}`}>
+                        {dayKm > 0 ? (
+                          <div className="py-1.5">
+                            <span className="text-lg">{dayKm.toLocaleString()}</span>
+                            <span className="text-xs ml-1 text-muted-foreground">km</span>
+                          </div>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="space-y-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={expense.expense_fuel || ""}
+                            onChange={(e) => handleUpdateExpense(index, "expense_fuel", parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            className={`h-8 text-sm text-right ${hasFuel ? 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/30' : ''}`}
+                          />
+                          {hasFuel && expense.expense_fuel > 0 && (
+                            <div className="text-xs text-amber-600 dark:text-amber-400 font-medium px-1">
+                              Rs. {expense.expense_fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <Input
+                          type="number"
+                          step="1"
+                          value={expense.fuel_km || ""}
+                          onChange={(e) => handleUpdateExpense(index, "fuel_km", parseFloat(e.target.value) || 0)}
+                          placeholder="0"
+                          className={`h-8 text-sm text-right ${hasFuel ? 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/30' : ''}`}
+                        />
+                      </TableCell>
+                      <TableCell className={`text-right align-top bg-amber-50 dark:bg-amber-950/30 ${fuelTrip ? 'font-semibold text-amber-700 dark:text-amber-300' : ''}`}>
+                        {fuelTrip ? (
+                          <div className="py-1.5">
+                            <span className="text-lg">{fuelTrip.toLocaleString()}</span>
+                            <span className="text-xs ml-1">km</span>
+                          </div>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="space-y-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={expense.expense_food || ""}
+                            onChange={(e) => handleUpdateExpense(index, "expense_food", parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            className={`h-8 text-sm text-right ${hasFood ? 'border-orange-300 bg-orange-50/50 dark:bg-orange-950/30' : ''}`}
+                          />
+                          {hasFood && expense.expense_food > 0 && (
+                            <div className="text-xs text-orange-600 dark:text-orange-400 font-medium px-1">
+                              Rs. {expense.expense_food.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="space-y-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={expense.expense_accommodation || ""}
+                            onChange={(e) => handleUpdateExpense(index, "expense_accommodation", parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            className={`h-8 text-sm text-right ${hasAccommodation ? 'border-purple-300 bg-purple-50/50 dark:bg-purple-950/30' : ''}`}
+                          />
+                          {hasAccommodation && expense.expense_accommodation > 0 && (
+                            <div className="text-xs text-purple-600 dark:text-purple-400 font-medium px-1">
+                              Rs. {expense.expense_accommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="space-y-1">
+                          <Input
+                            value={expense.accommodation_city}
+                            onChange={(e) => handleUpdateExpense(index, "accommodation_city", e.target.value)}
+                            placeholder="City"
+                            className={`h-8 text-sm ${hasAccommodation ? 'border-purple-300 bg-purple-50/50 dark:bg-purple-950/30' : ''}`}
+                          />
+                          {expense.accommodation_city && (
+                            <div className="flex items-center gap-1 text-xs text-purple-600 dark:text-purple-400 font-medium px-1">
+                              <Hotel className="h-3 w-3" />
+                              {expense.accommodation_city}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="space-y-1">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={expense.expense_other || ""}
+                            onChange={(e) => handleUpdateExpense(index, "expense_other", parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            className={`h-8 text-sm text-right ${hasOther ? 'border-slate-400 bg-slate-50/50 dark:bg-slate-900/30' : ''}`}
+                          />
+                          {hasOther && expense.expense_other > 0 && (
+                            <div className="text-xs text-slate-600 dark:text-slate-400 font-medium px-1">
+                              Rs. {expense.expense_other.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <Input
+                          value={expense.notes}
+                          onChange={(e) => handleUpdateExpense(index, "notes", e.target.value)}
+                          placeholder="Station, location..."
+                          className="h-8 text-sm"
+                        />
+                        {expense.notes && (
+                          <div className="text-xs text-muted-foreground mt-1 px-1 italic">
+                            {expense.notes}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDuplicateRow(index)}
+                            className="h-7 w-7"
+                            title="Add another entry for same date"
+                          >
+                            <Copy className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveDay(index)}
+                            className="h-7 w-7"
+                          >
+                            <Trash2 className="h-3 w-3 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {/* Totals Row */}
-                <TableRow className="bg-muted/30 font-semibold">
-                  <TableCell>Total ({totalDays} days)</TableCell>
+                <TableRow className="bg-muted/50 font-semibold border-t-2">
+                  <TableCell className="py-3">
+                    <span className="text-base font-bold">Total ({totalDays} days)</span>
+                  </TableCell>
                   <TableCell></TableCell>
                   <TableCell></TableCell>
-                  <TableCell className="text-right bg-primary/10 font-bold">{totals.dayKm.toLocaleString()} km</TableCell>
-                  <TableCell className="text-right">{totals.fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right bg-primary/10 py-3">
+                    <div className="text-xl font-bold text-primary">{totals.dayKm.toLocaleString()}</div>
+                    <div className="text-xs text-muted-foreground">km traveled</div>
+                  </TableCell>
+                  <TableCell className="text-right py-3">
+                    <div className="text-lg font-bold text-amber-700 dark:text-amber-300">{totals.fuel.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div className="text-xs text-amber-600 dark:text-amber-400">fuel cost</div>
+                  </TableCell>
                   <TableCell></TableCell>
-                  <TableCell className="text-right bg-amber-50 dark:bg-amber-950/30 font-bold text-amber-700 dark:text-amber-300">
+                  <TableCell className="text-right bg-amber-50 dark:bg-amber-950/30 py-3">
                     {(() => {
                       const fuelEntries = dailyExpenses.filter(e => e.fuel_km && e.fuel_km > 0).map(e => e.fuel_km);
                       if (fuelEntries.length < 2) return '-';
                       const totalFuelKm = Math.max(...fuelEntries) - Math.min(...fuelEntries);
-                      return totalFuelKm.toLocaleString() + ' km';
+                      return (
+                        <div>
+                          <div className="text-lg font-bold text-amber-700 dark:text-amber-300">{totalFuelKm.toLocaleString()}</div>
+                          <div className="text-xs text-amber-600 dark:text-amber-400">km fuel</div>
+                        </div>
+                      );
                     })()}
                   </TableCell>
-                  <TableCell className="text-right">{totals.food.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
-                  <TableCell className="text-right">{totals.accommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right py-3">
+                    <div className="text-lg font-bold text-orange-700 dark:text-orange-300">{totals.food.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div className="text-xs text-orange-600 dark:text-orange-400">food cost</div>
+                  </TableCell>
+                  <TableCell className="text-right py-3">
+                    <div className="text-lg font-bold text-purple-700 dark:text-purple-300">{totals.accommodation.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div className="text-xs text-purple-600 dark:text-purple-400">accommodation</div>
+                  </TableCell>
                   <TableCell></TableCell>
-                  <TableCell className="text-right">{totals.other.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                  <TableCell className="text-right py-3">
+                    <div className="text-lg font-bold text-slate-700 dark:text-slate-300">{totals.other.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div className="text-xs text-slate-600 dark:text-slate-400">other</div>
+                  </TableCell>
                   <TableCell></TableCell>
                   <TableCell></TableCell>
                 </TableRow>
