@@ -311,29 +311,81 @@ export default function Expenses() {
         </Card>
       </div>
 
-      {/* Category Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Category Breakdown</CardTitle>
+      {/* Category Breakdown - Professional View */}
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-muted/30 border-b">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-primary" />
+            Category Breakdown
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <CardContent className="p-0">
+          <div className="divide-y">
             {Object.entries(categoryTotals).sort(([,a], [,b]) => b - a).map(([category, total]) => {
               const config = categoryConfig[category] || categoryConfig['Other'];
               const Icon = config.icon;
+              const categoryTransactions = regularExpenses.filter(t => t.transaction_type === category);
+              const transactionCount = categoryTransactions.length;
+              
               return (
-                <div key={category} className={`p-3 rounded-lg ${config.bgColor} border`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon className={`h-4 w-4 ${config.color}`} />
-                    <span className={`text-xs font-medium ${config.color}`}>{category}</span>
+                <div key={category} className="p-4 hover:bg-muted/20 transition-colors">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-lg ${config.bgColor}`}>
+                        <Icon className={`h-5 w-5 ${config.color}`} />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">{category}</h4>
+                        <p className="text-xs text-muted-foreground">{transactionCount} {transactionCount === 1 ? 'entry' : 'entries'}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-lg font-bold ${config.color}`}>
+                        {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
                   </div>
-                  <div className={`text-sm font-bold ${config.color}`}>
-                    {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                  </div>
+                  
+                  {/* Transaction Details */}
+                  {categoryTransactions.length > 0 && (
+                    <div className="ml-12 space-y-2">
+                      {categoryTransactions.slice(0, 5).map((t) => (
+                        <div key={t.id} className="flex items-center justify-between text-sm py-1.5 px-3 rounded-md bg-muted/30 border border-border/50">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <span className="font-mono text-xs text-muted-foreground w-20 shrink-0">
+                              {new Date(t.transaction_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                            </span>
+                            <span className="truncate text-foreground flex-1">
+                              {t.description || 'No description'}
+                            </span>
+                            {t.reference && (
+                              <span className="px-2 py-0.5 rounded text-xs bg-primary/10 text-primary font-medium shrink-0">
+                                Ref: {t.reference}
+                              </span>
+                            )}
+                          </div>
+                          <span className="font-semibold ml-4 shrink-0">
+                            {t.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                      ))}
+                      {categoryTransactions.length > 5 && (
+                        <p className="text-xs text-muted-foreground pl-3">
+                          + {categoryTransactions.length - 5} more entries
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
+          
+          {Object.keys(categoryTotals).length === 0 && (
+            <div className="p-8 text-center text-muted-foreground">
+              No expense categories recorded yet
+            </div>
+          )}
         </CardContent>
       </Card>
 
