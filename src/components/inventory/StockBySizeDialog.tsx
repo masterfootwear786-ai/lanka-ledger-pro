@@ -132,13 +132,18 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, stockTy
           if (existing) {
             // Update existing
             const newQuantity = existing.quantity + quantity;
-            await supabase
+            const { error: updateError } = await supabase
               .from("stock_by_size")
               .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
               .eq("id", existing.id);
+            
+            if (updateError) {
+              console.error("Update error:", updateError);
+              throw updateError;
+            }
           } else {
             // Insert new with stock type
-            await supabase
+            const { error: insertError } = await supabase
               .from("stock_by_size")
               .insert({
                 company_id: profile.company_id,
@@ -147,6 +152,11 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, stockTy
                 quantity: quantity,
                 stock_type: stockType
               });
+            
+            if (insertError) {
+              console.error("Insert error:", insertError);
+              throw insertError;
+            }
           }
         }
       }
