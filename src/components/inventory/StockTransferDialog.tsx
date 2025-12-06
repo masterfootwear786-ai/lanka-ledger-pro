@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -182,6 +182,8 @@ export function StockTransferDialog({ open, onOpenChange, onSuccess }: StockTran
             <Truck className="h-5 w-5 text-orange-600" />
             Transfer Stock: Store to Lorry
           </DialogTitle>
+          <DialogDescription>
+            Transfer stock from Store to Lorry. Select an item and enter quantities to transfer.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
