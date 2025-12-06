@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse, Download } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -326,6 +328,116 @@ export default function Orders() {
     }
   };
 
+  const handleDownloadPDF = async (order: any) => {
+    try {
+      const { data: lines } = await supabase
+        .from("sales_order_lines")
+        .select("*")
+        .eq("order_id", order.id)
+        .order("line_no", { ascending: true });
+
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", order.company_id)
+        .single();
+
+      const groupedLines = (lines || []).reduce((acc: any, line: any) => {
+        const key = `${line.description}-${line.item_id || 'no-item'}`;
+        if (!acc[key]) {
+          acc[key] = {
+            description: line.description,
+            unit_price: line.unit_price,
+            sizes: { 39: 0, 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0 },
+            line_total: 0
+          };
+        }
+        acc[key].sizes[39] += line.size_39 || 0;
+        acc[key].sizes[40] += line.size_40 || 0;
+        acc[key].sizes[41] += line.size_41 || 0;
+        acc[key].sizes[42] += line.size_42 || 0;
+        acc[key].sizes[43] += line.size_43 || 0;
+        acc[key].sizes[44] += line.size_44 || 0;
+        acc[key].sizes[45] += line.size_45 || 0;
+        acc[key].line_total += line.line_total || 0;
+        return acc;
+      }, {});
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Company header
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text(company?.name || "Company", 14, 20);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(company?.address || "", 14, 27);
+      doc.text(`Tel: ${company?.phone || ""} | Email: ${company?.email || ""}`, 14, 32);
+
+      // Title
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("SALES ORDER", pageWidth - 14, 20, { align: "right" });
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Order No: ${order.order_no}`, pageWidth - 14, 27, { align: "right" });
+      doc.text(`Date: ${new Date(order.order_date).toLocaleDateString()}`, pageWidth - 14, 32, { align: "right" });
+
+      // Line under header
+      doc.setLineWidth(0.5);
+      doc.line(14, 38, pageWidth - 14, 38);
+
+      // Customer & Order info
+      doc.setFontSize(10);
+      doc.text(`Customer: ${order.customer?.name || ""}`, 14, 48);
+      doc.text(`Status: ${order.status || "draft"}`, 14, 54);
+
+      // Table
+      const tableData = Object.values(groupedLines).map((line: any) => {
+        const totalPairs = line.sizes[39] + line.sizes[40] + line.sizes[41] + line.sizes[42] + line.sizes[43] + line.sizes[44] + line.sizes[45];
+        return [
+          line.description,
+          line.sizes[39] || "-",
+          line.sizes[40] || "-",
+          line.sizes[41] || "-",
+          line.sizes[42] || "-",
+          line.sizes[43] || "-",
+          line.sizes[44] || "-",
+          line.sizes[45] || "-",
+          totalPairs,
+          line.unit_price?.toFixed(2),
+          line.line_total?.toFixed(2),
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 62,
+        head: [["Art No / Color", "39", "40", "41", "42", "43", "44", "45", "Pairs", "Price", "Total"]],
+        body: tableData,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [66, 66, 66] },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          9: { halign: "right" },
+          10: { halign: "right" },
+        },
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Totals
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Grand Total: ${(order.grand_total || 0).toFixed(2)}`, pageWidth - 14, finalY, { align: "right" });
+
+      doc.save(`order-${order.order_no}.pdf`);
+      toast.success("PDF downloaded successfully");
+    } catch (error: any) {
+      toast.error("Error downloading PDF: " + error.message);
+    }
+  };
+
   const handleDelete = async () => {
     if (!orderToDelete) return;
 
@@ -590,6 +702,14 @@ export default function Orders() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => handleDownloadPDF(order)}
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => handleConvertToInvoice(order)}
                           title="Convert to Invoice"
                         >
@@ -622,15 +742,26 @@ export default function Orders() {
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle className="text-2xl font-bold">Order Details</DialogTitle>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => selectedOrder && handlePrint(selectedOrder)}
-                className="flex items-center gap-2"
-              >
-                <Printer className="h-4 w-4" />
-                Print
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => selectedOrder && handlePrint(selectedOrder)}
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => selectedOrder && handleDownloadPDF(selectedOrder)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  PDF
+                </Button>
+              </div>
             </div>
           </DialogHeader>
 

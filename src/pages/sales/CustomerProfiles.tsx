@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Search, Eye, TrendingUp, TrendingDown, DollarSign, Users, CreditCard } from "lucide-react";
+import { Search, Eye, TrendingUp, TrendingDown, DollarSign, Users, CreditCard, Printer, FileText } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -212,11 +214,127 @@ export default function CustomerProfiles() {
     });
   };
 
+  const handlePrintList = () => {
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Customer Profiles</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; font-size: 11px; }
+            h1 { font-size: 20px; margin-bottom: 15px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+            th { background-color: #f5f5f5; }
+            .text-right { text-align: right; }
+            .text-red { color: #dc2626; }
+            .text-green { color: #16a34a; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Customer Profiles</h1>
+          <p>Generated: ${new Date().toLocaleString()}</p>
+          <p><strong>Total Outstanding:</strong> ${formatCurrency(stats.totalOutstanding)} | <strong>Pending Cheques:</strong> ${formatCurrency(stats.totalPendingCheques)}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Customer</th>
+                <th>Location</th>
+                <th class="text-right">Invoiced</th>
+                <th class="text-right">Paid</th>
+                <th class="text-right">Returns</th>
+                <th class="text-right">Pending</th>
+                <th class="text-right">Outstanding</th>
+                <th class="text-right">Credit</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredCustomers.map(c => `
+                <tr>
+                  <td>${c.code}</td>
+                  <td>${c.name}</td>
+                  <td>${c.area || ''}</td>
+                  <td class="text-right">${formatCurrency(c.totalInvoiced)}</td>
+                  <td class="text-right text-green">${formatCurrency(c.totalPaid)}</td>
+                  <td class="text-right">${c.totalReturns > 0 ? formatCurrency(c.totalReturns) : '-'}</td>
+                  <td class="text-right">${c.pendingCheques > 0 ? formatCurrency(c.pendingCheques) : '-'}</td>
+                  <td class="text-right ${c.outstanding > 0 ? 'text-red' : ''}">${c.outstanding > 0 ? formatCurrency(c.outstanding) : '-'}</td>
+                  <td class="text-right ${c.creditBalance > 0 ? 'text-green' : ''}">${c.creditBalance > 0 ? formatCurrency(c.creditBalance) : '-'}</td>
+                  <td>${c.active ? 'Active' : 'Inactive'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF('l'); // Landscape for more columns
+    doc.setFontSize(18);
+    doc.text('Customer Profiles', 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+    doc.text(`Total Outstanding: ${formatCurrency(stats.totalOutstanding)} | Pending Cheques: ${formatCurrency(stats.totalPendingCheques)}`, 14, 35);
+
+    autoTable(doc, {
+      startY: 42,
+      head: [["Code", "Customer", "Location", "Invoiced", "Paid", "Returns", "Pending", "Outstanding", "Credit", "Status"]],
+      body: filteredCustomers.map(c => [
+        c.code,
+        c.name,
+        c.area || '-',
+        formatCurrency(c.totalInvoiced),
+        formatCurrency(c.totalPaid),
+        c.totalReturns > 0 ? formatCurrency(c.totalReturns) : '-',
+        c.pendingCheques > 0 ? formatCurrency(c.pendingCheques) : '-',
+        c.outstanding > 0 ? formatCurrency(c.outstanding) : '-',
+        c.creditBalance > 0 ? formatCurrency(c.creditBalance) : '-',
+        c.active ? 'Active' : 'Inactive',
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: { 
+        3: { halign: "right" },
+        4: { halign: "right" },
+        5: { halign: "right" },
+        6: { halign: "right" },
+        7: { halign: "right" },
+        8: { halign: "right" },
+      },
+    });
+
+    doc.save(`customer-profiles-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success("PDF exported successfully");
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Customer Profiles</h1>
-        <p className="text-muted-foreground mt-2">View all customer profiles with outstanding balances</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Customer Profiles</h1>
+          <p className="text-muted-foreground mt-2">View all customer profiles with outstanding balances</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePrintList}>
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button variant="outline" onClick={handleExportPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
