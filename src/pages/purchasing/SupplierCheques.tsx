@@ -2,11 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, CreditCard, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Search, CreditCard, CheckCircle, XCircle, Clock, Printer, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +42,7 @@ export default function SupplierCheques() {
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentsWithCheques, setPaymentsWithCheques] = useState<PaymentWithCheques[]>([]);
   const [loading, setLoading] = useState(true);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchCheques();

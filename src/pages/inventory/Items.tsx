@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Search, Edit, Trash2, Printer, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ItemDialog } from "@/components/items/ItemDialog";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useActionPassword } from "@/hooks/useActionPassword";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +34,7 @@ export default function Items() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<any>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const {
     isPasswordDialogOpen,
     setIsPasswordDialogOpen,
@@ -39,6 +43,78 @@ export default function Items() {
     handlePasswordConfirm,
     handlePasswordCancel,
   } = useActionPassword('items');
+
+  const handlePrintList = () => {
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Items List</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { text-align: center; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+            th { background-color: #f5f5f5; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Inventory Items</h1>
+          <p>Total: ${filteredItems.length} items</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Design No</th>
+                <th>Name</th>
+                <th>Color</th>
+                <th>Total Stock</th>
+                <th>Sale Price</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredItems.map(i => `
+                <tr>
+                  <td>${i.code || '-'}</td>
+                  <td>${i.name || '-'}</td>
+                  <td>${i.color || '-'}</td>
+                  <td style="text-align: right;">${i.totalStock || 0}</td>
+                  <td style="text-align: right;">${i.sale_price?.toLocaleString() || '-'}</td>
+                  <td>${i.active ? 'Active' : 'Inactive'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+    }
+  };
+
+  const handleDownloadListPDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Inventory Items", 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Total: ${filteredItems.length} items`, 14, 30);
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Design No', 'Name', 'Color', 'Stock', 'Sale Price', 'Status']],
+      body: filteredItems.map(i => [i.code, i.name, i.color || '-', i.totalStock || 0, i.sale_price?.toLocaleString() || '-', i.active ? 'Active' : 'Inactive']),
+      styles: { fontSize: 8 },
+    });
+
+    doc.save('items-list.pdf');
+    toast.success("PDF downloaded");
+  };
 
   useEffect(() => {
     fetchItems();
@@ -127,13 +203,23 @@ export default function Items() {
           <h1 className="text-3xl font-bold">{t('inventory.items')}</h1>
           <p className="text-muted-foreground mt-2">Manage inventory items</p>
         </div>
-        <Button onClick={() => {
-          setSelectedItem(null);
-          setDialogOpen(true);
-        }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Item
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setPreviewDialogOpen(true)}>
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button variant="outline" onClick={handleDownloadListPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+          <Button onClick={() => {
+            setSelectedItem(null);
+            setDialogOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Item
+          </Button>
+        </div>
       </div>
 
       <Card>

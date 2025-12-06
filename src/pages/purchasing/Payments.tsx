@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Plus, Search, Eye, Edit, Trash2, Printer, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PaymentDialog } from "@/components/payments/PaymentDialog";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function Payments() {
   const { t } = useTranslation();
@@ -20,6 +23,95 @@ export default function Payments() {
   const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+
+  const handlePrintList = () => {
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Payments List</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { text-align: center; margin-bottom: 20px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 8px; text-align: left; border: 1px solid #ddd; }
+            th { background-color: #f5f5f5; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Supplier Payments List</h1>
+          <p>Total: ${filteredPayments.length} payments</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Payment #</th>
+                <th>Date</th>
+                <th>Supplier</th>
+                <th>Method</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredPayments.map(p => `
+                <tr>
+                  <td>${p.payment_no || '-'}</td>
+                  <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+                  <td>${p.contacts?.name || '-'}</td>
+                  <td>${p.reference || 'Cash'}</td>
+                  <td style="text-align: right;">${p.amount?.toLocaleString() || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
+  };
+
+  const handleDownloadListPDF = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text("Supplier Payments List", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total: ${filteredPayments.length} payments`, 14, 30);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 36);
+
+    const tableData = filteredPayments.map(p => [
+      p.payment_no || '-',
+      new Date(p.payment_date).toLocaleDateString(),
+      p.contacts?.name || '-',
+      p.reference || 'Cash',
+      p.amount?.toLocaleString() || '-'
+    ]);
+
+    autoTable(doc, {
+      startY: 42,
+      head: [['Payment #', 'Date', 'Supplier', 'Method', 'Amount']],
+      body: tableData,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 66, 66] },
+    });
+
+    doc.save('supplier-payments-list.pdf');
+    toast({ title: "Success", description: "PDF downloaded successfully" });
+  };
 
   useEffect(() => {
     fetchPayments();
@@ -216,10 +308,20 @@ export default function Payments() {
           <h1 className="text-3xl font-bold">{t('purchasing.payments')}</h1>
           <p className="text-muted-foreground mt-2">Manage supplier payments</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Payment
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setPreviewDialogOpen(true)}>
+            <Printer className="h-4 w-4 mr-2" />
+            Print
+          </Button>
+          <Button variant="outline" onClick={handleDownloadListPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Payment
+          </Button>
+        </div>
       </div>
 
       <Card>
