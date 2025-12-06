@@ -193,72 +193,117 @@ export default function Users() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map((user) => (
-          <Card key={user.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5" />
-                {user.full_name || "Unnamed User"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <span>{user.email}</span>
-              </div>
+      {/* Users Waiting for Permissions */}
+      {users.filter(u => u.roles.length === 0 && u.active).length > 0 && (
+        <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+              <AlertCircle className="h-5 w-5" />
+              Users Waiting for Permissions ({users.filter(u => u.roles.length === 0 && u.active).length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {users.filter(u => u.roles.length === 0 && u.active).map((user) => (
+                <Card key={user.id} className="border-amber-300 dark:border-amber-700">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Shield className="h-4 w-4 text-amber-600" />
+                      {user.full_name || "Unnamed User"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs">{user.email}</span>
+                    </div>
+                    <Badge variant="outline" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                      Waiting for permissions
+                    </Badge>
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleEditUser(user)}
+                        className="flex-1"
+                      >
+                        <Shield className="h-4 w-4 mr-1" />
+                        Assign Permissions
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-              <div className="space-y-1">
-                <div className="text-sm font-semibold">Roles:</div>
-                <div className="flex flex-wrap gap-1">
-                  {user.roles.length > 0 ? (
-                    user.roles.map((role: string) => (
+      {/* Active Users with Roles */}
+      <div className="space-y-2">
+        <h2 className="text-lg font-semibold">Active Users</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users.filter(u => u.roles.length > 0).map((user) => (
+            <Card key={user.id}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  {user.full_name || "Unnamed User"}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>{user.email}</span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-sm font-semibold">Roles:</div>
+                  <div className="flex flex-wrap gap-1">
+                    {user.roles.map((role: string) => (
                       <Badge
                         key={role}
                         className={getRoleBadgeColor(role)}
                       >
                         {role}
                       </Badge>
-                    ))
-                  ) : (
-                    <span className="text-sm text-muted-foreground">No roles assigned</span>
-                  )}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-2 text-sm">
-                <span className="font-semibold">Status:</span>
-                <Badge variant={user.active ? "default" : "secondary"}>
-                  {user.active ? "Active" : "Inactive"}
-                </Badge>
-              </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-semibold">Status:</span>
+                  <Badge variant={user.active ? "default" : "secondary"}>
+                    {user.active ? "Active" : "Inactive"}
+                  </Badge>
+                </div>
 
-              <div className="text-xs text-muted-foreground">
-                Language: {user.language || "en"}
-              </div>
+                <div className="text-xs text-muted-foreground">
+                  Language: {user.language || "en"}
+                </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleEditUser(user)}
-                  className="flex-1"
-                >
-                  <Edit className="h-4 w-4 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDeleteClick(user)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEditUser(user)}
+                    className="flex-1"
+                  >
+                    <Edit className="h-4 w-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDeleteClick(user)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       <UserDialog

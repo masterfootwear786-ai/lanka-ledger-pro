@@ -32,13 +32,16 @@ export const WaitingPermissions = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-8">
       <div className="text-center space-y-8 max-w-md">
         {/* Logo */}
-        {logoUrl ? (
-          <img 
-            src={logoUrl} 
-            alt="Master Footwear Logo" 
-            className="h-32 w-auto mx-auto object-contain"
-          />
-        ) : (
+        <img 
+          src={logoUrl || "https://fmwbtytzecwneovwerrx.supabase.co/storage/v1/object/public/company-logos/master-footwear-logo.png"} 
+          alt="Master Footwear Logo" 
+          className="h-32 w-auto mx-auto object-contain"
+          onError={(e) => {
+            const target = e.target as HTMLImageElement;
+            target.style.display = 'none';
+          }}
+        />
+        {!logoUrl && (
           <div className="h-32 w-32 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
             <span className="text-4xl font-bold text-primary">MF</span>
           </div>
