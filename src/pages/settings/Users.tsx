@@ -90,7 +90,7 @@ export default function Users() {
 
       setCompanyId(profile.company_id);
 
-      // Fetch users in the same company
+      // Fetch ALL users in the same company (including inactive ones for pending)
       const { data: companyProfiles } = await supabase
         .from('profiles')
         .select('*')
@@ -100,8 +100,7 @@ export default function Users() {
       const { data: pendingProfiles } = await supabase
         .from('profiles')
         .select('*')
-        .is('company_id', null)
-        .eq('active', true);
+        .is('company_id', null);
 
       // Combine both lists
       const allProfiles = [...(companyProfiles || []), ...(pendingProfiles || [])];
@@ -232,9 +231,9 @@ export default function Users() {
     }
   };
 
-  // Pending = users with no roles (either in company or new signups without company_id)
-  const pendingUsers = users.filter(u => u.roles.length === 0 && u.active);
-  const activeUsers = users.filter(u => u.roles.length > 0 && u.company_id);
+  // Pending = users with no roles (regardless of active status - they need permission assignment)
+  const pendingUsers = users.filter(u => u.roles.length === 0);
+  const activeUsers = users.filter(u => u.roles.length > 0 && u.company_id && u.active);
 
   if (loading || roleLoading) {
     return (
