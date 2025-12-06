@@ -3,12 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, AlertTriangle, Package, Store } from "lucide-react";
+import { Search, Plus, AlertTriangle, Store, MoreHorizontal, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StockBySizeDialog } from "@/components/inventory/StockBySizeDialog";
 import { Badge } from "@/components/ui/badge";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 interface StockItem {
   id: string;
   item_id: string;
@@ -136,49 +141,7 @@ export default function StoreStock() {
   const lowStockItems = filteredStock.filter(item => item.hasLowStock);
   const totalPairs = filteredStock.reduce((sum, item) => sum + item.totalStock, 0);
 
-  const updateStockQuantity = async (itemId: string, size: string, newQty: number) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase.from("profiles").select("company_id").eq("id", user.id).single();
-      if (!profile?.company_id) throw new Error("No company assigned");
-
-      const { data: stockRecord } = await supabase
-        .from("stock_by_size")
-        .select("id")
-        .eq("item_id", itemId)
-        .eq("size", size)
-        .eq("stock_type", "store")
-        .eq("company_id", profile.company_id)
-        .maybeSingle();
-
-      if (stockRecord) {
-        await supabase
-          .from("stock_by_size")
-          .update({
-            quantity: newQty,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", stockRecord.id);
-      } else {
-        await supabase.from("stock_by_size").insert({
-          company_id: profile.company_id,
-          item_id: itemId,
-          size: size,
-          quantity: newQty,
-          stock_type: "store",
-        });
-      }
-
-      fetchStock();
-      toast.success("Stock updated");
-    } catch (error: any) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleManageStock = (item: StockItem) => {
+  const handleEditStock = (item: StockItem) => {
     setSelectedItem({
       id: item.item_id,
       code: item.code,
@@ -329,15 +292,7 @@ export default function StoreStock() {
                               key={size} 
                               className={`text-center ${isNegative ? 'text-red-600 font-bold' : isLow ? 'text-orange-600' : ''}`}
                             >
-                              <Input
-                                type="number"
-                                value={qty}
-                                onChange={async (e) => {
-                                  const newQty = parseFloat(e.target.value) || 0;
-                                  await updateStockQuantity(item.item_id, size, newQty);
-                                }}
-                                className="w-16 h-8 text-center"
-                              />
+                              {qty}
                             </TableCell>
                           );
                         })}
@@ -348,14 +303,19 @@ export default function StoreStock() {
                           {item.stockValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleManageStock(item)}
-                            title="Manage Stock"
-                          >
-                            <Package className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleEditStock(item)}>
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit Stock
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))
