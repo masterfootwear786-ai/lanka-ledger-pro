@@ -7,11 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Sparkles, Mail, Lock, User, ArrowRight } from 'lucide-react';
+import { Sparkles, Mail, Lock, User, ArrowRight, UserCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const [mode, setMode] = useState<'login' | 'signup' | 'reset' | 'update'>('login');
+  const [loginType, setLoginType] = useState<'email' | 'username'>('email');
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,17 +37,61 @@ const Auth = () => {
     }
   }, [user, navigate, mode]);
 
+  const handleUsernameLogin = async () => {
+    // Lookup email by username
+    const { data, error } = await supabase.rpc('get_user_by_username', {
+      p_username: username.toLowerCase().trim()
+    });
+
+    if (error || !data || data.length === 0) {
+      toast.error('Invalid username');
+      return null;
+    }
+
+    return data[0].email;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
       if (mode === 'login') {
-        const { error } = await signIn(email, password);
+        let loginEmail = email;
+
+        // If using username login, lookup the email first
+        if (loginType === 'username') {
+          const foundEmail = await handleUsernameLogin();
+          if (!foundEmail) {
+            setLoading(false);
+            return;
+          }
+          loginEmail = foundEmail;
+        }
+
+        const { error } = await signIn(loginEmail, password);
         if (error) {
           console.error('Login error:', error);
           toast.error(error.message || t('auth.loginError'));
         } else {
+          // Log login activity
+          const { data: { user: loggedInUser } } = await supabase.auth.getUser();
+          if (loggedInUser) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('company_id')
+              .eq('id', loggedInUser.id)
+              .single();
+
+            if (profile?.company_id) {
+              await supabase.from('login_history').insert({
+                user_id: loggedInUser.id,
+                company_id: profile.company_id,
+                user_agent: navigator.userAgent,
+              });
+            }
+          }
+
           toast.success(t('auth.welcomeBack'));
           navigate('/');
         }
@@ -137,7 +185,54 @@ const Auth = () => {
               </div>
             )}
             
-            {(mode === 'login' || mode === 'signup' || mode === 'reset') && (
+            {mode === 'login' && (
+              <Tabs value={loginType} onValueChange={(v) => setLoginType(v as 'email' | 'username')} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="email" className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    Email
+                  </TabsTrigger>
+                  <TabsTrigger value="username" className="flex items-center gap-2">
+                    <UserCircle className="h-4 w-4" />
+                    Username
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="email" className="space-y-2 mt-0">
+                  <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required={loginType === 'email'}
+                      className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20"
+                      placeholder="Enter your email"
+                    />
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="username" className="space-y-2 mt-0">
+                  <Label htmlFor="username" className="text-sm font-medium">Username</Label>
+                  <div className="relative">
+                    <UserCircle className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required={loginType === 'username'}
+                      className="pl-10 h-11 bg-background/50 border-border/50 focus:border-primary focus:ring-primary/20"
+                      placeholder="Enter your username"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+            
+            {(mode === 'signup' || mode === 'reset') && (
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-sm font-medium">{t('auth.email')}</Label>
                 <div className="relative">

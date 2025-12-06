@@ -27,9 +27,11 @@ import { Separator } from "@/components/ui/separator";
 const formSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
+  username: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
   active: z.boolean(),
   language: z.string(),
+  is_sales_rep: z.boolean(),
   roles: z.object({
     admin: z.boolean(),
     accountant: z.boolean(),
@@ -102,9 +104,11 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     defaultValues: {
       full_name: "",
       email: "",
+      username: "",
       password: "",
       active: true,
       language: "en",
+      is_sales_rep: false,
       roles: {
         admin: false,
         accountant: false,
@@ -153,9 +157,11 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         form.reset({
           full_name: user.full_name || "",
           email: user.email || "",
+          username: user.username || "",
           password: "",
           active: user.active ?? true,
           language: user.language || "en",
+          is_sales_rep: user.is_sales_rep || false,
           roles: {
             admin: user.roles?.includes("admin") || false,
             accountant: user.roles?.includes("accountant") || false,
@@ -169,9 +175,11 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         form.reset({
           full_name: "",
           email: "",
+          username: "",
           password: "",
           active: true,
           language: "en",
+          is_sales_rep: false,
           roles: {
             admin: false,
             accountant: false,
@@ -239,7 +247,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
         userId = authData.user.id;
 
-        // Update the new user's profile with company ID
+        // Update the new user's profile with company ID and username
         const { error: profileUpdateError } = await supabase
           .from("profiles")
           .update({
@@ -247,6 +255,8 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             full_name: data.full_name,
             active: data.active,
             language: data.language,
+            username: data.username ? data.username.toLowerCase().trim() : null,
+            is_sales_rep: data.is_sales_rep,
           })
           .eq("id", userId);
 
@@ -260,6 +270,8 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             full_name: data.full_name,
             active: data.active,
             language: data.language,
+            username: data.username ? data.username.toLowerCase().trim() : null,
+            is_sales_rep: data.is_sales_rep,
           })
           .eq("id", user.id);
 
@@ -462,21 +474,40 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               />
             </div>
 
-            {!user && (
+            <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="password"
+                name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password *</FormLabel>
+                    <FormLabel>Username (for login)</FormLabel>
                     <FormControl>
-                      <Input {...field} type="password" placeholder="Minimum 6 characters" />
+                      <Input {...field} placeholder="e.g. john_doe" />
                     </FormControl>
                     <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      Optional. Sales reps can login with this username.
+                    </p>
                   </FormItem>
                 )}
               />
-            )}
+
+              {!user && (
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password *</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" placeholder="Minimum 6 characters" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
 
             <FormField
               control={form.control}
@@ -492,26 +523,49 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="active"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between space-y-0 rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Active Status</FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Enable or disable this user account
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="is_sales_rep"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between space-y-0 rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Sales Representative</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Mark as sales rep for activity tracking
+                      </div>
                     </div>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between space-y-0 rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Active Status</FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Enable or disable this user account
+                      </div>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <Separator />
 
