@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, AlertTriangle, Store, MoreHorizontal, Pencil } from "lucide-react";
+import { Search, Plus, AlertTriangle, Store, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StockBySizeDialog } from "@/components/inventory/StockBySizeDialog";
@@ -150,6 +150,28 @@ export default function StoreStock() {
       low_stock_threshold: item.low_stock_threshold
     });
     setStockDialogOpen(true);
+  };
+
+  const handleDeleteStock = async (item: StockItem) => {
+    if (!confirm(`Are you sure you want to delete all store stock for ${item.code} - ${item.color}?`)) {
+      return;
+    }
+
+    try {
+      // Delete all store stock records for this item
+      const { error } = await supabase
+        .from("stock_by_size")
+        .delete()
+        .eq("item_id", item.item_id)
+        .eq("stock_type", "store");
+
+      if (error) throw error;
+
+      toast.success("Store stock deleted successfully");
+      fetchStock();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -313,6 +335,13 @@ export default function StoreStock() {
                               <DropdownMenuItem onClick={() => handleEditStock(item)}>
                                 <Pencil className="h-4 w-4 mr-2" />
                                 Edit Stock
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDeleteStock(item)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete Stock
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
