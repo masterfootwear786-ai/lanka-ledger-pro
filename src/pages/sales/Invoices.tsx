@@ -450,28 +450,62 @@ export default function Invoices() {
                   </tr>
                 </thead>
                 <tbody>
-                  ${Object.values(groupedLines).map((line: any) => {
-                    const parts = (line.description || '').split(' - ');
-                    const artNo = parts[0] || '-';
-                    const color = parts[1] || '-';
-                    const totalPairs = (line.sizes[39] || 0) + (line.sizes[40] || 0) + (line.sizes[41] || 0) + (line.sizes[42] || 0) + (line.sizes[43] || 0) + (line.sizes[44] || 0) + (line.sizes[45] || 0);
-                    return `
-                    <tr>
-                      <td>${artNo}</td>
-                      <td>${line.description}</td>
-                      <td class="size-col">${color}</td>
-                      <td class="size-col">${line.sizes[39] || '-'}</td>
-                      <td class="size-col">${line.sizes[40] || '-'}</td>
-                      <td class="size-col">${line.sizes[41] || '-'}</td>
-                      <td class="size-col">${line.sizes[42] || '-'}</td>
-                      <td class="size-col">${line.sizes[43] || '-'}</td>
-                      <td class="size-col">${line.sizes[44] || '-'}</td>
-                      <td class="size-col">${line.sizes[45] || '-'}</td>
-                      <td class="total-pairs">${totalPairs}</td>
-                      <td class="price-col">${line.unit_price?.toFixed(2)}</td>
-                      <td class="price-col">${line.line_total?.toFixed(2)}</td>
-                    </tr>
-                  `}).join('')}
+                  ${(() => {
+                    const groupedArray = Object.values(groupedLines) as any[];
+                    // Calculate grand totals
+                    const grandTotals = groupedArray.reduce((totals: any, line: any) => {
+                      totals.sizes[39] += line.sizes[39] || 0;
+                      totals.sizes[40] += line.sizes[40] || 0;
+                      totals.sizes[41] += line.sizes[41] || 0;
+                      totals.sizes[42] += line.sizes[42] || 0;
+                      totals.sizes[43] += line.sizes[43] || 0;
+                      totals.sizes[44] += line.sizes[44] || 0;
+                      totals.sizes[45] += line.sizes[45] || 0;
+                      totals.lineTotal += line.line_total || 0;
+                      return totals;
+                    }, { sizes: { 39: 0, 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0 }, lineTotal: 0 });
+                    
+                    const grandTotalPairs = grandTotals.sizes[39] + grandTotals.sizes[40] + grandTotals.sizes[41] + grandTotals.sizes[42] + grandTotals.sizes[43] + grandTotals.sizes[44] + grandTotals.sizes[45];
+                    
+                    const rowsHtml = groupedArray.map((line: any) => {
+                      const parts = (line.description || '').split(' - ');
+                      const artNo = parts[0] || '-';
+                      const color = parts[1] || '-';
+                      const totalPairs = (line.sizes[39] || 0) + (line.sizes[40] || 0) + (line.sizes[41] || 0) + (line.sizes[42] || 0) + (line.sizes[43] || 0) + (line.sizes[44] || 0) + (line.sizes[45] || 0);
+                      return '<tr>' +
+                        '<td>' + artNo + '</td>' +
+                        '<td>' + line.description + '</td>' +
+                        '<td class="size-col">' + color + '</td>' +
+                        '<td class="size-col">' + (line.sizes[39] || '-') + '</td>' +
+                        '<td class="size-col">' + (line.sizes[40] || '-') + '</td>' +
+                        '<td class="size-col">' + (line.sizes[41] || '-') + '</td>' +
+                        '<td class="size-col">' + (line.sizes[42] || '-') + '</td>' +
+                        '<td class="size-col">' + (line.sizes[43] || '-') + '</td>' +
+                        '<td class="size-col">' + (line.sizes[44] || '-') + '</td>' +
+                        '<td class="size-col">' + (line.sizes[45] || '-') + '</td>' +
+                        '<td class="total-pairs">' + totalPairs + '</td>' +
+                        '<td class="price-col">' + (line.unit_price?.toFixed(2) || '0.00') + '</td>' +
+                        '<td class="price-col">' + (line.line_total?.toFixed(2) || '0.00') + '</td>' +
+                      '</tr>';
+                    }).join('');
+                    
+                    // Add total row
+                    const totalRowHtml = '<tr style="background: #e0e7ff; font-weight: bold; border-top: 2px solid #333;">' +
+                      '<td colspan="3" style="font-size: 12px; color: #4338ca;">TOTAL</td>' +
+                      '<td class="size-col" style="color: #4338ca;">' + (grandTotals.sizes[39] || '-') + '</td>' +
+                      '<td class="size-col" style="color: #4338ca;">' + (grandTotals.sizes[40] || '-') + '</td>' +
+                      '<td class="size-col" style="color: #4338ca;">' + (grandTotals.sizes[41] || '-') + '</td>' +
+                      '<td class="size-col" style="color: #4338ca;">' + (grandTotals.sizes[42] || '-') + '</td>' +
+                      '<td class="size-col" style="color: #4338ca;">' + (grandTotals.sizes[43] || '-') + '</td>' +
+                      '<td class="size-col" style="color: #4338ca;">' + (grandTotals.sizes[44] || '-') + '</td>' +
+                      '<td class="size-col" style="color: #4338ca;">' + (grandTotals.sizes[45] || '-') + '</td>' +
+                      '<td class="total-pairs" style="font-size: 13px; color: #4338ca;">' + grandTotalPairs + ' <span style="font-size: 9px; color: #666;">pairs</span></td>' +
+                      '<td class="price-col"></td>' +
+                      '<td class="price-col" style="font-size: 13px; color: #4338ca;">' + grandTotals.lineTotal.toFixed(2) + '</td>' +
+                    '</tr>';
+                    
+                    return rowsHtml + totalRowHtml;
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -951,7 +985,8 @@ export default function Invoices() {
                           acc[key].size_43 += line.size_43 || 0;
                           acc[key].size_44 += line.size_44 || 0;
                           acc[key].size_45 += line.size_45 || 0;
-                          acc[key].totalPairs += line.quantity || 0;
+                          // Calculate totalPairs from sizes
+                          acc[key].totalPairs = acc[key].size_39 + acc[key].size_40 + acc[key].size_41 + acc[key].size_42 + acc[key].size_43 + acc[key].size_44 + acc[key].size_45;
                           acc[key].lineTotal += line.line_total || 0;
                           
                           return acc;
@@ -960,17 +995,22 @@ export default function Invoices() {
                         const groupedArray = Object.values(groupedLines) as any[];
                         
                         // Calculate grand totals
-                        const grandTotals = groupedArray.reduce((totals, group) => ({
-                          size_39: totals.size_39 + (group.size_39 || 0),
-                          size_40: totals.size_40 + (group.size_40 || 0),
-                          size_41: totals.size_41 + (group.size_41 || 0),
-                          size_42: totals.size_42 + (group.size_42 || 0),
-                          size_43: totals.size_43 + (group.size_43 || 0),
-                          size_44: totals.size_44 + (group.size_44 || 0),
-                          size_45: totals.size_45 + (group.size_45 || 0),
-                          totalPairs: totals.totalPairs + (group.totalPairs || 0),
-                          lineTotal: totals.lineTotal + (group.lineTotal || 0),
-                        }), { size_39: 0, size_40: 0, size_41: 0, size_42: 0, size_43: 0, size_44: 0, size_45: 0, totalPairs: 0, lineTotal: 0 });
+                        const grandTotals = groupedArray.reduce((totals, group) => {
+                          const newTotals = {
+                            size_39: totals.size_39 + (group.size_39 || 0),
+                            size_40: totals.size_40 + (group.size_40 || 0),
+                            size_41: totals.size_41 + (group.size_41 || 0),
+                            size_42: totals.size_42 + (group.size_42 || 0),
+                            size_43: totals.size_43 + (group.size_43 || 0),
+                            size_44: totals.size_44 + (group.size_44 || 0),
+                            size_45: totals.size_45 + (group.size_45 || 0),
+                            totalPairs: 0,
+                            lineTotal: totals.lineTotal + (group.lineTotal || 0),
+                          };
+                          // Calculate totalPairs from size totals
+                          newTotals.totalPairs = newTotals.size_39 + newTotals.size_40 + newTotals.size_41 + newTotals.size_42 + newTotals.size_43 + newTotals.size_44 + newTotals.size_45;
+                          return newTotals;
+                        }, { size_39: 0, size_40: 0, size_41: 0, size_42: 0, size_43: 0, size_44: 0, size_45: 0, totalPairs: 0, lineTotal: 0 });
 
                         return (
                           <>
