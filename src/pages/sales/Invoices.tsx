@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Truck, Warehouse } from "lucide-react";
+import { Truck, Warehouse, Trash } from "lucide-react";
 
 type StatusFilter = "all" | "draft" | "approved" | "paid";
 
@@ -51,7 +51,7 @@ export default function Invoices() {
   const [invoiceToDelete, setInvoiceToDelete] = useState<any>(null);
   const [invoiceLines, setInvoiceLines] = useState<any[]>([]);
   const [companyData, setCompanyData] = useState<any>(null);
-  const [stockRestoreType, setStockRestoreType] = useState<'lorry' | 'store'>('lorry');
+  const [stockRestoreType, setStockRestoreType] = useState<'lorry' | 'store' | 'bin'>('lorry');
   const {
     isPasswordDialogOpen,
     setIsPasswordDialogOpen,
@@ -189,8 +189,8 @@ export default function Invoices() {
           .select("*")
           .eq("invoice_id", invoiceToDelete.id);
 
-        // Restore stock to the selected stock type
-        if (invoiceLines && invoiceLines.length > 0) {
+        // Only restore stock if NOT bin option selected
+        if (stockRestoreType !== 'bin' && invoiceLines && invoiceLines.length > 0) {
           for (const line of invoiceLines) {
             if (!line.item_id) continue;
 
@@ -266,11 +266,13 @@ export default function Invoices() {
           }
         }
 
-        // Update invoice lines with the selected stock_type for reference when restoring
-        await supabase
-          .from("invoice_lines")
-          .update({ stock_type: stockRestoreType })
-          .eq("invoice_id", invoiceToDelete.id);
+        // Update invoice lines with the selected stock_type for reference when restoring (skip for bin)
+        if (stockRestoreType !== 'bin') {
+          await supabase
+            .from("invoice_lines")
+            .update({ stock_type: stockRestoreType })
+            .eq("invoice_id", invoiceToDelete.id);
+        }
 
         // Soft delete invoice (keep lines intact for restore)
         const { error } = await supabase
@@ -278,15 +280,19 @@ export default function Invoices() {
           .update({
             deleted_at: new Date().toISOString(),
             deleted_by: user?.id,
-            stock_type: stockRestoreType
+            stock_type: stockRestoreType === 'bin' ? 'bin' : stockRestoreType
           })
           .eq("id", invoiceToDelete.id);
 
         if (error) throw error;
 
+        const successMessage = stockRestoreType === 'bin' 
+          ? 'Invoice moved to trash. Stock discarded (not restored to inventory).'
+          : `Invoice moved to trash and stock restored to ${stockRestoreType === 'lorry' ? 'Lorry Stock' : 'Warehouse'}.`;
+
         toast({
           title: "Success",
-          description: `Invoice moved to trash and stock restored to ${stockRestoreType === 'lorry' ? 'Lorry Stock' : 'Warehouse'}.`,
+          description: successMessage,
         });
 
         setDeleteDialogOpen(false);
@@ -1047,8 +1053,8 @@ export default function Invoices() {
                   </Label>
                   <RadioGroup 
                     value={stockRestoreType} 
-                    onValueChange={(value: 'lorry' | 'store') => setStockRestoreType(value)}
-                    className="grid grid-cols-2 gap-3"
+                    onValueChange={(value: 'lorry' | 'store' | 'bin') => setStockRestoreType(value)}
+                    className="grid grid-cols-3 gap-3"
                   >
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="lorry" id="restore-lorry" />
@@ -1070,9 +1076,21 @@ export default function Invoices() {
                         <span>Warehouse</span>
                       </Label>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="bin" id="restore-bin" />
+                      <Label 
+                        htmlFor="restore-bin" 
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <Trash className="h-4 w-4 text-destructive" />
+                        <span>Bin</span>
+                      </Label>
+                    </div>
                   </RadioGroup>
                   <p className="text-xs text-muted-foreground mt-2">
-                    Main stock will also be updated automatically.
+                    {stockRestoreType === 'bin' 
+                      ? 'Stock will be discarded and NOT restored to any inventory.'
+                      : 'Main stock will also be updated automatically.'}
                   </p>
                 </div>
               </div>
