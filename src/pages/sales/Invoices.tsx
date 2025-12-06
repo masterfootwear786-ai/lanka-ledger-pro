@@ -957,27 +957,67 @@ export default function Invoices() {
                           return acc;
                         }, {} as Record<string, any>);
 
-                        return Object.values(groupedLines).map((group: any, idx: number) => (
-                          <TableRow key={`${group.artNo}-${group.color}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
-                            <TableCell className="font-mono border-r">{group.artNo}</TableCell>
-                            <TableCell className="border-r">{group.description}</TableCell>
-                            <TableCell className="text-center border-r">{group.color}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.size_39 || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{group.size_40 || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.size_41 || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{group.size_42 || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.size_43 || "-"}</TableCell>
-                            <TableCell className="text-center border-r">{group.size_44 || "-"}</TableCell>
-                            <TableCell className="bg-primary/5 text-center border-r">{group.size_45 || "-"}</TableCell>
-                            <TableCell className="text-center font-semibold border-r">{group.totalPairs}</TableCell>
-                            <TableCell className="text-right border-r">
-                              {group.unitPrice ? group.unitPrice.toFixed(2) : "0.00"}
-                            </TableCell>
-                            <TableCell className="text-right font-semibold">
-                              {group.lineTotal ? group.lineTotal.toFixed(2) : "0.00"}
-                            </TableCell>
-                          </TableRow>
-                        ));
+                        const groupedArray = Object.values(groupedLines) as any[];
+                        
+                        // Calculate grand totals
+                        const grandTotals = groupedArray.reduce((totals, group) => ({
+                          size_39: totals.size_39 + (group.size_39 || 0),
+                          size_40: totals.size_40 + (group.size_40 || 0),
+                          size_41: totals.size_41 + (group.size_41 || 0),
+                          size_42: totals.size_42 + (group.size_42 || 0),
+                          size_43: totals.size_43 + (group.size_43 || 0),
+                          size_44: totals.size_44 + (group.size_44 || 0),
+                          size_45: totals.size_45 + (group.size_45 || 0),
+                          totalPairs: totals.totalPairs + (group.totalPairs || 0),
+                          lineTotal: totals.lineTotal + (group.lineTotal || 0),
+                        }), { size_39: 0, size_40: 0, size_41: 0, size_42: 0, size_43: 0, size_44: 0, size_45: 0, totalPairs: 0, lineTotal: 0 });
+
+                        return (
+                          <>
+                            {groupedArray.map((group: any, idx: number) => (
+                              <TableRow key={`${group.artNo}-${group.color}`} className={idx % 2 === 0 ? "bg-background" : "bg-muted/20"}>
+                                <TableCell className="font-mono border-r">{group.artNo}</TableCell>
+                                <TableCell className="border-r">{group.description}</TableCell>
+                                <TableCell className="text-center border-r">{group.color}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_39 || "-"}</TableCell>
+                                <TableCell className="text-center border-r">{group.size_40 || "-"}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_41 || "-"}</TableCell>
+                                <TableCell className="text-center border-r">{group.size_42 || "-"}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_43 || "-"}</TableCell>
+                                <TableCell className="text-center border-r">{group.size_44 || "-"}</TableCell>
+                                <TableCell className="bg-primary/5 text-center border-r">{group.size_45 || "-"}</TableCell>
+                                <TableCell className="text-center font-semibold border-r">{group.totalPairs}</TableCell>
+                                <TableCell className="text-right border-r">
+                                  {group.unitPrice ? group.unitPrice.toFixed(2) : "0.00"}
+                                </TableCell>
+                                <TableCell className="text-right font-semibold">
+                                  {group.lineTotal ? group.lineTotal.toFixed(2) : "0.00"}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            {/* Totals Row */}
+                            <TableRow className="bg-primary/10 font-bold border-t-2 border-primary">
+                              <TableCell className="border-r" colSpan={3}>
+                                <span className="text-primary text-base">TOTAL</span>
+                              </TableCell>
+                              <TableCell className="bg-primary/15 text-center border-r text-primary">{grandTotals.size_39 || "-"}</TableCell>
+                              <TableCell className="text-center border-r text-primary">{grandTotals.size_40 || "-"}</TableCell>
+                              <TableCell className="bg-primary/15 text-center border-r text-primary">{grandTotals.size_41 || "-"}</TableCell>
+                              <TableCell className="text-center border-r text-primary">{grandTotals.size_42 || "-"}</TableCell>
+                              <TableCell className="bg-primary/15 text-center border-r text-primary">{grandTotals.size_43 || "-"}</TableCell>
+                              <TableCell className="text-center border-r text-primary">{grandTotals.size_44 || "-"}</TableCell>
+                              <TableCell className="bg-primary/15 text-center border-r text-primary">{grandTotals.size_45 || "-"}</TableCell>
+                              <TableCell className="text-center border-r">
+                                <span className="text-lg text-primary">{grandTotals.totalPairs}</span>
+                                <span className="text-xs text-muted-foreground ml-1">pairs</span>
+                              </TableCell>
+                              <TableCell className="text-right border-r"></TableCell>
+                              <TableCell className="text-right">
+                                <span className="text-lg text-primary">{grandTotals.lineTotal.toFixed(2)}</span>
+                              </TableCell>
+                            </TableRow>
+                          </>
+                        );
                       })()}
                     </TableBody>
                   </Table>
