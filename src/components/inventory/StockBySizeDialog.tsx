@@ -116,47 +116,57 @@ export function StockBySizeDialog({ open, onOpenChange, preSelectedItem, stockTy
       // Update or insert stock for each size
       const sizes = ['39', '40', '41', '42', '43', '44', '45'] as const;
       
+      // Helper function to update or insert stock for a specific stock type
+      const updateStockForType = async (targetStockType: string, size: string, quantity: number) => {
+        const { data: existing } = await supabase
+          .from("stock_by_size")
+          .select("*")
+          .eq("item_id", formData.item_id)
+          .eq("size", size)
+          .eq("stock_type", targetStockType)
+          .maybeSingle();
+
+        if (existing) {
+          // Update existing
+          const newQuantity = existing.quantity + quantity;
+          const { error: updateError } = await supabase
+            .from("stock_by_size")
+            .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
+            .eq("id", existing.id);
+          
+          if (updateError) {
+            console.error("Update error:", updateError);
+            throw updateError;
+          }
+        } else {
+          // Insert new with stock type
+          const { error: insertError } = await supabase
+            .from("stock_by_size")
+            .insert({
+              company_id: profile.company_id,
+              item_id: formData.item_id,
+              size: size,
+              quantity: quantity,
+              stock_type: targetStockType
+            });
+          
+          if (insertError) {
+            console.error("Insert error:", insertError);
+            throw insertError;
+          }
+        }
+      };
+      
       for (const size of sizes) {
         const quantity = formData[`size_${size}` as keyof typeof formData] as number;
         
         if (quantity !== 0) {
-          // Check if record exists for this stock type
-          const { data: existing } = await supabase
-            .from("stock_by_size")
-            .select("*")
-            .eq("item_id", formData.item_id)
-            .eq("size", size)
-            .eq("stock_type", stockType)
-            .maybeSingle();
-
-          if (existing) {
-            // Update existing
-            const newQuantity = existing.quantity + quantity;
-            const { error: updateError } = await supabase
-              .from("stock_by_size")
-              .update({ quantity: newQuantity, updated_at: new Date().toISOString() })
-              .eq("id", existing.id);
-            
-            if (updateError) {
-              console.error("Update error:", updateError);
-              throw updateError;
-            }
-          } else {
-            // Insert new with stock type
-            const { error: insertError } = await supabase
-              .from("stock_by_size")
-              .insert({
-                company_id: profile.company_id,
-                item_id: formData.item_id,
-                size: size,
-                quantity: quantity,
-                stock_type: stockType
-              });
-            
-            if (insertError) {
-              console.error("Insert error:", insertError);
-              throw insertError;
-            }
+          // Update the target stock type (store/lorry/main)
+          await updateStockForType(stockType, size, quantity);
+          
+          // If adding to store or lorry, also add to main stock
+          if (stockType === 'store' || stockType === 'lorry') {
+            await updateStockForType('main', size, quantity);
           }
         }
       }
