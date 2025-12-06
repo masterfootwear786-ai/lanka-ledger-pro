@@ -144,20 +144,30 @@ export default function LorryStock() {
   const totalPairs = filteredStock.reduce((sum, item) => sum + item.totalStock, 0);
 
   const handleDeleteStock = async (item: StockItem) => {
-    if (!confirm(`Are you sure you want to delete all lorry stock for ${item.code} - ${item.color}?`)) {
+    if (!confirm(`Are you sure you want to delete all lorry stock for ${item.code} - ${item.color}? This will also delete from main stock.`)) {
       return;
     }
 
     try {
-      const { error } = await supabase
+      // Delete lorry stock
+      const { error: lorryError } = await supabase
         .from("stock_by_size")
         .delete()
         .eq("item_id", item.item_id)
         .eq("stock_type", "lorry");
 
-      if (error) throw error;
+      if (lorryError) throw lorryError;
 
-      toast.success("Lorry stock deleted successfully");
+      // Also delete from main stock
+      const { error: mainError } = await supabase
+        .from("stock_by_size")
+        .delete()
+        .eq("item_id", item.item_id)
+        .eq("stock_type", "main");
+
+      if (mainError) throw mainError;
+
+      toast.success("Lorry and main stock deleted successfully");
       fetchStock();
     } catch (error: any) {
       toast.error(error.message);
