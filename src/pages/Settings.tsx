@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download, Database, MapPin, Activity } from "lucide-react";
+import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download, Database, MapPin, Activity, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -17,6 +17,14 @@ export default function Settings() {
       icon: Download,
       path: "/install",
       color: "text-primary",
+      adminOnly: false,
+    },
+    {
+      title: "App Update",
+      description: "Check and install the latest app updates",
+      icon: RefreshCw,
+      path: "/settings/app-update",
+      color: "text-amber-600 dark:text-amber-400",
       adminOnly: false,
     },
     {
