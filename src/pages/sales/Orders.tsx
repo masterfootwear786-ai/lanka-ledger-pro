@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, Edit, Trash2, FileText, Printer } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useActionPassword } from "@/hooks/useActionPassword";
 import {
@@ -45,6 +47,7 @@ export default function Orders() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [orderToConvert, setOrderToConvert] = useState<any>(null);
   const [convertOrderLines, setConvertOrderLines] = useState<any[]>([]);
+  const [convertStockType, setConvertStockType] = useState<'lorry' | 'store'>('lorry');
   const {
     isPasswordDialogOpen,
     setIsPasswordDialogOpen,
@@ -394,7 +397,7 @@ export default function Orders() {
       // Generate invoice number
       const invoice_no = `INV-${Date.now()}`;
 
-      // Create invoice (initially as draft)
+      // Create invoice with stock_type
       const { data: newInvoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -410,6 +413,7 @@ export default function Orders() {
           grand_total: orderToConvert.grand_total,
           status: 'draft',
           posted: false,
+          stock_type: convertStockType,
           terms: orderToConvert.terms,
         })
         .select()
@@ -417,7 +421,7 @@ export default function Orders() {
 
       if (invoiceError) throw invoiceError;
 
-      // Create invoice lines from order lines
+      // Create invoice lines from order lines with stock_type
       const invoiceLines = convertOrderLines.map((line: any) => ({
         invoice_id: newInvoice.id,
         item_id: line.item_id,
@@ -436,6 +440,7 @@ export default function Orders() {
         tax_amount: line.tax_amount,
         line_total: line.line_total,
         account_id: line.account_id,
+        stock_type: convertStockType,
       }));
 
       const { error: invoiceLinesError } = await supabase
@@ -457,7 +462,7 @@ export default function Orders() {
 
       if (postError) throw postError;
 
-      toast.success(`Order ${orderToConvert.order_no} converted to Invoice ${invoice_no}`);
+      toast.success(`Order ${orderToConvert.order_no} converted to Invoice ${invoice_no}. Stock deducted from ${convertStockType === 'lorry' ? 'Lorry' : 'Warehouse'}.`);
       
       // Update order status
       await supabase
@@ -468,6 +473,7 @@ export default function Orders() {
       setConvertDialogOpen(false);
       setOrderToConvert(null);
       setConvertOrderLines([]);
+      setConvertStockType('lorry');
       fetchOrders();
     } catch (error: any) {
       toast.error("Error converting to invoice: " + error.message);
@@ -887,6 +893,42 @@ export default function Orders() {
 
           {orderToConvert && (
             <div className="space-y-6">
+              {/* Stock Type Selection */}
+              <div className="bg-muted/50 rounded-lg p-4 border">
+                <Label className="text-sm font-medium text-foreground mb-3 block">
+                  Stock to Deduct From:
+                </Label>
+                <RadioGroup 
+                  value={convertStockType} 
+                  onValueChange={(value: 'lorry' | 'store') => setConvertStockType(value)}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="lorry" id="convert-lorry" />
+                    <Label 
+                      htmlFor="convert-lorry" 
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Truck className="h-4 w-4 text-blue-500" />
+                      <span>Lorry Stock</span>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="store" id="convert-store" />
+                    <Label 
+                      htmlFor="convert-store" 
+                      className="flex items-center gap-2 cursor-pointer"
+                    >
+                      <Warehouse className="h-4 w-4 text-emerald-500" />
+                      <span>Warehouse</span>
+                    </Label>
+                  </div>
+                </RadioGroup>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Select which stock location to deduct from when converting to invoice.
+                </p>
+              </div>
+
               {/* Warning Message */}
               <div className="bg-primary/10 border-l-4 border-primary p-4 rounded">
                 <div className="flex items-start gap-3">
@@ -895,7 +937,7 @@ export default function Orders() {
                     <h4 className="font-semibold text-primary">Convert to Invoice Preview</h4>
                     <p className="text-sm text-muted-foreground mt-1">
                       Order <span className="font-mono font-bold">{orderToConvert.order_no}</span> will be converted to a new invoice.
-                      Stock will be automatically deducted when the invoice is created.
+                      Stock will be deducted from <span className="font-semibold">{convertStockType === 'lorry' ? 'Lorry Stock' : 'Warehouse'}</span>.
                     </p>
                   </div>
                 </div>
