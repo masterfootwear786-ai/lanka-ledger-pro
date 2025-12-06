@@ -73,14 +73,19 @@ export function UserPermissionsSheet({ companyId, onSuccess }: UserPermissionsSh
     setLoading(true);
 
     try {
+      const searchValue = emailOrUsername.trim().toLowerCase();
+      
       // Find user by email or username
-      const { data: profile, error: profileError } = await supabase
+      const { data: profiles, error: profileError } = await supabase
         .from("profiles")
-        .select("id, email, full_name, company_id")
-        .or(`email.eq.${emailOrUsername.trim()},username.eq.${emailOrUsername.trim()}`)
-        .single();
+        .select("id, email, full_name, company_id, username")
+        .or(`email.ilike.${searchValue},username.ilike.${searchValue}`);
 
-      if (profileError || !profile) {
+      if (profileError) throw profileError;
+
+      const profile = profiles?.[0];
+
+      if (!profile) {
         toast({
           title: "User Not Found",
           description: "No user found with that email or username. Please make sure the user has registered.",
