@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus, Clock } from "lucide-react";
 import { UserDialog } from "@/components/settings/UserDialog";
+import { UserPermissionsSheet } from "@/components/settings/UserPermissionsSheet";
 import { useUserRole, PERMISSION_MANAGER_EMAILS } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -255,10 +256,13 @@ export default function Users() {
           </p>
         </div>
         {canManagePermissions() && (
-          <Button onClick={handleAddUser}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add User
-          </Button>
+          <div className="flex gap-2">
+            <UserPermissionsSheet companyId={companyId} onSuccess={fetchUsers} />
+            <Button onClick={handleAddUser}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add User
+            </Button>
+          </div>
         )}
       </div>
 
