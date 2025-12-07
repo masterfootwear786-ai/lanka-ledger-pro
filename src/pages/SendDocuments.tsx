@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, MessageSquare, FileText, Download, Send, User, Receipt, RotateCcw, DollarSign } from "lucide-react";
+import { Mail, MessageSquare, FileText, Download, Send, User, Receipt, RotateCcw, DollarSign, Eye, Printer } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -461,7 +461,7 @@ export default function SendDocuments() {
       yPos = 20;
     }
 
-    // Receipts Section - use filtered receipts
+    // Receipts Section - use filtered receipts with detailed cheque info
     if (options.includeReceipts && filteredReceipts.length > 0) {
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
@@ -469,25 +469,144 @@ export default function SendDocuments() {
       doc.text(`Payments (${filteredReceipts.length})`, 14, yPos);
       
       yPos += 5;
-      const receiptData = filteredReceipts.map(rec => [
-        rec.receipt_no,
-        format(new Date(rec.receipt_date), "dd/MM/yyyy"),
-        rec.reference || "Cash",
-        `Rs. ${(rec.amount || 0).toLocaleString()}`,
-      ]);
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [["Receipt No", "Date", "Reference", "Amount"]],
-        body: receiptData,
-        theme: "striped",
-        headStyles: { fillColor: [34, 197, 94], fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 3 },
-        columnStyles: {
-          3: { halign: "right", fontStyle: "bold" },
-        },
+      
+      // Separate cash and cheque payments
+      const cashPayments: any[] = [];
+      const chequePayments: any[] = [];
+      
+      filteredReceipts.forEach(rec => {
+        const reference = rec.reference || "";
+        let chequeDetails: any[] = [];
+        
+        // Try to parse cheque details from reference
+        try {
+          const parsed = JSON.parse(reference);
+          if (Array.isArray(parsed)) {
+            chequeDetails = parsed;
+          }
+        } catch {
+          // Not JSON, check if it's a cheque reference
+        }
+        
+        if (chequeDetails.length > 0) {
+          chequeDetails.forEach((cheque: any) => {
+            chequePayments.push({
+              receiptNo: rec.receipt_no,
+              date: format(new Date(rec.receipt_date), "dd/MM/yyyy"),
+              chequeNo: cheque.chequeNumber || cheque.cheque_no || "-",
+              chequeDate: cheque.chequeDate ? format(new Date(cheque.chequeDate), "dd/MM/yyyy") : "-",
+              bank: cheque.bank || "-",
+              branch: cheque.branch || "-",
+              holder: cheque.accountHolder || cheque.holder || "-",
+              amount: cheque.amount || rec.amount || 0,
+              status: cheque.status || "pending",
+            });
+          });
+        } else if (reference.toLowerCase().includes("cheque")) {
+          chequePayments.push({
+            receiptNo: rec.receipt_no,
+            date: format(new Date(rec.receipt_date), "dd/MM/yyyy"),
+            chequeNo: reference,
+            chequeDate: "-",
+            bank: "-",
+            branch: "-",
+            holder: "-",
+            amount: rec.amount || 0,
+            status: rec.notes?.toLowerCase().includes("pending") ? "pending" : "cleared",
+          });
+        } else {
+          cashPayments.push({
+            receiptNo: rec.receipt_no,
+            date: format(new Date(rec.receipt_date), "dd/MM/yyyy"),
+            method: "Cash",
+            amount: rec.amount || 0,
+          });
+        }
       });
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+
+      // Cash Payments Table
+      if (cashPayments.length > 0) {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(34, 197, 94);
+        doc.text("Cash Payments", 14, yPos);
+        yPos += 3;
+        
+        const cashData = cashPayments.map(p => [
+          p.receiptNo,
+          p.date,
+          p.method,
+          `Rs. ${p.amount.toLocaleString()}`,
+        ]);
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [["Receipt No", "Date", "Method", "Amount"]],
+          body: cashData,
+          theme: "striped",
+          headStyles: { fillColor: [34, 197, 94], fontSize: 8 },
+          styles: { fontSize: 8, cellPadding: 2 },
+          columnStyles: {
+            3: { halign: "right", fontStyle: "bold" },
+          },
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 8;
+      }
+
+      // Cheque Payments Table
+      if (chequePayments.length > 0) {
+        if (yPos > 240) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(245, 158, 11);
+        doc.text("Cheque Payments", 14, yPos);
+        yPos += 3;
+        
+        const chequeData = chequePayments.map(p => [
+          p.receiptNo,
+          p.chequeNo,
+          p.chequeDate,
+          p.bank,
+          p.holder,
+          p.status.charAt(0).toUpperCase() + p.status.slice(1),
+          `Rs. ${p.amount.toLocaleString()}`,
+        ]);
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [["Receipt", "Cheque No", "Cheque Date", "Bank", "Holder", "Status", "Amount"]],
+          body: chequeData,
+          theme: "striped",
+          headStyles: { fillColor: [245, 158, 11], fontSize: 7 },
+          styles: { fontSize: 7, cellPadding: 2 },
+          columnStyles: {
+            0: { cellWidth: 20 },
+            1: { cellWidth: 25 },
+            2: { cellWidth: 22 },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 30 },
+            5: { cellWidth: 18 },
+            6: { halign: "right", fontStyle: "bold", cellWidth: 25 },
+          },
+          didParseCell: function(data) {
+            if (data.section === 'body' && data.column.index === 5) {
+              const status = (data.cell.raw as string || '').toLowerCase();
+              if (status === 'pending') {
+                data.cell.styles.textColor = [245, 158, 11];
+              } else if (status === 'passed' || status === 'cleared') {
+                data.cell.styles.textColor = [34, 197, 94];
+              } else if (status === 'returned') {
+                data.cell.styles.textColor = [239, 68, 68];
+              }
+            }
+          }
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
     }
 
     // Check for new page
@@ -615,6 +734,28 @@ export default function SendDocuments() {
     if (doc) {
       doc.save(`Statement_${selectedContactData?.code}_${format(new Date(), "yyyy-MM-dd")}.pdf`);
       toast({ description: "PDF downloaded successfully" });
+    }
+  };
+
+  const handlePreviewPDF = async () => {
+    const doc = await generateCustomerStatementPDF();
+    if (doc) {
+      const pdfUrl = doc.output("bloburl");
+      window.open(pdfUrl, "_blank");
+    }
+  };
+
+  const handlePrint = async () => {
+    const doc = await generateCustomerStatementPDF();
+    if (doc) {
+      const pdfBlob = doc.output("blob");
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(pdfUrl, "_blank");
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
     }
   };
 
@@ -1064,10 +1205,28 @@ Thank you for your business!
             <CardContent>
               <div className="flex flex-wrap gap-3">
                 <Button
+                  onClick={handlePreviewPDF}
+                  disabled={!selectedContact}
+                  variant="outline"
+                  className="flex-1 min-w-[120px]"
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  PDF Preview
+                </Button>
+                <Button
+                  onClick={handlePrint}
+                  disabled={!selectedContact}
+                  variant="outline"
+                  className="flex-1 min-w-[120px]"
+                >
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print
+                </Button>
+                <Button
                   onClick={handleDownloadPDF}
                   disabled={!selectedContact}
                   variant="outline"
-                  className="flex-1 min-w-[150px]"
+                  className="flex-1 min-w-[120px]"
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download PDF
@@ -1075,19 +1234,19 @@ Thank you for your business!
                 <Button
                   onClick={handleSendEmail}
                   disabled={!selectedContact || loading}
-                  className="flex-1 min-w-[150px]"
+                  className="flex-1 min-w-[120px]"
                 >
                   <Mail className="mr-2 h-4 w-4" />
-                  {loading ? "Sending..." : "Send via Email"}
+                  {loading ? "Sending..." : "Email"}
                 </Button>
                 <Button
                   onClick={handleSendWhatsApp}
                   disabled={!selectedContact}
                   variant="secondary"
-                  className="flex-1 min-w-[150px]"
+                  className="flex-1 min-w-[120px]"
                 >
                   <MessageSquare className="mr-2 h-4 w-4" />
-                  Send via WhatsApp
+                  WhatsApp
                 </Button>
               </div>
             </CardContent>
