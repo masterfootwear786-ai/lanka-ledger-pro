@@ -45,7 +45,11 @@ export default function SendDocuments() {
     includeReceipts: true,
     includeReturnNotes: true,
     includeOutstanding: true,
+    includeItems: false,
   });
+  
+  // Invoice line items for detailed view
+  const [invoiceLineItems, setInvoiceLineItems] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -109,10 +113,10 @@ export default function SendDocuments() {
   const fetchCustomerDetails = async () => {
     if (!selectedContact) return;
 
-    // Fetch invoices
+    // Fetch invoices with line items
     const { data: invoicesData } = await supabase
       .from("invoices")
-      .select("*")
+      .select("*, invoice_lines(*, items(*))")
       .eq("customer_id", selectedContact)
       .order("invoice_date", { ascending: false });
 
@@ -123,16 +127,30 @@ export default function SendDocuments() {
       .eq("customer_id", selectedContact)
       .order("receipt_date", { ascending: false });
 
-    // Fetch return notes
+    // Fetch return notes with line items
     const { data: returnNotesData } = await supabase
       .from("return_notes")
-      .select("*")
+      .select("*, return_note_lines(*, items(*))")
       .eq("customer_id", selectedContact)
       .order("return_date", { ascending: false });
 
     setCustomerInvoices(invoicesData || []);
     setCustomerReceipts(receiptsData || []);
     setCustomerReturnNotes(returnNotesData || []);
+
+    // Extract all line items for preview
+    const allLineItems: any[] = [];
+    invoicesData?.forEach(inv => {
+      inv.invoice_lines?.forEach((line: any) => {
+        allLineItems.push({
+          ...line,
+          docType: 'Invoice',
+          docNo: inv.invoice_no,
+          docDate: inv.invoice_date,
+        });
+      });
+    });
+    setInvoiceLineItems(allLineItems);
 
     // Calculate stats
     const totalInvoiced = invoicesData?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
@@ -172,12 +190,32 @@ export default function SendDocuments() {
   const selectedContactData = contacts.find((c) => c.id === selectedContact);
   const selectedDocumentData = documents.find((d) => d.id === selectedDocument);
 
-  const generateCustomerStatementPDF = () => {
+  const generateCustomerStatementPDF = async () => {
     if (!selectedContactData) return null;
 
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     let yPos = 15;
+
+    // Add logo if available
+    if (company?.logo_url) {
+      try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        await new Promise<void>((resolve, reject) => {
+          img.onload = () => resolve();
+          img.onerror = () => reject();
+          img.src = company.logo_url;
+        });
+        
+        // Add logo to header
+        const logoWidth = 30;
+        const logoHeight = 20;
+        doc.addImage(img, "PNG", 14, 8, logoWidth, logoHeight);
+      } catch (e) {
+        console.log("Could not load logo");
+      }
+    }
 
     // Header
     doc.setFillColor(30, 41, 59);
@@ -186,11 +224,13 @@ export default function SendDocuments() {
     doc.setFontSize(22);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(255, 255, 255);
-    doc.text(company?.name || "MASTER FOOTWEAR (PVT) LTD", pageWidth / 2, 18, { align: "center" });
+    const headerX = company?.logo_url ? 50 : pageWidth / 2;
+    const headerAlign = company?.logo_url ? "left" : "center";
+    doc.text(company?.name || "MASTER FOOTWEAR (PVT) LTD", headerX, 18, { align: headerAlign as any });
     
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text("Customer Statement", pageWidth / 2, 28, { align: "center" });
+    doc.text("Customer Statement", headerX, 28, { align: headerAlign as any });
 
     yPos = 45;
 
@@ -251,25 +291,82 @@ export default function SendDocuments() {
       doc.text(`Invoices (${customerInvoices.length})`, 14, yPos);
       
       yPos += 5;
-      const invoiceData = customerInvoices.map(inv => [
-        inv.invoice_no,
-        format(new Date(inv.invoice_date), "dd/MM/yyyy"),
-        inv.terms || "Credit",
-        `Rs. ${(inv.grand_total || 0).toLocaleString()}`,
-      ]);
+      
+      if (options.includeItems) {
+        // Detailed view with items per invoice
+        for (const inv of customerInvoices) {
+          // Check if need new page
+          if (yPos > 250) {
+            doc.addPage();
+            yPos = 20;
+          }
+          
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(59, 130, 246);
+          doc.text(`${inv.invoice_no} - ${format(new Date(inv.invoice_date), "dd/MM/yyyy")} - Rs. ${(inv.grand_total || 0).toLocaleString()}`, 14, yPos);
+          yPos += 4;
+          
+          const lineItems = inv.invoice_lines || [];
+          if (lineItems.length > 0) {
+            const itemData = lineItems.map((line: any) => [
+              line.items?.code || line.description || "-",
+              line.items?.color || "-",
+              line.size_39 || 0,
+              line.size_40 || 0,
+              line.size_41 || 0,
+              line.size_42 || 0,
+              line.size_43 || 0,
+              line.size_44 || 0,
+              line.size_45 || 0,
+              line.quantity || 0,
+              `Rs. ${(line.line_total || 0).toLocaleString()}`,
+            ]);
 
-      autoTable(doc, {
-        startY: yPos,
-        head: [["Invoice No", "Date", "Payment Type", "Amount"]],
-        body: invoiceData,
-        theme: "striped",
-        headStyles: { fillColor: [59, 130, 246], fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 3 },
-        columnStyles: {
-          3: { halign: "right", fontStyle: "bold" },
-        },
-      });
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+            autoTable(doc, {
+              startY: yPos,
+              head: [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Qty", "Total"]],
+              body: itemData,
+              theme: "grid",
+              headStyles: { fillColor: [59, 130, 246], fontSize: 6 },
+              styles: { fontSize: 6, cellPadding: 1.5 },
+              columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 20 },
+                10: { halign: "right", fontStyle: "bold" },
+              },
+            });
+            yPos = (doc as any).lastAutoTable.finalY + 6;
+          }
+        }
+      } else {
+        // Summary view
+        const invoiceData = customerInvoices.map(inv => [
+          inv.invoice_no,
+          format(new Date(inv.invoice_date), "dd/MM/yyyy"),
+          inv.terms || "Credit",
+          `Rs. ${(inv.grand_total || 0).toLocaleString()}`,
+        ]);
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [["Invoice No", "Date", "Payment Type", "Amount"]],
+          body: invoiceData,
+          theme: "striped",
+          headStyles: { fillColor: [59, 130, 246], fontSize: 8 },
+          styles: { fontSize: 8, cellPadding: 3 },
+          columnStyles: {
+            3: { halign: "right", fontStyle: "bold" },
+          },
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
+    }
+
+    // Check for new page
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
     }
 
     // Receipts Section
@@ -301,6 +398,12 @@ export default function SendDocuments() {
       yPos = (doc as any).lastAutoTable.finalY + 10;
     }
 
+    // Check for new page
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+
     // Return Notes Section
     if (options.includeReturnNotes && customerReturnNotes.length > 0) {
       doc.setFontSize(11);
@@ -309,29 +412,83 @@ export default function SendDocuments() {
       doc.text(`Return Notes (${customerReturnNotes.length})`, 14, yPos);
       
       yPos += 5;
-      const returnData = customerReturnNotes.map(rn => [
-        rn.return_note_no,
-        format(new Date(rn.return_date), "dd/MM/yyyy"),
-        rn.reason || "-",
-        `Rs. ${(rn.grand_total || 0).toLocaleString()}`,
-      ]);
+      
+      if (options.includeItems) {
+        // Detailed view with items per return note
+        for (const rn of customerReturnNotes) {
+          if (yPos > 250) {
+            doc.addPage();
+            yPos = 20;
+          }
+          
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(168, 85, 247);
+          doc.text(`${rn.return_note_no} - ${format(new Date(rn.return_date), "dd/MM/yyyy")} - Rs. ${(rn.grand_total || 0).toLocaleString()}`, 14, yPos);
+          yPos += 4;
+          
+          const lineItems = rn.return_note_lines || [];
+          if (lineItems.length > 0) {
+            const itemData = lineItems.map((line: any) => [
+              line.items?.code || line.description || "-",
+              line.items?.color || "-",
+              line.size_39 || 0,
+              line.size_40 || 0,
+              line.size_41 || 0,
+              line.size_42 || 0,
+              line.size_43 || 0,
+              line.size_44 || 0,
+              line.size_45 || 0,
+              line.quantity || 0,
+              `Rs. ${(line.line_total || 0).toLocaleString()}`,
+            ]);
 
-      autoTable(doc, {
-        startY: yPos,
-        head: [["Return Note No", "Date", "Reason", "Amount"]],
-        body: returnData,
-        theme: "striped",
-        headStyles: { fillColor: [168, 85, 247], fontSize: 8 },
-        styles: { fontSize: 8, cellPadding: 3 },
-        columnStyles: {
-          3: { halign: "right", fontStyle: "bold" },
-        },
-      });
-      yPos = (doc as any).lastAutoTable.finalY + 10;
+            autoTable(doc, {
+              startY: yPos,
+              head: [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Qty", "Total"]],
+              body: itemData,
+              theme: "grid",
+              headStyles: { fillColor: [168, 85, 247], fontSize: 6 },
+              styles: { fontSize: 6, cellPadding: 1.5 },
+              columnStyles: {
+                0: { cellWidth: 25 },
+                1: { cellWidth: 20 },
+                10: { halign: "right", fontStyle: "bold" },
+              },
+            });
+            yPos = (doc as any).lastAutoTable.finalY + 6;
+          }
+        }
+      } else {
+        const returnData = customerReturnNotes.map(rn => [
+          rn.return_note_no,
+          format(new Date(rn.return_date), "dd/MM/yyyy"),
+          rn.reason || "-",
+          `Rs. ${(rn.grand_total || 0).toLocaleString()}`,
+        ]);
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [["Return Note No", "Date", "Reason", "Amount"]],
+          body: returnData,
+          theme: "striped",
+          headStyles: { fillColor: [168, 85, 247], fontSize: 8 },
+          styles: { fontSize: 8, cellPadding: 3 },
+          columnStyles: {
+            3: { halign: "right", fontStyle: "bold" },
+          },
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
     }
 
     // Outstanding Summary
     if (options.includeOutstanding) {
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
       const finalY = yPos + 5;
       doc.setFillColor(254, 242, 242);
       doc.roundedRect(14, finalY, pageWidth - 28, 25, 2, 2, 'F');
@@ -361,8 +518,8 @@ export default function SendDocuments() {
     return doc;
   };
 
-  const handleDownloadPDF = () => {
-    const doc = generateCustomerStatementPDF();
+  const handleDownloadPDF = async () => {
+    const doc = await generateCustomerStatementPDF();
     if (doc) {
       doc.save(`Statement_${selectedContactData?.code}_${format(new Date(), "yyyy-MM-dd")}.pdf`);
       toast({ description: "PDF downloaded successfully" });
@@ -382,7 +539,7 @@ export default function SendDocuments() {
 
     setLoading(true);
     try {
-      const doc = generateCustomerStatementPDF();
+      const doc = await generateCustomerStatementPDF();
       if (!doc) throw new Error("Failed to generate PDF");
 
       // Convert PDF to base64
@@ -561,6 +718,17 @@ Thank you for your business!
                       />
                       <label htmlFor="outstanding" className="text-sm">Outstanding Summary</label>
                     </div>
+                    <Separator className="my-2" />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="includeItems"
+                        checked={options.includeItems}
+                        onCheckedChange={(checked) =>
+                          setOptions({ ...options, includeItems: checked as boolean })
+                        }
+                      />
+                      <label htmlFor="includeItems" className="text-sm font-medium">Include Items Details (Art No, Sizes)</label>
+                    </div>
                   </div>
                 </div>
 
@@ -576,9 +744,14 @@ Thank you for your business!
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Statement Preview</CardTitle>
+            <Card className="max-h-[600px] overflow-y-auto">
+              <CardHeader className="sticky top-0 bg-background z-10">
+                <CardTitle className="flex items-center gap-2">
+                  {company?.logo_url && (
+                    <img src={company.logo_url} alt="Logo" className="h-8 w-8 object-contain" />
+                  )}
+                  Statement Preview
+                </CardTitle>
                 <CardDescription>Summary of customer details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -625,10 +798,68 @@ Thank you for your business!
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-2">
-                      <Badge variant="outline">{customerInvoices.length} Invoices</Badge>
-                      <Badge variant="outline">{customerReceipts.length} Receipts</Badge>
-                      <Badge variant="outline">{customerReturnNotes.length} Returns</Badge>
+                      {options.includeInvoices && <Badge variant="outline">{customerInvoices.length} Invoices</Badge>}
+                      {options.includeReceipts && <Badge variant="outline">{customerReceipts.length} Receipts</Badge>}
+                      {options.includeReturnNotes && <Badge variant="outline">{customerReturnNotes.length} Returns</Badge>}
+                      {options.includeItems && <Badge variant="secondary">With Item Details</Badge>}
                     </div>
+
+                    {/* Invoice Items Preview when Include Items is selected */}
+                    {options.includeItems && options.includeInvoices && customerInvoices.length > 0 && (
+                      <div className="space-y-3 pt-4">
+                        <Separator />
+                        <h4 className="font-medium text-sm text-blue-600">Invoice Items Preview</h4>
+                        {customerInvoices.slice(0, 2).map((inv) => (
+                          <div key={inv.id} className="bg-muted/50 p-3 rounded-lg space-y-2">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="font-medium">{inv.invoice_no}</span>
+                              <span className="text-muted-foreground">{format(new Date(inv.invoice_date), "dd/MM/yyyy")}</span>
+                            </div>
+                            {inv.invoice_lines?.slice(0, 3).map((line: any, idx: number) => (
+                              <div key={idx} className="text-xs grid grid-cols-3 gap-2 text-muted-foreground">
+                                <span>Art: {line.items?.code || line.description || "-"}</span>
+                                <span>Color: {line.items?.color || "-"}</span>
+                                <span className="text-right">Rs. {(line.line_total || 0).toLocaleString()}</span>
+                              </div>
+                            ))}
+                            {(inv.invoice_lines?.length || 0) > 3 && (
+                              <p className="text-xs text-muted-foreground">+{inv.invoice_lines.length - 3} more items...</p>
+                            )}
+                          </div>
+                        ))}
+                        {customerInvoices.length > 2 && (
+                          <p className="text-xs text-muted-foreground text-center">+{customerInvoices.length - 2} more invoices in PDF...</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Return Note Items Preview when Include Items is selected */}
+                    {options.includeItems && options.includeReturnNotes && customerReturnNotes.length > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <h4 className="font-medium text-sm text-purple-600">Return Note Items Preview</h4>
+                        {customerReturnNotes.slice(0, 2).map((rn) => (
+                          <div key={rn.id} className="bg-purple-50 dark:bg-purple-950/30 p-3 rounded-lg space-y-2">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="font-medium">{rn.return_note_no}</span>
+                              <span className="text-muted-foreground">{format(new Date(rn.return_date), "dd/MM/yyyy")}</span>
+                            </div>
+                            {rn.return_note_lines?.slice(0, 3).map((line: any, idx: number) => (
+                              <div key={idx} className="text-xs grid grid-cols-3 gap-2 text-muted-foreground">
+                                <span>Art: {line.items?.code || line.description || "-"}</span>
+                                <span>Color: {line.items?.color || "-"}</span>
+                                <span className="text-right">Rs. {(line.line_total || 0).toLocaleString()}</span>
+                              </div>
+                            ))}
+                            {(rn.return_note_lines?.length || 0) > 3 && (
+                              <p className="text-xs text-muted-foreground">+{rn.return_note_lines.length - 3} more items...</p>
+                            )}
+                          </div>
+                        ))}
+                        {customerReturnNotes.length > 2 && (
+                          <p className="text-xs text-muted-foreground text-center">+{customerReturnNotes.length - 2} more return notes in PDF...</p>
+                        )}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
