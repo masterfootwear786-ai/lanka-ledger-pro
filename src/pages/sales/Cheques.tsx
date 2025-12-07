@@ -766,28 +766,37 @@ export default function Cheques() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Card className="p-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card className="p-3 bg-muted/50">
                 <p className="text-xs text-muted-foreground">Total Cheques</p>
-                <p className="text-lg font-bold">{sortedCheques.length}</p>
+                <p className="text-xl font-bold">{sortedCheques.length}</p>
+                <p className="text-sm font-medium">Rs. {totalAmount.toLocaleString()}</p>
               </Card>
-              <Card className="p-3">
-                <p className="text-xs text-muted-foreground">Pending</p>
-                <p className="text-lg font-bold text-orange-500">{pendingCount}</p>
+              <Card className="p-3 bg-green-500/10">
+                <p className="text-xs text-green-600">Passed</p>
+                <p className="text-xl font-bold text-green-700">{passedCount}</p>
+                <p className="text-sm font-medium text-green-600">Rs. {sortedCheques.filter(c => c.status === 'passed').reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()}</p>
               </Card>
-              <Card className="p-3">
-                <p className="text-xs text-muted-foreground">Passed</p>
-                <p className="text-lg font-bold text-green-500">{passedCount}</p>
+              <Card className="p-3 bg-red-500/10">
+                <p className="text-xs text-red-600">Returned</p>
+                <p className="text-xl font-bold text-red-700">{returnedCount}</p>
+                <p className="text-sm font-medium text-red-600">Rs. {sortedCheques.filter(c => c.status === 'returned').reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()}</p>
               </Card>
-              <Card className="p-3">
-                <p className="text-xs text-muted-foreground">Returned</p>
-                <p className="text-lg font-bold text-red-500">{returnedCount}</p>
-              </Card>
-              <Card className="p-3">
-                <p className="text-xs text-muted-foreground">Total Amount</p>
-                <p className="text-lg font-bold">Rs. {totalAmount.toLocaleString()}</p>
+              <Card className="p-3 bg-amber-500/10">
+                <p className="text-xs text-amber-600">Pending</p>
+                <p className="text-xl font-bold text-amber-700">{pendingCount}</p>
+                <p className="text-sm font-medium text-amber-600">Rs. {sortedCheques.filter(c => !c.status || c.status === 'pending').reduce((sum, c) => sum + Number(c.amount), 0).toLocaleString()}</p>
               </Card>
             </div>
+
+            {/* Selected Month Info */}
+            {selectedMonth !== 'all' && (
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+                <p className="text-sm font-medium text-primary">
+                  Showing cheques for: {monthlyStats.find(m => m.key === selectedMonth)?.label || selectedMonth}
+                </p>
+              </div>
+            )}
 
             {/* Cheques Table */}
             <div className="border rounded-lg overflow-x-auto">
