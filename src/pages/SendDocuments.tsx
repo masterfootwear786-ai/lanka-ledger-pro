@@ -48,6 +48,11 @@ export default function SendDocuments() {
     includeItems: false,
   });
   
+  // Individual selection for documents
+  const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState<Set<string>>(new Set());
+  const [selectedReturnNoteIds, setSelectedReturnNoteIds] = useState<Set<string>>(new Set());
+  
   // Invoice line items for detailed view
   const [invoiceLineItems, setInvoiceLineItems] = useState<any[]>([]);
 
@@ -137,6 +142,11 @@ export default function SendDocuments() {
     setCustomerInvoices(invoicesData || []);
     setCustomerReceipts(receiptsData || []);
     setCustomerReturnNotes(returnNotesData || []);
+    
+    // Auto-select all documents by default
+    setSelectedInvoiceIds(new Set((invoicesData || []).map((inv: any) => inv.id)));
+    setSelectedReceiptIds(new Set((receiptsData || []).map((rec: any) => rec.id)));
+    setSelectedReturnNoteIds(new Set((returnNotesData || []).map((rn: any) => rn.id)));
 
     // Extract all line items for preview
     const allLineItems: any[] = [];
@@ -189,6 +199,88 @@ export default function SendDocuments() {
   const documents = selectedType === "customer" ? invoices : bills;
   const selectedContactData = contacts.find((c) => c.id === selectedContact);
   const selectedDocumentData = documents.find((d) => d.id === selectedDocument);
+
+  // Get filtered documents based on selection
+  const filteredInvoices = customerInvoices.filter(inv => selectedInvoiceIds.has(inv.id));
+  const filteredReceipts = customerReceipts.filter(rec => selectedReceiptIds.has(rec.id));
+  const filteredReturnNotes = customerReturnNotes.filter(rn => selectedReturnNoteIds.has(rn.id));
+
+  // Calculate stats based on selected documents
+  const selectedStats = {
+    totalInvoiced: filteredInvoices.reduce((sum, inv) => sum + (inv.grand_total || 0), 0),
+    totalPaid: filteredReceipts.reduce((sum, rec) => {
+      const reference = rec.reference || "";
+      const notes = rec.notes || "";
+      const combined = `${reference} ${notes}`.toLowerCase();
+      const isCheque = combined.includes("cheque");
+      const isPending = combined.includes("pending");
+      return isCheque && isPending ? sum : sum + (rec.amount || 0);
+    }, 0),
+    pendingCheques: filteredReceipts.reduce((sum, rec) => {
+      const reference = rec.reference || "";
+      const notes = rec.notes || "";
+      const combined = `${reference} ${notes}`.toLowerCase();
+      const isCheque = combined.includes("cheque");
+      const isPending = combined.includes("pending");
+      return isCheque && isPending ? sum + (rec.amount || 0) : sum;
+    }, 0),
+    totalReturns: filteredReturnNotes.reduce((sum, rn) => sum + (rn.grand_total || 0), 0),
+    get outstanding() {
+      return Math.max(0, this.totalInvoiced - this.totalPaid - this.totalReturns);
+    }
+  };
+
+  // Toggle functions
+  const toggleInvoice = (id: string) => {
+    setSelectedInvoiceIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+
+  const toggleReceipt = (id: string) => {
+    setSelectedReceiptIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+
+  const toggleReturnNote = (id: string) => {
+    setSelectedReturnNoteIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
+      return newSet;
+    });
+  };
+
+  const selectAllInvoices = (select: boolean) => {
+    if (select) {
+      setSelectedInvoiceIds(new Set(customerInvoices.map(inv => inv.id)));
+    } else {
+      setSelectedInvoiceIds(new Set());
+    }
+  };
+
+  const selectAllReceipts = (select: boolean) => {
+    if (select) {
+      setSelectedReceiptIds(new Set(customerReceipts.map(rec => rec.id)));
+    } else {
+      setSelectedReceiptIds(new Set());
+    }
+  };
+
+  const selectAllReturnNotes = (select: boolean) => {
+    if (select) {
+      setSelectedReturnNoteIds(new Set(customerReturnNotes.map(rn => rn.id)));
+    } else {
+      setSelectedReturnNoteIds(new Set());
+    }
+  };
 
   const generateCustomerStatementPDF = async () => {
     if (!selectedContactData) return null;
@@ -260,10 +352,10 @@ export default function SendDocuments() {
     const cardWidth = (pageWidth - 38) / 4;
     
     const summaryCards = [
-      { label: "Total Invoiced", value: customerStats.totalInvoiced, color: [59, 130, 246] },
-      { label: "Total Paid", value: customerStats.totalPaid, color: [34, 197, 94] },
-      { label: "Total Returns", value: customerStats.totalReturns, color: [168, 85, 247] },
-      { label: "Outstanding", value: customerStats.outstanding, color: [239, 68, 68] },
+      { label: "Total Invoiced", value: selectedStats.totalInvoiced, color: [59, 130, 246] },
+      { label: "Total Paid", value: selectedStats.totalPaid, color: [34, 197, 94] },
+      { label: "Total Returns", value: selectedStats.totalReturns, color: [168, 85, 247] },
+      { label: "Outstanding", value: selectedStats.outstanding, color: [239, 68, 68] },
     ];
 
     summaryCards.forEach((card, i) => {
@@ -283,18 +375,18 @@ export default function SendDocuments() {
 
     yPos += 30;
 
-    // Invoices Section
-    if (options.includeInvoices && customerInvoices.length > 0) {
+    // Invoices Section - use filtered invoices
+    if (options.includeInvoices && filteredInvoices.length > 0) {
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 41, 59);
-      doc.text(`Invoices (${customerInvoices.length})`, 14, yPos);
+      doc.text(`Invoices (${filteredInvoices.length})`, 14, yPos);
       
       yPos += 5;
       
       if (options.includeItems) {
         // Detailed view with items per invoice
-        for (const inv of customerInvoices) {
+        for (const inv of filteredInvoices) {
           // Check if need new page
           if (yPos > 250) {
             doc.addPage();
@@ -341,7 +433,7 @@ export default function SendDocuments() {
         }
       } else {
         // Summary view
-        const invoiceData = customerInvoices.map(inv => [
+        const invoiceData = filteredInvoices.map(inv => [
           inv.invoice_no,
           format(new Date(inv.invoice_date), "dd/MM/yyyy"),
           inv.terms || "Credit",
@@ -369,15 +461,15 @@ export default function SendDocuments() {
       yPos = 20;
     }
 
-    // Receipts Section
-    if (options.includeReceipts && customerReceipts.length > 0) {
+    // Receipts Section - use filtered receipts
+    if (options.includeReceipts && filteredReceipts.length > 0) {
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 41, 59);
-      doc.text(`Payments (${customerReceipts.length})`, 14, yPos);
+      doc.text(`Payments (${filteredReceipts.length})`, 14, yPos);
       
       yPos += 5;
-      const receiptData = customerReceipts.map(rec => [
+      const receiptData = filteredReceipts.map(rec => [
         rec.receipt_no,
         format(new Date(rec.receipt_date), "dd/MM/yyyy"),
         rec.reference || "Cash",
@@ -404,18 +496,18 @@ export default function SendDocuments() {
       yPos = 20;
     }
 
-    // Return Notes Section
-    if (options.includeReturnNotes && customerReturnNotes.length > 0) {
+    // Return Notes Section - use filtered return notes
+    if (options.includeReturnNotes && filteredReturnNotes.length > 0) {
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 41, 59);
-      doc.text(`Return Notes (${customerReturnNotes.length})`, 14, yPos);
+      doc.text(`Return Notes (${filteredReturnNotes.length})`, 14, yPos);
       
       yPos += 5;
       
       if (options.includeItems) {
         // Detailed view with items per return note
-        for (const rn of customerReturnNotes) {
+        for (const rn of filteredReturnNotes) {
           if (yPos > 250) {
             doc.addPage();
             yPos = 20;
@@ -460,7 +552,7 @@ export default function SendDocuments() {
           }
         }
       } else {
-        const returnData = customerReturnNotes.map(rn => [
+        const returnData = filteredReturnNotes.map(rn => [
           rn.return_note_no,
           format(new Date(rn.return_date), "dd/MM/yyyy"),
           rn.reason || "-",
@@ -498,12 +590,12 @@ export default function SendDocuments() {
       doc.setTextColor(185, 28, 28);
       doc.text("Outstanding Balance", 18, finalY + 10);
       doc.setFontSize(14);
-      doc.text(`Rs. ${customerStats.outstanding.toLocaleString()}`, 18, finalY + 20);
+      doc.text(`Rs. ${selectedStats.outstanding.toLocaleString()}`, 18, finalY + 20);
 
-      if (customerStats.pendingCheques > 0) {
+      if (selectedStats.pendingCheques > 0) {
         doc.setFontSize(9);
         doc.setTextColor(194, 65, 12);
-        doc.text(`Pending Cheques: Rs. ${customerStats.pendingCheques.toLocaleString()}`, pageWidth - 18, finalY + 15, { align: "right" });
+        doc.text(`Pending Cheques: Rs. ${selectedStats.pendingCheques.toLocaleString()}`, pageWidth - 18, finalY + 15, { align: "right" });
       }
     }
 
@@ -550,7 +642,7 @@ export default function SendDocuments() {
           to: selectedContactData.email,
           customerName: selectedContactData.name,
           customerCode: selectedContactData.code,
-          stats: customerStats,
+          stats: selectedStats,
           message,
           pdfBase64,
           companyName: company?.name || "Master Footwear",
@@ -599,11 +691,11 @@ export default function SendDocuments() {
 Customer Statement for ${selectedContactData.name}
 
 📊 *Summary*
-• Total Invoiced: Rs. ${customerStats.totalInvoiced.toLocaleString()}
-• Total Paid: Rs. ${customerStats.totalPaid.toLocaleString()}
-• Total Returns: Rs. ${customerStats.totalReturns.toLocaleString()}
-• *Outstanding: Rs. ${customerStats.outstanding.toLocaleString()}*
-${customerStats.pendingCheques > 0 ? `• Pending Cheques: Rs. ${customerStats.pendingCheques.toLocaleString()}` : ""}
+• Total Invoiced: Rs. ${selectedStats.totalInvoiced.toLocaleString()}
+• Total Paid: Rs. ${selectedStats.totalPaid.toLocaleString()}
+• Total Returns: Rs. ${selectedStats.totalReturns.toLocaleString()}
+• *Outstanding: Rs. ${selectedStats.outstanding.toLocaleString()}*
+${selectedStats.pendingCheques > 0 ? `• Pending Cheques: Rs. ${selectedStats.pendingCheques.toLocaleString()}` : ""}
 
 ${message ? `\n📝 ${message}` : ""}
 
@@ -677,58 +769,151 @@ Thank you for your business!
 
                 <div className="space-y-3">
                   <Label>Include in Statement</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="invoices"
-                        checked={options.includeInvoices}
-                        onCheckedChange={(checked) =>
-                          setOptions({ ...options, includeInvoices: checked as boolean })
-                        }
-                      />
-                      <label htmlFor="invoices" className="text-sm">Invoices</label>
+                  
+                  {/* Invoices Section */}
+                  <div className="space-y-2 border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="invoices"
+                          checked={options.includeInvoices}
+                          onCheckedChange={(checked) =>
+                            setOptions({ ...options, includeInvoices: checked as boolean })
+                          }
+                        />
+                        <label htmlFor="invoices" className="text-sm font-medium">Invoices ({selectedInvoiceIds.size}/{customerInvoices.length})</label>
+                      </div>
+                      {options.includeInvoices && customerInvoices.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => selectAllInvoices(selectedInvoiceIds.size !== customerInvoices.length)}
+                        >
+                          {selectedInvoiceIds.size === customerInvoices.length ? "Deselect All" : "Select All"}
+                        </Button>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="receipts"
-                        checked={options.includeReceipts}
-                        onCheckedChange={(checked) =>
-                          setOptions({ ...options, includeReceipts: checked as boolean })
-                        }
-                      />
-                      <label htmlFor="receipts" className="text-sm">Payments/Receipts</label>
+                    {options.includeInvoices && customerInvoices.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto space-y-1 pl-6">
+                        {customerInvoices.map(inv => (
+                          <div key={inv.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`inv-${inv.id}`}
+                              checked={selectedInvoiceIds.has(inv.id)}
+                              onCheckedChange={() => toggleInvoice(inv.id)}
+                            />
+                            <label htmlFor={`inv-${inv.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                              {inv.invoice_no} - {format(new Date(inv.invoice_date), "dd/MM/yy")} - Rs. {(inv.grand_total || 0).toLocaleString()}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Receipts Section */}
+                  <div className="space-y-2 border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="receipts"
+                          checked={options.includeReceipts}
+                          onCheckedChange={(checked) =>
+                            setOptions({ ...options, includeReceipts: checked as boolean })
+                          }
+                        />
+                        <label htmlFor="receipts" className="text-sm font-medium">Payments ({selectedReceiptIds.size}/{customerReceipts.length})</label>
+                      </div>
+                      {options.includeReceipts && customerReceipts.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => selectAllReceipts(selectedReceiptIds.size !== customerReceipts.length)}
+                        >
+                          {selectedReceiptIds.size === customerReceipts.length ? "Deselect All" : "Select All"}
+                        </Button>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="returnNotes"
-                        checked={options.includeReturnNotes}
-                        onCheckedChange={(checked) =>
-                          setOptions({ ...options, includeReturnNotes: checked as boolean })
-                        }
-                      />
-                      <label htmlFor="returnNotes" className="text-sm">Return Notes</label>
+                    {options.includeReceipts && customerReceipts.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto space-y-1 pl-6">
+                        {customerReceipts.map(rec => (
+                          <div key={rec.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`rec-${rec.id}`}
+                              checked={selectedReceiptIds.has(rec.id)}
+                              onCheckedChange={() => toggleReceipt(rec.id)}
+                            />
+                            <label htmlFor={`rec-${rec.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                              {rec.receipt_no} - {format(new Date(rec.receipt_date), "dd/MM/yy")} - Rs. {(rec.amount || 0).toLocaleString()}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Return Notes Section */}
+                  <div className="space-y-2 border rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="returnNotes"
+                          checked={options.includeReturnNotes}
+                          onCheckedChange={(checked) =>
+                            setOptions({ ...options, includeReturnNotes: checked as boolean })
+                          }
+                        />
+                        <label htmlFor="returnNotes" className="text-sm font-medium">Return Notes ({selectedReturnNoteIds.size}/{customerReturnNotes.length})</label>
+                      </div>
+                      {options.includeReturnNotes && customerReturnNotes.length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => selectAllReturnNotes(selectedReturnNoteIds.size !== customerReturnNotes.length)}
+                        >
+                          {selectedReturnNoteIds.size === customerReturnNotes.length ? "Deselect All" : "Select All"}
+                        </Button>
+                      )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="outstanding"
-                        checked={options.includeOutstanding}
-                        onCheckedChange={(checked) =>
-                          setOptions({ ...options, includeOutstanding: checked as boolean })
-                        }
-                      />
-                      <label htmlFor="outstanding" className="text-sm">Outstanding Summary</label>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="includeItems"
-                        checked={options.includeItems}
-                        onCheckedChange={(checked) =>
-                          setOptions({ ...options, includeItems: checked as boolean })
-                        }
-                      />
-                      <label htmlFor="includeItems" className="text-sm font-medium">Include Items Details (Art No, Sizes)</label>
-                    </div>
+                    {options.includeReturnNotes && customerReturnNotes.length > 0 && (
+                      <div className="max-h-32 overflow-y-auto space-y-1 pl-6">
+                        {customerReturnNotes.map(rn => (
+                          <div key={rn.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`rn-${rn.id}`}
+                              checked={selectedReturnNoteIds.has(rn.id)}
+                              onCheckedChange={() => toggleReturnNote(rn.id)}
+                            />
+                            <label htmlFor={`rn-${rn.id}`} className="text-xs text-muted-foreground cursor-pointer">
+                              {rn.return_note_no} - {format(new Date(rn.return_date), "dd/MM/yy")} - Rs. {(rn.grand_total || 0).toLocaleString()}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Other Options */}
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="outstanding"
+                      checked={options.includeOutstanding}
+                      onCheckedChange={(checked) =>
+                        setOptions({ ...options, includeOutstanding: checked as boolean })
+                      }
+                    />
+                    <label htmlFor="outstanding" className="text-sm">Outstanding Summary</label>
+                  </div>
+                  <Separator className="my-2" />
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeItems"
+                      checked={options.includeItems}
+                      onCheckedChange={(checked) =>
+                        setOptions({ ...options, includeItems: checked as boolean })
+                      }
+                    />
+                    <label htmlFor="includeItems" className="text-sm font-medium">Include Items Details (Art No, Sizes)</label>
                   </div>
                 </div>
 
@@ -780,36 +965,36 @@ Thank you for your business!
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-blue-50 dark:bg-blue-950/30 p-3 rounded-lg">
-                        <p className="text-xs text-muted-foreground">Total Invoiced</p>
-                        <p className="font-bold text-blue-600">Rs. {customerStats.totalInvoiced.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Total Invoiced ({selectedInvoiceIds.size})</p>
+                        <p className="font-bold text-blue-600">Rs. {selectedStats.totalInvoiced.toLocaleString()}</p>
                       </div>
                       <div className="bg-green-50 dark:bg-green-950/30 p-3 rounded-lg">
-                        <p className="text-xs text-muted-foreground">Total Paid</p>
-                        <p className="font-bold text-green-600">Rs. {customerStats.totalPaid.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Total Paid ({selectedReceiptIds.size})</p>
+                        <p className="font-bold text-green-600">Rs. {selectedStats.totalPaid.toLocaleString()}</p>
                       </div>
                       <div className="bg-purple-50 dark:bg-purple-950/30 p-3 rounded-lg">
-                        <p className="text-xs text-muted-foreground">Returns</p>
-                        <p className="font-bold text-purple-600">Rs. {customerStats.totalReturns.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Returns ({selectedReturnNoteIds.size})</p>
+                        <p className="font-bold text-purple-600">Rs. {selectedStats.totalReturns.toLocaleString()}</p>
                       </div>
                       <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-lg">
                         <p className="text-xs text-muted-foreground">Outstanding</p>
-                        <p className="font-bold text-red-600">Rs. {customerStats.outstanding.toLocaleString()}</p>
+                        <p className="font-bold text-red-600">Rs. {selectedStats.outstanding.toLocaleString()}</p>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2 pt-2">
-                      {options.includeInvoices && <Badge variant="outline">{customerInvoices.length} Invoices</Badge>}
-                      {options.includeReceipts && <Badge variant="outline">{customerReceipts.length} Receipts</Badge>}
-                      {options.includeReturnNotes && <Badge variant="outline">{customerReturnNotes.length} Returns</Badge>}
+                      {options.includeInvoices && <Badge variant="outline">{selectedInvoiceIds.size} Invoices</Badge>}
+                      {options.includeReceipts && <Badge variant="outline">{selectedReceiptIds.size} Receipts</Badge>}
+                      {options.includeReturnNotes && <Badge variant="outline">{selectedReturnNoteIds.size} Returns</Badge>}
                       {options.includeItems && <Badge variant="secondary">With Item Details</Badge>}
                     </div>
 
                     {/* Invoice Items Preview when Include Items is selected */}
-                    {options.includeItems && options.includeInvoices && customerInvoices.length > 0 && (
+                    {options.includeItems && options.includeInvoices && filteredInvoices.length > 0 && (
                       <div className="space-y-3 pt-4">
                         <Separator />
                         <h4 className="font-medium text-sm text-blue-600">Invoice Items Preview</h4>
-                        {customerInvoices.slice(0, 2).map((inv) => (
+                        {filteredInvoices.slice(0, 2).map((inv) => (
                           <div key={inv.id} className="bg-muted/50 p-3 rounded-lg space-y-2">
                             <div className="flex justify-between items-center text-sm">
                               <span className="font-medium">{inv.invoice_no}</span>
@@ -827,17 +1012,17 @@ Thank you for your business!
                             )}
                           </div>
                         ))}
-                        {customerInvoices.length > 2 && (
-                          <p className="text-xs text-muted-foreground text-center">+{customerInvoices.length - 2} more invoices in PDF...</p>
+                        {filteredInvoices.length > 2 && (
+                          <p className="text-xs text-muted-foreground text-center">+{filteredInvoices.length - 2} more invoices in PDF...</p>
                         )}
                       </div>
                     )}
 
                     {/* Return Note Items Preview when Include Items is selected */}
-                    {options.includeItems && options.includeReturnNotes && customerReturnNotes.length > 0 && (
+                    {options.includeItems && options.includeReturnNotes && filteredReturnNotes.length > 0 && (
                       <div className="space-y-3 pt-2">
                         <h4 className="font-medium text-sm text-purple-600">Return Note Items Preview</h4>
-                        {customerReturnNotes.slice(0, 2).map((rn) => (
+                        {filteredReturnNotes.slice(0, 2).map((rn) => (
                           <div key={rn.id} className="bg-purple-50 dark:bg-purple-950/30 p-3 rounded-lg space-y-2">
                             <div className="flex justify-between items-center text-sm">
                               <span className="font-medium">{rn.return_note_no}</span>
@@ -855,8 +1040,8 @@ Thank you for your business!
                             )}
                           </div>
                         ))}
-                        {customerReturnNotes.length > 2 && (
-                          <p className="text-xs text-muted-foreground text-center">+{customerReturnNotes.length - 2} more return notes in PDF...</p>
+                        {filteredReturnNotes.length > 2 && (
+                          <p className="text-xs text-muted-foreground text-center">+{filteredReturnNotes.length - 2} more return notes in PDF...</p>
                         )}
                       </div>
                     )}
