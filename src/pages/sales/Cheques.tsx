@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, CreditCard, CheckCircle, XCircle, Clock, ArrowUpDown, ArrowUp, ArrowDown, Printer, FileDown, Eye, SortAsc, SortDesc } from "lucide-react";
+import { Search, CreditCard, CheckCircle, XCircle, Clock, ArrowUpDown, ArrowUp, ArrowDown, Printer, FileDown, Eye, SortAsc, SortDesc, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -19,9 +19,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuth } from "@/contexts/AuthContext";
+import { format, parse } from "date-fns";
 
 interface ChequeDetail {
   cheque_no: string;
@@ -58,6 +66,7 @@ export default function Cheques() {
   const [sortField, setSortField] = useState<SortField>('date');
   const [companyInfo, setCompanyInfo] = useState<any>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
 
   useEffect(() => {
     fetchCheques();
@@ -130,20 +139,8 @@ export default function Cheques() {
     }
   };
 
-  const filteredCheques = receiptsWithCheques.filter(receipt => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      receipt.receipt_no.toLowerCase().includes(searchLower) ||
-      receipt.customer?.name.toLowerCase().includes(searchLower) ||
-      receipt.cheques.some(cheque => 
-        cheque.cheque_no.toLowerCase().includes(searchLower) ||
-        cheque.cheque_bank?.toLowerCase().includes(searchLower) ||
-        cheque.cheque_holder?.toLowerCase().includes(searchLower)
-      )
-    );
-  });
-
-  const allCheques = filteredCheques.flatMap(receipt => 
+  // Get all cheques first (before filtering)
+  const allChequesRaw = receiptsWithCheques.flatMap(receipt => 
     receipt.cheques.map(cheque => ({
       ...cheque,
       receipt_id: receipt.id,
@@ -154,7 +151,53 @@ export default function Cheques() {
     }))
   );
 
-  const sortedCheques = [...allCheques].sort((a, b) => {
+  // Calculate month-wise cheque counts
+  const monthlyStats = useMemo(() => {
+    const stats: Record<string, { count: number; amount: number; label: string }> = {};
+    
+    allChequesRaw.forEach(cheque => {
+      if (cheque.cheque_date) {
+        const date = new Date(cheque.cheque_date);
+        const monthKey = format(date, 'yyyy-MM');
+        const monthLabel = format(date, 'MMMM yyyy');
+        
+        if (!stats[monthKey]) {
+          stats[monthKey] = { count: 0, amount: 0, label: monthLabel };
+        }
+        stats[monthKey].count++;
+        stats[monthKey].amount += Number(cheque.amount) || 0;
+      }
+    });
+    
+    // Sort by month (newest first)
+    return Object.entries(stats)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, value]) => ({ key, ...value }));
+  }, [allChequesRaw]);
+
+  // Filter by search term and month
+  const filteredCheques = allChequesRaw.filter(cheque => {
+    // Month filter
+    if (selectedMonth !== 'all') {
+      const chequeMonth = format(new Date(cheque.cheque_date), 'yyyy-MM');
+      if (chequeMonth !== selectedMonth) return false;
+    }
+    
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        cheque.receipt_no.toLowerCase().includes(searchLower) ||
+        cheque.customer_name?.toLowerCase().includes(searchLower) ||
+        cheque.cheque_no.toLowerCase().includes(searchLower) ||
+        cheque.cheque_bank?.toLowerCase().includes(searchLower) ||
+        cheque.cheque_holder?.toLowerCase().includes(searchLower)
+      );
+    }
+    return true;
+  });
+
+  const sortedCheques = [...filteredCheques].sort((a, b) => {
     if (sortField === 'date') {
       const dateA = new Date(a.cheque_date).getTime();
       const dateB = new Date(b.cheque_date).getTime();
@@ -456,19 +499,64 @@ export default function Cheques() {
         </div>
       </div>
 
+      {/* Month Filter Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <Card 
+          className={`cursor-pointer transition-all hover:shadow-md ${selectedMonth === 'all' ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+          onClick={() => setSelectedMonth('all')}
+        >
+          <CardContent className="p-4 text-center">
+            <Calendar className="h-5 w-5 mx-auto mb-2 text-primary" />
+            <p className="text-sm font-medium">All Months</p>
+            <p className="text-2xl font-bold text-primary">{allChequesRaw.length}</p>
+            <p className="text-xs text-muted-foreground">cheques</p>
+          </CardContent>
+        </Card>
+        
+        {monthlyStats.map((month) => (
+          <Card 
+            key={month.key}
+            className={`cursor-pointer transition-all hover:shadow-md ${selectedMonth === month.key ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+            onClick={() => setSelectedMonth(month.key)}
+          >
+            <CardContent className="p-4 text-center">
+              <p className="text-sm font-medium truncate">{month.label}</p>
+              <p className="text-2xl font-bold text-primary">{month.count}</p>
+              <p className="text-xs text-muted-foreground">Rs. {month.amount.toLocaleString()}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Search Cheques</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by cheque number, customer, or bank..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by cheque number, customer, or bank..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-[200px]">
+                <Calendar className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Select Month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months ({allChequesRaw.length})</SelectItem>
+                {monthlyStats.map((month) => (
+                  <SelectItem key={month.key} value={month.key}>
+                    {month.label} ({month.count})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
