@@ -194,14 +194,13 @@ const Auth = () => {
               />
             </div>
             
-            {/* Logo container with rotation */}
+            {/* Logo container - static */}
             <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
               <img 
                 src={masterLogo} 
                 alt="Master Footwear Logo" 
                 className="h-16 w-auto object-contain drop-shadow-lg"
                 style={{
-                  animation: 'spin 20s linear infinite',
                   filter: 'drop-shadow(0 0 10px rgba(239, 68, 68, 0.3))',
                 }}
               />
