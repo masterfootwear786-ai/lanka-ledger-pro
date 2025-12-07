@@ -151,21 +151,54 @@ export default function Cheques() {
     }))
   );
 
-  // Calculate month-wise cheque counts
+  // Calculate month-wise cheque counts with status breakdown
   const monthlyStats = useMemo(() => {
-    const stats: Record<string, { count: number; amount: number; label: string }> = {};
+    const stats: Record<string, { 
+      count: number; 
+      amount: number; 
+      passedAmount: number;
+      returnedAmount: number;
+      pendingAmount: number;
+      passedCount: number;
+      returnedCount: number;
+      pendingCount: number;
+      label: string 
+    }> = {};
     
     allChequesRaw.forEach(cheque => {
       if (cheque.cheque_date) {
         const date = new Date(cheque.cheque_date);
         const monthKey = format(date, 'yyyy-MM');
         const monthLabel = format(date, 'MMMM yyyy');
+        const chequeAmount = Number(cheque.amount) || 0;
         
         if (!stats[monthKey]) {
-          stats[monthKey] = { count: 0, amount: 0, label: monthLabel };
+          stats[monthKey] = { 
+            count: 0, 
+            amount: 0, 
+            passedAmount: 0,
+            returnedAmount: 0,
+            pendingAmount: 0,
+            passedCount: 0,
+            returnedCount: 0,
+            pendingCount: 0,
+            label: monthLabel 
+          };
         }
         stats[monthKey].count++;
-        stats[monthKey].amount += Number(cheque.amount) || 0;
+        stats[monthKey].amount += chequeAmount;
+        
+        // Track by status
+        if (cheque.status === 'passed') {
+          stats[monthKey].passedAmount += chequeAmount;
+          stats[monthKey].passedCount++;
+        } else if (cheque.status === 'returned') {
+          stats[monthKey].returnedAmount += chequeAmount;
+          stats[monthKey].returnedCount++;
+        } else {
+          stats[monthKey].pendingAmount += chequeAmount;
+          stats[monthKey].pendingCount++;
+        }
       }
     });
     
@@ -173,6 +206,25 @@ export default function Cheques() {
     return Object.entries(stats)
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([key, value]) => ({ key, ...value }));
+  }, [allChequesRaw]);
+
+  // Calculate total stats for "All Months" card
+  const allMonthsStats = useMemo(() => {
+    return allChequesRaw.reduce((acc, cheque) => {
+      const amount = Number(cheque.amount) || 0;
+      acc.total += amount;
+      if (cheque.status === 'passed') {
+        acc.passed += amount;
+        acc.passedCount++;
+      } else if (cheque.status === 'returned') {
+        acc.returned += amount;
+        acc.returnedCount++;
+      } else {
+        acc.pending += amount;
+        acc.pendingCount++;
+      }
+      return acc;
+    }, { total: 0, passed: 0, returned: 0, pending: 0, passedCount: 0, returnedCount: 0, pendingCount: 0 });
   }, [allChequesRaw]);
 
   // Filter by search term and month
@@ -500,16 +552,39 @@ export default function Cheques() {
       </div>
 
       {/* Month Filter Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         <Card 
           className={`cursor-pointer transition-all hover:shadow-md ${selectedMonth === 'all' ? 'ring-2 ring-primary bg-primary/5' : ''}`}
           onClick={() => setSelectedMonth('all')}
         >
-          <CardContent className="p-4 text-center">
-            <Calendar className="h-5 w-5 mx-auto mb-2 text-primary" />
-            <p className="text-sm font-medium">All Months</p>
-            <p className="text-2xl font-bold text-primary">{allChequesRaw.length}</p>
-            <p className="text-xs text-muted-foreground">cheques</p>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                <span className="font-semibold">All Months</span>
+              </div>
+              <Badge variant="secondary">{allChequesRaw.length} cheques</Badge>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-xs">
+              <div className="bg-green-500/10 rounded p-2 text-center">
+                <p className="text-green-600 font-medium">Passed</p>
+                <p className="font-bold text-green-700">{allMonthsStats.passedCount}</p>
+                <p className="text-green-600">Rs. {allMonthsStats.passed.toLocaleString()}</p>
+              </div>
+              <div className="bg-red-500/10 rounded p-2 text-center">
+                <p className="text-red-600 font-medium">Returned</p>
+                <p className="font-bold text-red-700">{allMonthsStats.returnedCount}</p>
+                <p className="text-red-600">Rs. {allMonthsStats.returned.toLocaleString()}</p>
+              </div>
+              <div className="bg-amber-500/10 rounded p-2 text-center">
+                <p className="text-amber-600 font-medium">Pending</p>
+                <p className="font-bold text-amber-700">{allMonthsStats.pendingCount}</p>
+                <p className="text-amber-600">Rs. {allMonthsStats.pending.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t text-center">
+              <p className="text-sm text-muted-foreground">Total: <span className="font-bold text-foreground">Rs. {allMonthsStats.total.toLocaleString()}</span></p>
+            </div>
           </CardContent>
         </Card>
         
@@ -519,10 +594,31 @@ export default function Cheques() {
             className={`cursor-pointer transition-all hover:shadow-md ${selectedMonth === month.key ? 'ring-2 ring-primary bg-primary/5' : ''}`}
             onClick={() => setSelectedMonth(month.key)}
           >
-            <CardContent className="p-4 text-center">
-              <p className="text-sm font-medium truncate">{month.label}</p>
-              <p className="text-2xl font-bold text-primary">{month.count}</p>
-              <p className="text-xs text-muted-foreground">Rs. {month.amount.toLocaleString()}</p>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-semibold truncate">{month.label}</span>
+                <Badge variant="secondary">{month.count} cheques</Badge>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-green-500/10 rounded p-2 text-center">
+                  <p className="text-green-600 font-medium">Passed</p>
+                  <p className="font-bold text-green-700">{month.passedCount}</p>
+                  <p className="text-green-600">Rs. {month.passedAmount.toLocaleString()}</p>
+                </div>
+                <div className="bg-red-500/10 rounded p-2 text-center">
+                  <p className="text-red-600 font-medium">Returned</p>
+                  <p className="font-bold text-red-700">{month.returnedCount}</p>
+                  <p className="text-red-600">Rs. {month.returnedAmount.toLocaleString()}</p>
+                </div>
+                <div className="bg-amber-500/10 rounded p-2 text-center">
+                  <p className="text-amber-600 font-medium">Pending</p>
+                  <p className="font-bold text-amber-700">{month.pendingCount}</p>
+                  <p className="text-amber-600">Rs. {month.pendingAmount.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="mt-3 pt-2 border-t text-center">
+                <p className="text-sm text-muted-foreground">Total: <span className="font-bold text-foreground">Rs. {month.amount.toLocaleString()}</span></p>
+              </div>
             </CardContent>
           </Card>
         ))}
