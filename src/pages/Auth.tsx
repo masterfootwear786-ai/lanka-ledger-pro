@@ -5,11 +5,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Sparkles, Mail, Lock, User, ArrowRight, UserCircle } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, UserCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import masterLogo from '@/assets/master-logo.png';
 
 const Auth = () => {
   const [mode, setMode] = useState<'login' | 'signup' | 'reset' | 'update'>('login');
@@ -159,11 +160,54 @@ const Auth = () => {
       
       <Card className="w-full max-w-md relative z-10 border-border/50 shadow-2xl backdrop-blur-sm bg-card/95 animate-scale-in">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 h-14 w-14 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-lg animate-pulse-glow">
-            <Sparkles className="h-7 w-7 text-primary-foreground" />
+          {/* Animated Logo with rotate and water ripple shine */}
+          <div className="mx-auto mb-4 relative">
+            {/* Ripple rings */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-24 h-24 rounded-full border border-primary/20 animate-ping" style={{ animationDuration: '2s' }} />
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full border border-primary/30 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.5s' }} />
+            </div>
+            
+            {/* Rotating glow behind logo */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div 
+                className="w-20 h-20 rounded-full bg-gradient-to-r from-red-500/30 via-transparent to-red-500/30 blur-md"
+                style={{ 
+                  animation: 'spin 4s linear infinite',
+                }}
+              />
+            </div>
+            
+            {/* Water shine effect overlay */}
+            <div 
+              className="absolute inset-0 flex items-center justify-center overflow-hidden rounded-full"
+              style={{ width: '80px', height: '80px', margin: 'auto' }}
+            >
+              <div 
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -skew-x-12"
+                style={{
+                  animation: 'shimmer 3s ease-in-out infinite',
+                  backgroundSize: '200% 100%',
+                }}
+              />
+            </div>
+            
+            {/* Logo container with rotation */}
+            <div className="relative w-20 h-20 mx-auto flex items-center justify-center">
+              <img 
+                src={masterLogo} 
+                alt="Master Footwear Logo" 
+                className="h-16 w-auto object-contain drop-shadow-lg"
+                style={{
+                  animation: 'spin 20s linear infinite',
+                  filter: 'drop-shadow(0 0 10px rgba(239, 68, 68, 0.3))',
+                }}
+              />
+            </div>
           </div>
           <CardTitle className="text-2xl font-display">{getTitle()}</CardTitle>
-          <CardDescription className="text-base">{t('app.title')}</CardDescription>
         </CardHeader>
         <CardContent className="pt-4">
           <form onSubmit={handleSubmit} className="space-y-4">
