@@ -74,7 +74,7 @@ export default function Invoices() {
         .select(
           `
           *,
-          customer:contacts(name, area, phone, district)
+          customer:contacts(name, area, phone, district, email, whatsapp)
         `,
         )
         .is('deleted_at', null)
@@ -82,6 +82,16 @@ export default function Invoices() {
 
       if (error) throw error;
       setInvoices(data || []);
+
+      // Fetch company data for SendDocumentDropdown
+      if (data && data.length > 0) {
+        const { data: company } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("id", data[0].company_id)
+          .single();
+        setCompanyData(company);
+      }
     } catch (error) {
       console.error("Error fetching invoices:", error);
       toast({
