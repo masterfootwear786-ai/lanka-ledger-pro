@@ -41,78 +41,20 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending customer statement to:", to);
     console.log("Customer:", customerName, customerCode);
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-      </head>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0;">
-        <div style="background-color: #1e293b; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px;">${companyName}</h1>
-          <p style="margin: 5px 0 0 0; font-size: 14px;">Customer Statement</p>
-        </div>
-        
-        <div style="padding: 20px;">
-          <p>Dear <strong>${customerName}</strong>,</p>
-          <p>Please find your account statement below:</p>
-          
-          <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-            <tr>
-              <td style="padding: 15px; background-color: #eff6ff; border-radius: 8px; width: 50%;">
-                <div style="font-size: 12px; color: #64748b;">Total Invoiced</div>
-                <div style="font-size: 18px; font-weight: bold; color: #2563eb; margin-top: 5px;">Rs. ${stats.totalInvoiced.toLocaleString()}</div>
-              </td>
-              <td style="width: 10px;"></td>
-              <td style="padding: 15px; background-color: #f0fdf4; border-radius: 8px; width: 50%;">
-                <div style="font-size: 12px; color: #64748b;">Total Paid</div>
-                <div style="font-size: 18px; font-weight: bold; color: #16a34a; margin-top: 5px;">Rs. ${stats.totalPaid.toLocaleString()}</div>
-              </td>
-            </tr>
-            <tr><td colspan="3" style="height: 10px;"></td></tr>
-            <tr>
-              <td style="padding: 15px; background-color: #faf5ff; border-radius: 8px;">
-                <div style="font-size: 12px; color: #64748b;">Total Returns</div>
-                <div style="font-size: 18px; font-weight: bold; color: #9333ea; margin-top: 5px;">Rs. ${stats.totalReturns.toLocaleString()}</div>
-              </td>
-              <td style="width: 10px;"></td>
-              <td style="padding: 15px; background-color: #fef2f2; border-radius: 8px;">
-                <div style="font-size: 12px; color: #64748b;">Outstanding Balance</div>
-                <div style="font-size: 18px; font-weight: bold; color: #dc2626; margin-top: 5px;">Rs. ${stats.outstanding.toLocaleString()}</div>
-              </td>
-            </tr>
-          </table>
-          
-          ${stats.pendingCheques > 0 ? `
-            <p style="color: #c2410c; background-color: #fff7ed; padding: 10px; border-radius: 5px;">
-              <strong>Pending Cheques:</strong> Rs. ${stats.pendingCheques.toLocaleString()}
-            </p>
-          ` : ''}
-          
-          ${pdfBase64 ? `
-            <div style="background-color: #dbeafe; padding: 10px; border-radius: 5px; text-align: center; margin: 15px 0;">
-              <strong>📎 Detailed statement PDF attached</strong>
-            </div>
-          ` : ''}
-          
-          ${message ? `
-            <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0;">
-              <p style="margin: 0;"><strong>Message:</strong></p>
-              <p style="margin: 5px 0 0 0;">${message}</p>
-            </div>
-          ` : ''}
-          
-          <p>If you have any questions about this statement, please don't hesitate to contact us.</p>
-          <p>Thank you for your business!</p>
-          <p>Best regards,<br><strong>${companyName} Accounts Team</strong></p>
-        </div>
-        
-        <div style="background-color: #1e293b; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p style="margin: 0;">${companyName}</p>
-        </div>
-      </body>
-      </html>
-    `;
+    // Build HTML without extra whitespace to prevent quoted-printable encoding issues (=20)
+    const pendingChequesHtml = stats.pendingCheques > 0 
+      ? `<p style="color:#c2410c;background-color:#fff7ed;padding:10px;border-radius:5px;"><strong>Pending Cheques:</strong> Rs. ${stats.pendingCheques.toLocaleString()}</p>` 
+      : '';
+    
+    const pdfNoticeHtml = pdfBase64 
+      ? `<div style="background-color:#dbeafe;padding:10px;border-radius:5px;text-align:center;margin:15px 0;"><strong>Detailed statement PDF attached</strong></div>` 
+      : '';
+    
+    const messageHtml = message 
+      ? `<div style="background-color:#f8fafc;padding:15px;border-radius:8px;margin:20px 0;"><p style="margin:0;"><strong>Message:</strong></p><p style="margin:5px 0 0 0;">${message}</p></div>` 
+      : '';
+
+    const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:0;"><div style="background-color:#1e293b;color:white;padding:20px;text-align:center;"><h1 style="margin:0;font-size:24px;">${companyName}</h1><p style="margin:5px 0 0 0;font-size:14px;">Customer Statement</p></div><div style="padding:20px;"><p>Dear <strong>${customerName}</strong>,</p><p>Please find your account statement below:</p><table style="width:100%;border-collapse:collapse;margin:20px 0;"><tr><td style="padding:15px;background-color:#eff6ff;border-radius:8px;width:50%;"><div style="font-size:12px;color:#64748b;">Total Invoiced</div><div style="font-size:18px;font-weight:bold;color:#2563eb;margin-top:5px;">Rs. ${stats.totalInvoiced.toLocaleString()}</div></td><td style="width:10px;"></td><td style="padding:15px;background-color:#f0fdf4;border-radius:8px;width:50%;"><div style="font-size:12px;color:#64748b;">Total Paid</div><div style="font-size:18px;font-weight:bold;color:#16a34a;margin-top:5px;">Rs. ${stats.totalPaid.toLocaleString()}</div></td></tr><tr><td colspan="3" style="height:10px;"></td></tr><tr><td style="padding:15px;background-color:#faf5ff;border-radius:8px;"><div style="font-size:12px;color:#64748b;">Total Returns</div><div style="font-size:18px;font-weight:bold;color:#9333ea;margin-top:5px;">Rs. ${stats.totalReturns.toLocaleString()}</div></td><td style="width:10px;"></td><td style="padding:15px;background-color:#fef2f2;border-radius:8px;"><div style="font-size:12px;color:#64748b;">Outstanding Balance</div><div style="font-size:18px;font-weight:bold;color:#dc2626;margin-top:5px;">Rs. ${stats.outstanding.toLocaleString()}</div></td></tr></table>${pendingChequesHtml}${pdfNoticeHtml}${messageHtml}<p>If you have any questions about this statement, please don't hesitate to contact us.</p><p>Thank you for your business!</p><p>Best regards,<br><strong>${companyName} Accounts Team</strong></p></div><div style="background-color:#1e293b;color:white;padding:15px;text-align:center;font-size:12px;"><p style="margin:0;">${companyName}</p></div></body></html>`;
 
     const smtpHost = (Deno.env.get("SMTP_HOST") || "server.cloudmail.lk").trim();
     const smtpPort = parseInt((Deno.env.get("SMTP_PORT") || "465").trim());
