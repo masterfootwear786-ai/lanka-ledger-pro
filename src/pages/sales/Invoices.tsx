@@ -922,15 +922,26 @@ export default function Invoices() {
           <DialogHeader>
             <div className="flex items-center justify-between">
               <DialogTitle className="text-2xl font-bold">Invoice Details</DialogTitle>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => selectedInvoice && handlePrint(selectedInvoice)}
-                className="flex items-center gap-2"
-              >
-                <Printer className="h-4 w-4" />
-                Print
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => selectedInvoice && handlePrint(selectedInvoice)}
+                  className="flex items-center gap-2"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => selectedInvoice && handleDownloadPDF(selectedInvoice)}
+                  className="flex items-center gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  PDF
+                </Button>
+              </div>
             </div>
           </DialogHeader>
 
