@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { generateInvoicePDFBase64 } from "@/lib/invoicePdfGenerator";
 
 interface SendDocumentDropdownProps {
   documentType: "invoice" | "order" | "bill" | "receipt" | "return_note";
@@ -92,6 +93,23 @@ export function SendDocumentDropdown({
   };
 
   const generatePDF = async (): Promise<string> => {
+    // For invoices, use the shared generator that matches the preview format
+    if (documentType === "invoice") {
+      // Fetch invoice lines if not provided
+      let invoiceLines = lines;
+      if (!invoiceLines || invoiceLines.length === 0) {
+        const { data: fetchedLines } = await supabase
+          .from("invoice_lines")
+          .select("*")
+          .eq("invoice_id", document.id)
+          .order("line_no", { ascending: true });
+        invoiceLines = fetchedLines || [];
+      }
+      
+      return generateInvoicePDFBase64(document, invoiceLines, companyData);
+    }
+
+    // For other document types, use the generic generator
     const doc = new jsPDF();
     const docNo = getDocumentNo();
     const docDate = getDocumentDate();
