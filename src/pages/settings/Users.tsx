@@ -261,7 +261,6 @@ export default function Users() {
       toast({
         title: "Success",
         description: "User has been rejected and removed from the system",
-        duration: 3000,
       });
 
       fetchUsers();
