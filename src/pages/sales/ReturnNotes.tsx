@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, Edit, Trash2, Printer, Download } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Printer, Download, Send } from "lucide-react";
+import { SendDocumentDropdown } from "@/components/documents/SendDocumentDropdown";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
@@ -552,6 +553,17 @@ export default function ReturnNotes() {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEdit(note)}>
                             <Edit className="h-4 w-4 mr-2" />Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <div className="flex items-center px-2 py-1.5">
+                              <SendDocumentDropdown
+                                documentType="return_note"
+                                document={note}
+                                customer={note.customer}
+                                companyData={companyData}
+                              />
+                              <span className="ml-2">Send</span>
+                            </div>
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleDeleteClick(note)} className="text-destructive">
                             <Trash2 className="h-4 w-4 mr-2" />Delete

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse, Download } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse, Download, Send } from "lucide-react";
+import { SendDocumentDropdown } from "@/components/documents/SendDocumentDropdown";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
@@ -701,6 +702,12 @@ export default function Orders() {
                         >
                           <Printer className="h-4 w-4" />
                         </Button>
+                        <SendDocumentDropdown
+                          documentType="order"
+                          document={order}
+                          customer={order.customer}
+                          companyData={companyData}
+                        />
                         <Button
                           variant="ghost"
                           size="icon"

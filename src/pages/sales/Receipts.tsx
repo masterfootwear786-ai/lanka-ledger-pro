@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Edit, Trash2, CreditCard, Printer, Eye, Download, FileText } from "lucide-react";
+import { Plus, Search, Edit, Trash2, CreditCard, Printer, Eye, Download, FileText, Send } from "lucide-react";
+import { SendDocumentDropdown } from "@/components/documents/SendDocumentDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { ReceiptDialog } from "@/components/receipts/ReceiptDialog";
 import { ReceiptPreviewDialog } from "@/components/receipts/ReceiptPreviewDialog";
@@ -590,6 +591,11 @@ export default function Receipts() {
                         >
                           <Printer className="h-4 w-4" />
                         </Button>
+                        <SendDocumentDropdown
+                          documentType="receipt"
+                          document={receipt}
+                          customer={receipt.customer}
+                        />
                         <Button 
                           variant="ghost" 
                           size="sm"
