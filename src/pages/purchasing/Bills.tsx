@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Plus, Search, Eye, Edit, Trash2, Printer, FileText } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Printer, FileText, Send } from "lucide-react";
+import { SendDocumentDropdown } from "@/components/documents/SendDocumentDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { BillDialog } from "@/components/bills/BillDialog";
@@ -466,6 +467,11 @@ export default function Bills() {
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(bill)} title="Edit">
                             <Edit className="h-4 w-4" />
                           </Button>
+                          <SendDocumentDropdown
+                            documentType="bill"
+                            document={bill}
+                            supplier={bill.supplier}
+                          />
                           <Button variant="ghost" size="sm" onClick={() => handlePrint(bill)} title="Print">
                             <Printer className="h-4 w-4" />
                           </Button>

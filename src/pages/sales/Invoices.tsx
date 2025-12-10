@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Eye, Edit, Trash2, Printer } from "lucide-react";
+import { Plus, Search, Eye, Edit, Trash2, Printer, Send } from "lucide-react";
+import { SendDocumentDropdown } from "@/components/documents/SendDocumentDropdown";
 import { supabase } from "@/integrations/supabase/client";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useActionPassword } from "@/hooks/useActionPassword";
@@ -755,6 +756,12 @@ export default function Invoices() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
+                        <SendDocumentDropdown
+                          documentType="invoice"
+                          document={invoice}
+                          customer={invoice.customer}
+                          companyData={companyData}
+                        />
                         <Button variant="ghost" size="sm" onClick={() => handlePrint(invoice)} title="Print">
                           <Printer className="h-4 w-4" />
                         </Button>

@@ -12,10 +12,13 @@ interface EmailRequest {
   documentType: string;
   documentNo: string;
   amount: number;
+  date?: string;
+  companyName?: string;
   message?: string;
   outstandingBalance?: number;
   lineItems?: any[];
   includePaymentTerms?: boolean;
+  pdfBase64?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -29,16 +32,18 @@ const handler = async (req: Request): Promise<Response> => {
       contactName, 
       documentType, 
       documentNo, 
-      amount, 
+      amount,
+      date,
+      companyName = "Master Footwear",
       message,
       outstandingBalance,
       lineItems,
-      includePaymentTerms
+      includePaymentTerms,
+      pdfBase64
     }: EmailRequest = await req.json();
 
-    console.log("Attempting to send email to:", to);
-    console.log("SMTP Host:", Deno.env.get("SMTP_HOST"));
-    console.log("SMTP User:", Deno.env.get("SMTP_USER"));
+    console.log("Sending document email to:", to);
+    console.log("Document:", documentType, documentNo);
 
     let lineItemsHtml = '';
     if (lineItems && lineItems.length > 0) {
@@ -69,49 +74,15 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-      </head>
-      <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #1a365d; color: white; padding: 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px;">Master Footwear</h1>
-        </div>
-        
-        <div style="padding: 20px;">
-          <h2>${documentType} Details</h2>
-          <p>Dear ${contactName},</p>
-          <p>Please find the details of your ${documentType.toLowerCase()}:</p>
-          
-          <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-            <p><strong>${documentType} Number:</strong> ${documentNo}</p>
-            <p><strong>Amount:</strong> Rs. ${amount.toLocaleString()}</p>
-            ${outstandingBalance !== undefined ? `
-              <p style="color: #dc2626;"><strong>Outstanding Balance:</strong> Rs. ${outstandingBalance.toLocaleString()}</p>
-            ` : ''}
-          </div>
-          
-          ${lineItemsHtml}
-          ${message ? `<p style="margin: 20px 0; background-color: #e8f4fd; padding: 10px; border-radius: 5px;">${message}</p>` : ''}
-          ${includePaymentTerms ? `
-            <div style="background-color: #fef9e7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="margin: 0;"><strong>Payment Terms:</strong> Payment is due within 30 days of invoice date.</p>
-            </div>
-          ` : ''}
-          
-          <p>If you have any questions, please don't hesitate to contact us.</p>
-          <p>Best regards,<br><strong>Master Footwear Accounts Team</strong></p>
-        </div>
-        
-        <div style="background-color: #1a365d; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p style="margin: 0;">Master Footwear Pvt Ltd</p>
-          <p style="margin: 5px 0;">info@masterfootwear.lk</p>
-        </div>
-      </body>
-      </html>
-    `;
+    // Build HTML without extra whitespace to prevent encoding issues
+    const docDateStr = date ? new Date(date).toLocaleDateString() : new Date().toLocaleDateString();
+    const lineItemsHtmlStr = lineItemsHtml.replace(/\s+/g, ' ').trim();
+    const messageHtml = message ? `<p style="margin:20px 0;background-color:#e8f4fd;padding:10px;border-radius:5px;">${message}</p>` : '';
+    const outstandingHtml = outstandingBalance !== undefined ? `<p style="color:#dc2626;"><strong>Outstanding Balance:</strong> Rs. ${outstandingBalance.toLocaleString()}</p>` : '';
+    const paymentTermsHtml = includePaymentTerms ? `<div style="background-color:#fef9e7;padding:15px;border-radius:5px;margin:20px 0;"><p style="margin:0;"><strong>Payment Terms:</strong> Payment is due within 30 days of invoice date.</p></div>` : '';
+    const pdfNoticeHtml = pdfBase64 ? `<div style="background-color:#dbeafe;padding:10px;border-radius:5px;text-align:center;margin:15px 0;"><strong>Document PDF attached</strong></div>` : '';
+
+    const htmlContent = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;"><div style="background-color:#1e293b;color:white;padding:20px;text-align:center;"><h1 style="margin:0;font-size:24px;">${companyName}</h1></div><div style="padding:20px;"><h2>${documentType} Details</h2><p>Dear ${contactName},</p><p>Please find the details of your ${documentType.toLowerCase()}:</p><div style="background-color:#f5f5f5;padding:20px;border-radius:5px;margin:20px 0;"><p><strong>${documentType} Number:</strong> ${documentNo}</p><p><strong>Date:</strong> ${docDateStr}</p><p><strong>Amount:</strong> Rs. ${amount.toLocaleString()}</p>${outstandingHtml}</div>${lineItemsHtmlStr}${pdfNoticeHtml}${messageHtml}${paymentTermsHtml}<p>If you have any questions, please don't hesitate to contact us.</p><p>Best regards,<br><strong>${companyName} Accounts Team</strong></p></div><div style="background-color:#1e293b;color:white;padding:15px;text-align:center;font-size:12px;"><p style="margin:0;">${companyName}</p></div></body></html>`;
 
     // Create SMTP client - trim values to remove any trailing whitespace
     const smtpHost = (Deno.env.get("SMTP_HOST") || "server.cloudmail.lk").trim();
@@ -119,8 +90,9 @@ const handler = async (req: Request): Promise<Response> => {
     const smtpUser = (Deno.env.get("SMTP_USER") || "").trim();
     const smtpPass = (Deno.env.get("SMTP_PASS") || "").trim();
     
-    console.log("Using SMTP Host (trimmed):", smtpHost);
-    
+    const fromEmail = (Deno.env.get("SMTP_FROM_EMAIL") || "info@masterfootwear.lk").trim();
+    const fromName = (Deno.env.get("SMTP_FROM_NAME") || "Master Footwear").trim();
+
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
@@ -133,15 +105,27 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    // Send email
-    await client.send({
-      from: `${Deno.env.get("SMTP_FROM_NAME") || "Master Footwear"} <${Deno.env.get("SMTP_FROM_EMAIL") || "info@masterfootwear.lk"}>`,
+    const emailConfig: any = {
+      from: `${fromName} <${fromEmail}>`,
       to: to,
-      subject: `${documentType} ${documentNo} - Master Footwear`,
+      subject: `${documentType} ${documentNo} - ${companyName}`,
       content: "Please view this email in an HTML-compatible email client.",
       html: htmlContent,
-    });
+    };
 
+    // Add PDF attachment if provided
+    if (pdfBase64) {
+      emailConfig.attachments = [
+        {
+          filename: `${documentType.replace(/\s+/g, '_')}_${documentNo}_${new Date().toISOString().split('T')[0]}.pdf`,
+          content: pdfBase64,
+          encoding: "base64",
+          contentType: "application/pdf",
+        },
+      ];
+    }
+
+    await client.send(emailConfig);
     await client.close();
 
     console.log("Email sent successfully to:", to);
