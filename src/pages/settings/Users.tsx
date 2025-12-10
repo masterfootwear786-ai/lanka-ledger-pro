@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus, Clock, RefreshCw } from "lucide-react";
+import { Users as UsersIcon, Mail, Shield, Edit, Trash2, AlertCircle, Plus, Clock, RefreshCw, XCircle } from "lucide-react";
 import { UserDialog } from "@/components/settings/UserDialog";
 import { UserPermissionsSheet } from "@/components/settings/UserPermissionsSheet";
 import { useUserRole, PERMISSION_MANAGER_EMAILS } from "@/hooks/useUserRole";
@@ -31,6 +31,8 @@ export default function Users() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [userToReject, setUserToReject] = useState<any>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -231,6 +233,49 @@ export default function Users() {
     }
   };
 
+  const handleRejectClick = (user: any) => {
+    if (!canManagePermissions()) {
+      toast({
+        title: "Access Denied",
+        description: "Only authorized administrators can reject users",
+        variant: "destructive",
+      });
+      return;
+    }
+    setUserToReject(user);
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectConfirm = async () => {
+    if (!userToReject) return;
+
+    try {
+      // Delete the profile completely (this will cascade delete roles if any)
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", userToReject.id);
+
+      if (profileError) throw profileError;
+
+      toast({
+        title: "Success",
+        description: "User has been rejected and removed from the system",
+      });
+
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setRejectDialogOpen(false);
+      setUserToReject(null);
+    }
+  };
+
   // Pending = users with no roles (regardless of active status - they need permission assignment)
   const pendingUsers = users.filter(u => u.roles.length === 0);
   const activeUsers = users.filter(u => u.roles.length > 0 && u.company_id && u.active);
@@ -357,7 +402,15 @@ export default function Users() {
                               className="flex-1"
                             >
                               <Shield className="h-4 w-4 mr-1" />
-                              Assign Permissions
+                              Assign
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleRejectClick(user)}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
                             </Button>
                           </div>
                         )}
@@ -477,6 +530,25 @@ export default function Users() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Deactivate
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reject User Dialog */}
+      <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject User?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {userToReject?.full_name || userToReject?.email} from the system.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRejectConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Reject User
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
