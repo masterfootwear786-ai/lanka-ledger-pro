@@ -35,6 +35,8 @@ export default function Receipts() {
     fetchReceipts();
   }, []);
 
+  const [companyData, setCompanyData] = useState<any>(null);
+
   const fetchReceipts = async () => {
     try {
       setLoading(true);
@@ -42,13 +44,23 @@ export default function Receipts() {
         .from('receipts')
         .select(`
           *,
-          customer:contacts(name, area)
+          customer:contacts(name, area, email, whatsapp, phone)
         `)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setReceipts(data || []);
+
+      // Fetch company data for SendDocumentDropdown
+      if (data && data.length > 0) {
+        const { data: company } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("id", data[0].company_id)
+          .single();
+        setCompanyData(company);
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -595,6 +607,7 @@ export default function Receipts() {
                           documentType="receipt"
                           document={receipt}
                           customer={receipt.customer}
+                          companyData={companyData}
                         />
                         <Button 
                           variant="ghost" 

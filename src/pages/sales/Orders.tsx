@@ -89,7 +89,7 @@ export default function Orders() {
         .from('sales_orders')
         .select(`
           *,
-          customer:contacts(id, code, name, area, district)
+          customer:contacts(id, code, name, area, district, email, whatsapp, phone)
         `)
         .eq('company_id', profileData.company_id)
         .is('deleted_at', null)
@@ -97,6 +97,14 @@ export default function Orders() {
 
       if (error) throw error;
       setOrders(data || []);
+
+      // Fetch company data for SendDocumentDropdown
+      const { data: company } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("id", profileData.company_id)
+        .single();
+      setCompanyData(company);
     } catch (error: any) {
       toast.error("Error fetching orders: " + error.message);
     } finally {

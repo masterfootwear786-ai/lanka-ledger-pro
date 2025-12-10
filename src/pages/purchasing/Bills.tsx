@@ -34,6 +34,7 @@ export default function Bills() {
   const [bills, setBills] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [companyData, setCompanyData] = useState<any>(null);
   const [selectedBill, setSelectedBill] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState<any>(null);
@@ -151,13 +152,23 @@ export default function Bills() {
         .from("bills")
         .select(`
           *,
-          supplier:contacts(name)
+          supplier:contacts(name, email, whatsapp, phone)
         `)
         .is('deleted_at', null)
         .order("bill_date", { ascending: false });
       
       if (error) throw error;
       setBills(data || []);
+
+      // Fetch company data for SendDocumentDropdown
+      if (data && data.length > 0) {
+        const { data: company } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("id", data[0].company_id)
+          .single();
+        setCompanyData(company);
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -471,6 +482,7 @@ export default function Bills() {
                             documentType="bill"
                             document={bill}
                             supplier={bill.supplier}
+                            companyData={companyData}
                           />
                           <Button variant="ghost" size="sm" onClick={() => handlePrint(bill)} title="Print">
                             <Printer className="h-4 w-4" />

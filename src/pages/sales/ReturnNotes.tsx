@@ -92,7 +92,7 @@ export default function ReturnNotes() {
       setLoading(true);
       const { data, error } = await supabase
         .from("return_notes")
-        .select(`*, customer:contacts(name, area, phone)`)
+        .select(`*, customer:contacts(name, area, phone, email, whatsapp)`)
         .is('deleted_at', null)
         .order("created_at", { ascending: false });
 
