@@ -220,12 +220,28 @@ export function SendDocumentDropdown({
       return;
     }
 
+    setSending(true);
     try {
       const docNo = getDocumentNo();
       const contactName = getContactName();
       const amount = document.grand_total || document.amount || 0;
       const docDate = new Date(getDocumentDate()).toLocaleDateString();
       const company = companyData?.name || "Master Footwear";
+
+      // Generate PDF
+      const pdfBase64 = await generatePDF();
+      
+      // Convert base64 to blob
+      const byteCharacters = atob(pdfBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const pdfBlob = new Blob([byteArray], { type: "application/pdf" });
+      
+      const fileName = `${documentType.replace("_", "-")}-${docNo}.pdf`;
+      const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
 
       const message = `*${company}*\n\n` +
         `Dear ${contactName},\n\n` +
@@ -235,22 +251,43 @@ export function SendDocumentDropdown({
         `💰 Amount: Rs. ${amount.toLocaleString()}\n\n` +
         `Thank you for your business!`;
 
-      await navigator.clipboard.writeText(message);
-      toast.success("Message copied to clipboard. Open WhatsApp and paste to send.");
+      // Check if Web Share API with files is supported
+      if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          files: [pdfFile],
+          title: `${documentType.replace("_", " ")} ${docNo}`,
+          text: message,
+        });
+        toast.success("Document shared successfully!");
+      } else {
+        // Fallback: Download PDF and copy message
+        const url = URL.createObjectURL(pdfBlob);
+        const link = window.document.createElement("a");
+        link.href = url;
+        link.download = fileName;
+        link.click();
+        URL.revokeObjectURL(url);
 
-      // Clean phone number
-      const cleanPhone = phone.replace(/\D/g, "");
-      const formattedPhone = cleanPhone.startsWith("0") 
-        ? "94" + cleanPhone.substring(1) 
-        : cleanPhone;
+        await navigator.clipboard.writeText(message);
+        toast.success("PDF downloaded! Message copied - open WhatsApp and attach the PDF.");
 
-      // Try to open WhatsApp
-      setTimeout(() => {
-        window.open(`https://wa.me/${formattedPhone}`, "_blank");
-      }, 500);
+        // Clean phone number and open WhatsApp
+        const cleanPhone = phone.replace(/\D/g, "");
+        const formattedPhone = cleanPhone.startsWith("0") 
+          ? "94" + cleanPhone.substring(1) 
+          : cleanPhone;
+
+        setTimeout(() => {
+          window.open(`https://wa.me/${formattedPhone}`, "_blank");
+        }, 500);
+      }
     } catch (error: any) {
-      console.error("Error preparing WhatsApp message:", error);
-      toast.error("Failed to prepare WhatsApp message");
+      console.error("Error sending WhatsApp:", error);
+      if (error.name !== "AbortError") {
+        toast.error("Failed to share document");
+      }
+    } finally {
+      setSending(false);
     }
   };
 
