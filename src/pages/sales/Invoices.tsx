@@ -371,7 +371,12 @@ export default function Invoices() {
         .single();
 
       const doc = generateInvoicePDF(invoice, lines || [], company);
-      doc.save(`invoice-${invoice.invoice_no}.pdf`);
+      
+      // Create filename with shop name, city, and invoice number
+      const shopName = (invoice.customer?.name || 'Customer').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const cityName = (invoice.customer?.area || invoice.customer?.district || 'City').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+      const fileName = `${shopName}_${cityName}_${invoice.invoice_no}.pdf`;
+      doc.save(fileName);
       
       toast({
         title: "Success",
