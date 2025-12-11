@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse, Download, Send, CheckSquare } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse, Download, Send, CheckSquare, FileSpreadsheet } from "lucide-react";
 import { SendDocumentDropdown } from "@/components/documents/SendDocumentDropdown";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -32,10 +32,19 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+interface MergedLineItem {
+  artNo: string;
+  color: string;
+  sizes: { [key: number]: number };
+  totalPairs: number;
+  unitPrice: number;
+  lineTotal: number;
+  orders: string[];
+}
 
 export default function Orders() {
   const navigate = useNavigate();
@@ -54,6 +63,12 @@ export default function Orders() {
   const [convertOrderLines, setConvertOrderLines] = useState<any[]>([]);
   const [convertStockType, setConvertStockType] = useState<'lorry' | 'store'>('lorry');
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  
+  // Merged orders preview state
+  const [mergedPreviewOpen, setMergedPreviewOpen] = useState(false);
+  const [mergedData, setMergedData] = useState<MergedLineItem[]>([]);
+  const [mergedOrdersInfo, setMergedOrdersInfo] = useState<any[]>([]);
+  
   const {
     isPasswordDialogOpen,
     setIsPasswordDialogOpen,
@@ -654,7 +669,7 @@ export default function Orders() {
     setSelectedOrderIds(newSelected);
   };
 
-  const handleMergeExport = async () => {
+  const handleMergePreview = async () => {
     if (selectedOrderIds.size === 0) {
       toast.error("Please select at least one pending order");
       return;
@@ -673,70 +688,294 @@ export default function Orders() {
 
       if (error) throw error;
 
-      // Create merged export data
-      const exportData: any[] = [];
+      // Group by Art No (Design Number)
+      const groupedByDesign: { [key: string]: MergedLineItem } = {};
       
       selectedOrders.forEach(order => {
         const orderLines = allLines?.filter(line => line.order_id === order.id) || [];
         
         orderLines.forEach(line => {
           const parts = (line.description || "").split(" - ");
-          const artNo = parts[0] || "-";
-          const color = parts[1] || "-";
-          const totalPairs = (line.size_39 || 0) + (line.size_40 || 0) + (line.size_41 || 0) + 
-                           (line.size_42 || 0) + (line.size_43 || 0) + (line.size_44 || 0) + (line.size_45 || 0);
+          const artNo = parts[0]?.trim() || "-";
+          const color = parts[1]?.trim() || "-";
+          const key = `${artNo}|||${color}`;
           
-          exportData.push({
-            "Order No": order.order_no,
-            "Order Date": new Date(order.order_date).toLocaleDateString(),
-            "Customer": order.customer?.name || "-",
-            "City": order.customer?.area || order.customer?.district || "-",
-            "Art No": artNo,
-            "Color": color,
-            "Size 39": line.size_39 || 0,
-            "Size 40": line.size_40 || 0,
-            "Size 41": line.size_41 || 0,
-            "Size 42": line.size_42 || 0,
-            "Size 43": line.size_43 || 0,
-            "Size 44": line.size_44 || 0,
-            "Size 45": line.size_45 || 0,
-            "Total Pairs": totalPairs,
-            "Unit Price": line.unit_price || 0,
-            "Line Total": line.line_total || 0,
-          });
+          if (!groupedByDesign[key]) {
+            groupedByDesign[key] = {
+              artNo,
+              color,
+              sizes: { 39: 0, 40: 0, 41: 0, 42: 0, 43: 0, 44: 0, 45: 0 },
+              totalPairs: 0,
+              unitPrice: line.unit_price || 0,
+              lineTotal: 0,
+              orders: []
+            };
+          }
+          
+          groupedByDesign[key].sizes[39] += line.size_39 || 0;
+          groupedByDesign[key].sizes[40] += line.size_40 || 0;
+          groupedByDesign[key].sizes[41] += line.size_41 || 0;
+          groupedByDesign[key].sizes[42] += line.size_42 || 0;
+          groupedByDesign[key].sizes[43] += line.size_43 || 0;
+          groupedByDesign[key].sizes[44] += line.size_44 || 0;
+          groupedByDesign[key].sizes[45] += line.size_45 || 0;
+          groupedByDesign[key].lineTotal += line.line_total || 0;
+          
+          if (!groupedByDesign[key].orders.includes(order.order_no)) {
+            groupedByDesign[key].orders.push(order.order_no);
+          }
         });
       });
 
-      // Add summary row
-      const totalPairs = exportData.reduce((sum, row) => sum + row["Total Pairs"], 0);
-      const grandTotal = exportData.reduce((sum, row) => sum + row["Line Total"], 0);
-      
-      exportData.push({
-        "Order No": "",
-        "Order Date": "",
-        "Customer": "",
-        "City": "",
-        "Art No": "",
-        "Color": "TOTAL",
-        "Size 39": exportData.reduce((sum, row) => sum + (row["Size 39"] || 0), 0),
-        "Size 40": exportData.reduce((sum, row) => sum + (row["Size 40"] || 0), 0),
-        "Size 41": exportData.reduce((sum, row) => sum + (row["Size 41"] || 0), 0),
-        "Size 42": exportData.reduce((sum, row) => sum + (row["Size 42"] || 0), 0),
-        "Size 43": exportData.reduce((sum, row) => sum + (row["Size 43"] || 0), 0),
-        "Size 44": exportData.reduce((sum, row) => sum + (row["Size 44"] || 0), 0),
-        "Size 45": exportData.reduce((sum, row) => sum + (row["Size 45"] || 0), 0),
-        "Total Pairs": totalPairs,
-        "Unit Price": "",
-        "Line Total": grandTotal,
-      });
+      // Convert to array and sort by Art No
+      const mergedItems = Object.values(groupedByDesign)
+        .map(item => ({
+          ...item,
+          totalPairs: Object.values(item.sizes).reduce((a, b) => a + b, 0)
+        }))
+        .sort((a, b) => a.artNo.localeCompare(b.artNo));
 
-      exportToExcel(`pending-orders-merged-${new Date().toISOString().split('T')[0]}`, exportData, "Pending Orders");
-      toast.success(`Exported ${selectedOrderIds.size} pending orders to Excel`);
-      setSelectedOrderIds(new Set());
+      setMergedData(mergedItems);
+      setMergedOrdersInfo(selectedOrders);
+      setMergedPreviewOpen(true);
     } catch (error: any) {
-      toast.error("Error exporting orders: " + error.message);
+      toast.error("Error loading orders: " + error.message);
     }
   };
+
+  const handleExportMergedExcel = () => {
+    const exportData: any[] = mergedData.map(item => ({
+      "Art No": item.artNo,
+      "Color": item.color,
+      "Size 39": item.sizes[39] || 0,
+      "Size 40": item.sizes[40] || 0,
+      "Size 41": item.sizes[41] || 0,
+      "Size 42": item.sizes[42] || 0,
+      "Size 43": item.sizes[43] || 0,
+      "Size 44": item.sizes[44] || 0,
+      "Size 45": item.sizes[45] || 0,
+      "Total Pairs": item.totalPairs,
+      "Unit Price": item.unitPrice,
+      "Line Total": item.lineTotal,
+      "Orders": item.orders.join(", "),
+    }));
+
+    // Add summary row
+    const totalPairs = mergedData.reduce((sum, item) => sum + item.totalPairs, 0);
+    const grandTotal = mergedData.reduce((sum, item) => sum + item.lineTotal, 0);
+    
+    exportData.push({
+      "Art No": "",
+      "Color": "GRAND TOTAL",
+      "Size 39": mergedData.reduce((sum, item) => sum + (item.sizes[39] || 0), 0),
+      "Size 40": mergedData.reduce((sum, item) => sum + (item.sizes[40] || 0), 0),
+      "Size 41": mergedData.reduce((sum, item) => sum + (item.sizes[41] || 0), 0),
+      "Size 42": mergedData.reduce((sum, item) => sum + (item.sizes[42] || 0), 0),
+      "Size 43": mergedData.reduce((sum, item) => sum + (item.sizes[43] || 0), 0),
+      "Size 44": mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0),
+      "Size 45": mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0),
+      "Total Pairs": totalPairs,
+      "Unit Price": "",
+      "Line Total": grandTotal,
+      "Orders": "",
+    });
+
+    exportToExcel(`pending-orders-merged-${new Date().toISOString().split('T')[0]}`, exportData, "Pending Orders");
+    toast.success(`Exported ${selectedOrderIds.size} pending orders to Excel`);
+  };
+
+  const handleExportMergedPDF = () => {
+    const doc = new jsPDF('landscape');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(companyData?.name || "Company", 14, 20);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(companyData?.address || "", 14, 27);
+    doc.text(`Tel: ${companyData?.phone || ""} | Email: ${companyData?.email || ""}`, 14, 32);
+
+    // Title
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("MERGED PENDING ORDERS", pageWidth / 2, 45, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, pageWidth - 14, 20, { align: "right" });
+    doc.text(`Orders: ${mergedOrdersInfo.map(o => o.order_no).join(", ")}`, pageWidth - 14, 27, { align: "right" });
+
+    // Table
+    const tableData = mergedData.map(item => [
+      item.artNo,
+      item.color,
+      item.sizes[39] || "-",
+      item.sizes[40] || "-",
+      item.sizes[41] || "-",
+      item.sizes[42] || "-",
+      item.sizes[43] || "-",
+      item.sizes[44] || "-",
+      item.sizes[45] || "-",
+      item.totalPairs,
+      item.unitPrice.toFixed(2),
+      item.lineTotal.toFixed(2),
+    ]);
+
+    // Add totals row
+    const totalPairs = mergedData.reduce((sum, item) => sum + item.totalPairs, 0);
+    const grandTotal = mergedData.reduce((sum, item) => sum + item.lineTotal, 0);
+    tableData.push([
+      "",
+      "GRAND TOTAL",
+      mergedData.reduce((sum, item) => sum + (item.sizes[39] || 0), 0),
+      mergedData.reduce((sum, item) => sum + (item.sizes[40] || 0), 0),
+      mergedData.reduce((sum, item) => sum + (item.sizes[41] || 0), 0),
+      mergedData.reduce((sum, item) => sum + (item.sizes[42] || 0), 0),
+      mergedData.reduce((sum, item) => sum + (item.sizes[43] || 0), 0),
+      mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0),
+      mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0),
+      totalPairs,
+      "",
+      grandTotal.toFixed(2),
+    ]);
+
+    autoTable(doc, {
+      startY: 55,
+      head: [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Pairs", "Price", "Total"]],
+      body: tableData,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [66, 66, 66] },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 30 },
+        9: { halign: "center", fontStyle: "bold" },
+        10: { halign: "right" },
+        11: { halign: "right" },
+      },
+      didParseCell: function(data) {
+        // Bold the totals row
+        if (data.row.index === tableData.length - 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = [240, 240, 240];
+        }
+      }
+    });
+
+    doc.save(`pending-orders-merged-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success("PDF downloaded successfully");
+  };
+
+  const handlePrintMerged = () => {
+    const totalPairs = mergedData.reduce((sum, item) => sum + item.totalPairs, 0);
+    const grandTotal = mergedData.reduce((sum, item) => sum + item.lineTotal, 0);
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Merged Pending Orders</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+            .company-info { flex: 1; }
+            .company-name { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+            .company-details { font-size: 11px; color: #666; }
+            .title { text-align: center; font-size: 22px; font-weight: bold; margin: 20px 0; }
+            .info { font-size: 11px; color: #666; margin-bottom: 15px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th { background: #f5f5f5; padding: 8px; text-align: left; border: 1px solid #ddd; font-size: 10px; }
+            td { padding: 6px; border: 1px solid #ddd; font-size: 11px; }
+            .size-col { text-align: center; width: 45px; }
+            .total-row { font-weight: bold; background: #f0f0f0; }
+            @media print { body { padding: 10px; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-info">
+              <div class="company-name">${companyData?.name || ''}</div>
+              <div class="company-details">
+                ${companyData?.address || ''}<br/>
+                ${companyData?.phone || ''} | ${companyData?.email || ''}
+              </div>
+            </div>
+            <div style="text-align: right; font-size: 11px;">
+              <div>Date: ${new Date().toLocaleDateString()}</div>
+              <div>Orders: ${mergedOrdersInfo.length}</div>
+            </div>
+          </div>
+          
+          <div class="title">MERGED PENDING ORDERS</div>
+          <div class="info">Orders: ${mergedOrdersInfo.map(o => o.order_no).join(", ")}</div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Art No</th>
+                <th>Color</th>
+                <th class="size-col">39</th>
+                <th class="size-col">40</th>
+                <th class="size-col">41</th>
+                <th class="size-col">42</th>
+                <th class="size-col">43</th>
+                <th class="size-col">44</th>
+                <th class="size-col">45</th>
+                <th class="size-col">Pairs</th>
+                <th>Price</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${mergedData.map(item => `
+                <tr>
+                  <td>${item.artNo}</td>
+                  <td>${item.color}</td>
+                  <td class="size-col">${item.sizes[39] || '-'}</td>
+                  <td class="size-col">${item.sizes[40] || '-'}</td>
+                  <td class="size-col">${item.sizes[41] || '-'}</td>
+                  <td class="size-col">${item.sizes[42] || '-'}</td>
+                  <td class="size-col">${item.sizes[43] || '-'}</td>
+                  <td class="size-col">${item.sizes[44] || '-'}</td>
+                  <td class="size-col">${item.sizes[45] || '-'}</td>
+                  <td class="size-col" style="font-weight: bold;">${item.totalPairs}</td>
+                  <td style="text-align: right;">${item.unitPrice.toFixed(2)}</td>
+                  <td style="text-align: right;">${item.lineTotal.toFixed(2)}</td>
+                </tr>
+              `).join('')}
+              <tr class="total-row">
+                <td></td>
+                <td>GRAND TOTAL</td>
+                <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[39] || 0), 0)}</td>
+                <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[40] || 0), 0)}</td>
+                <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[41] || 0), 0)}</td>
+                <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[42] || 0), 0)}</td>
+                <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[43] || 0), 0)}</td>
+                <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0)}</td>
+                <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0)}</td>
+                <td class="size-col">${totalPairs}</td>
+                <td></td>
+                <td style="text-align: right;">${grandTotal.toFixed(2)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
+  };
+
 
   return (
     <div className="space-y-6">
@@ -759,9 +998,9 @@ export default function Orders() {
         />
         
         {selectedOrderIds.size > 0 && (
-          <Button onClick={handleMergeExport} className="flex items-center gap-2">
+          <Button onClick={handleMergePreview} className="flex items-center gap-2">
             <CheckSquare className="h-4 w-4" />
-            Export Selected ({selectedOrderIds.size})
+            Preview & Export ({selectedOrderIds.size})
           </Button>
         )}
       </div>
@@ -1415,6 +1654,104 @@ export default function Orders() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Merged Orders Preview Dialog */}
+      <Dialog open={mergedPreviewOpen} onOpenChange={setMergedPreviewOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">
+              Merged Pending Orders Preview
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Orders Info */}
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">Orders:</span>{" "}
+                {mergedOrdersInfo.map(o => o.order_no).join(", ")}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium">Total Items (grouped by Design):</span>{" "}
+                {mergedData.length}
+              </p>
+            </div>
+
+            {/* Preview Table */}
+            <div className="border rounded-lg overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Art No</TableHead>
+                    <TableHead>Color</TableHead>
+                    <TableHead className="text-center w-12">39</TableHead>
+                    <TableHead className="text-center w-12">40</TableHead>
+                    <TableHead className="text-center w-12">41</TableHead>
+                    <TableHead className="text-center w-12">42</TableHead>
+                    <TableHead className="text-center w-12">43</TableHead>
+                    <TableHead className="text-center w-12">44</TableHead>
+                    <TableHead className="text-center w-12">45</TableHead>
+                    <TableHead className="text-center font-bold">Pairs</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {mergedData.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{item.artNo}</TableCell>
+                      <TableCell>{item.color}</TableCell>
+                      <TableCell className="text-center">{item.sizes[39] || "-"}</TableCell>
+                      <TableCell className="text-center">{item.sizes[40] || "-"}</TableCell>
+                      <TableCell className="text-center">{item.sizes[41] || "-"}</TableCell>
+                      <TableCell className="text-center">{item.sizes[42] || "-"}</TableCell>
+                      <TableCell className="text-center">{item.sizes[43] || "-"}</TableCell>
+                      <TableCell className="text-center">{item.sizes[44] || "-"}</TableCell>
+                      <TableCell className="text-center">{item.sizes[45] || "-"}</TableCell>
+                      <TableCell className="text-center font-bold">{item.totalPairs}</TableCell>
+                      <TableCell className="text-right font-mono">{item.unitPrice.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono">{item.lineTotal.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {/* Totals Row */}
+                  <TableRow className="bg-muted/50 font-bold">
+                    <TableCell></TableCell>
+                    <TableCell>GRAND TOTAL</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[39] || 0), 0)}</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[40] || 0), 0)}</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[41] || 0), 0)}</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[42] || 0), 0)}</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[43] || 0), 0)}</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0)}</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0)}</TableCell>
+                    <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + item.totalPairs, 0)}</TableCell>
+                    <TableCell></TableCell>
+                    <TableCell className="text-right font-mono">{mergedData.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2)}</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-4">
+            <Button variant="outline" onClick={() => setMergedPreviewOpen(false)}>
+              Close
+            </Button>
+            <Button variant="outline" onClick={handlePrintMerged}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+            <Button variant="outline" onClick={handleExportMergedExcel}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Export Excel
+            </Button>
+            <Button onClick={handleExportMergedPDF}>
+              <Download className="h-4 w-4 mr-2" />
+              Download PDF
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
