@@ -418,7 +418,8 @@ export default function Orders() {
       // Customer & Order info
       doc.setFontSize(10);
       doc.text(`Customer: ${order.customer?.name || ""}`, 14, 48);
-      doc.text(`Status: ${order.status || "draft"}`, 14, 54);
+      doc.text(`City: ${order.customer?.area || order.customer?.district || "-"}`, 14, 54);
+      doc.text(`Status: ${order.status || "draft"}`, 14, 60);
 
       // Table
       const tableData = Object.values(groupedLines).map((line: any) => {
@@ -439,7 +440,7 @@ export default function Orders() {
       });
 
       autoTable(doc, {
-        startY: 62,
+        startY: 68,
         head: [["Art No / Color", "39", "40", "41", "42", "43", "44", "45", "Pairs", "Price", "Total"]],
         body: tableData,
         styles: { fontSize: 8 },
