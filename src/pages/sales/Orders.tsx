@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
-import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse, Download, Send } from "lucide-react";
+import { Plus, Eye, Edit, Trash2, FileText, Printer, Truck, Warehouse, Download, Send, CheckSquare } from "lucide-react";
 import { SendDocumentDropdown } from "@/components/documents/SendDocumentDropdown";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -9,8 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PasswordPromptDialog } from "@/components/PasswordPromptDialog";
 import { useActionPassword } from "@/hooks/useActionPassword";
+import { exportToExcel } from "@/lib/export";
 import {
   Table,
   TableBody,
@@ -51,6 +53,7 @@ export default function Orders() {
   const [orderToConvert, setOrderToConvert] = useState<any>(null);
   const [convertOrderLines, setConvertOrderLines] = useState<any[]>([]);
   const [convertStockType, setConvertStockType] = useState<'lorry' | 'store'>('lorry');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
   const {
     isPasswordDialogOpen,
     setIsPasswordDialogOpen,
@@ -623,6 +626,118 @@ export default function Orders() {
     order.customer?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Filter pending orders only
+  const pendingOrders = filteredOrders.filter(order => order.status === 'pending');
+
+  // Check if all pending orders are selected
+  const allPendingSelected = pendingOrders.length > 0 && pendingOrders.every(order => selectedOrderIds.has(order.id));
+
+  const handleSelectAllPending = (checked: boolean) => {
+    if (checked) {
+      const newSelected = new Set(selectedOrderIds);
+      pendingOrders.forEach(order => newSelected.add(order.id));
+      setSelectedOrderIds(newSelected);
+    } else {
+      const newSelected = new Set(selectedOrderIds);
+      pendingOrders.forEach(order => newSelected.delete(order.id));
+      setSelectedOrderIds(newSelected);
+    }
+  };
+
+  const handleSelectOrder = (orderId: string, checked: boolean) => {
+    const newSelected = new Set(selectedOrderIds);
+    if (checked) {
+      newSelected.add(orderId);
+    } else {
+      newSelected.delete(orderId);
+    }
+    setSelectedOrderIds(newSelected);
+  };
+
+  const handleMergeExport = async () => {
+    if (selectedOrderIds.size === 0) {
+      toast.error("Please select at least one pending order");
+      return;
+    }
+
+    try {
+      // Get all selected orders with their lines
+      const selectedOrders = orders.filter(order => selectedOrderIds.has(order.id));
+      
+      // Fetch all order lines for selected orders
+      const { data: allLines, error } = await supabase
+        .from("sales_order_lines")
+        .select("*")
+        .in("order_id", Array.from(selectedOrderIds))
+        .order("line_no", { ascending: true });
+
+      if (error) throw error;
+
+      // Create merged export data
+      const exportData: any[] = [];
+      
+      selectedOrders.forEach(order => {
+        const orderLines = allLines?.filter(line => line.order_id === order.id) || [];
+        
+        orderLines.forEach(line => {
+          const parts = (line.description || "").split(" - ");
+          const artNo = parts[0] || "-";
+          const color = parts[1] || "-";
+          const totalPairs = (line.size_39 || 0) + (line.size_40 || 0) + (line.size_41 || 0) + 
+                           (line.size_42 || 0) + (line.size_43 || 0) + (line.size_44 || 0) + (line.size_45 || 0);
+          
+          exportData.push({
+            "Order No": order.order_no,
+            "Order Date": new Date(order.order_date).toLocaleDateString(),
+            "Customer": order.customer?.name || "-",
+            "City": order.customer?.area || order.customer?.district || "-",
+            "Art No": artNo,
+            "Color": color,
+            "Size 39": line.size_39 || 0,
+            "Size 40": line.size_40 || 0,
+            "Size 41": line.size_41 || 0,
+            "Size 42": line.size_42 || 0,
+            "Size 43": line.size_43 || 0,
+            "Size 44": line.size_44 || 0,
+            "Size 45": line.size_45 || 0,
+            "Total Pairs": totalPairs,
+            "Unit Price": line.unit_price || 0,
+            "Line Total": line.line_total || 0,
+          });
+        });
+      });
+
+      // Add summary row
+      const totalPairs = exportData.reduce((sum, row) => sum + row["Total Pairs"], 0);
+      const grandTotal = exportData.reduce((sum, row) => sum + row["Line Total"], 0);
+      
+      exportData.push({
+        "Order No": "",
+        "Order Date": "",
+        "Customer": "",
+        "City": "",
+        "Art No": "",
+        "Color": "TOTAL",
+        "Size 39": exportData.reduce((sum, row) => sum + (row["Size 39"] || 0), 0),
+        "Size 40": exportData.reduce((sum, row) => sum + (row["Size 40"] || 0), 0),
+        "Size 41": exportData.reduce((sum, row) => sum + (row["Size 41"] || 0), 0),
+        "Size 42": exportData.reduce((sum, row) => sum + (row["Size 42"] || 0), 0),
+        "Size 43": exportData.reduce((sum, row) => sum + (row["Size 43"] || 0), 0),
+        "Size 44": exportData.reduce((sum, row) => sum + (row["Size 44"] || 0), 0),
+        "Size 45": exportData.reduce((sum, row) => sum + (row["Size 45"] || 0), 0),
+        "Total Pairs": totalPairs,
+        "Unit Price": "",
+        "Line Total": grandTotal,
+      });
+
+      exportToExcel(`pending-orders-merged-${new Date().toISOString().split('T')[0]}`, exportData, "Pending Orders");
+      toast.success(`Exported ${selectedOrderIds.size} pending orders to Excel`);
+      setSelectedOrderIds(new Set());
+    } catch (error: any) {
+      toast.error("Error exporting orders: " + error.message);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -635,13 +750,20 @@ export default function Orders() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4">
         <Input
           placeholder="Search orders..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="max-w-sm"
         />
+        
+        {selectedOrderIds.size > 0 && (
+          <Button onClick={handleMergeExport} className="flex items-center gap-2">
+            <CheckSquare className="h-4 w-4" />
+            Export Selected ({selectedOrderIds.size})
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -651,6 +773,15 @@ export default function Orders() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={allPendingSelected}
+                      onCheckedChange={handleSelectAllPending}
+                      title="Select all pending orders"
+                    />
+                  </div>
+                </TableHead>
                 <TableHead>Order No</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Customer</TableHead>
@@ -664,13 +795,23 @@ export default function Orders() {
             <TableBody>
               {filteredOrders.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground">
                     No orders found
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredOrders.map((order) => (
                   <TableRow key={order.id}>
+                    <TableCell>
+                      {order.status === 'pending' ? (
+                        <Checkbox
+                          checked={selectedOrderIds.has(order.id)}
+                          onCheckedChange={(checked) => handleSelectOrder(order.id, !!checked)}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">{order.order_no}</TableCell>
                     <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
                     <TableCell>{order.customer?.name}</TableCell>
