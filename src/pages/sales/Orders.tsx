@@ -459,7 +459,11 @@ export default function Orders() {
       doc.setFont("helvetica", "bold");
       doc.text(`Grand Total: ${(order.grand_total || 0).toFixed(2)}`, pageWidth - 14, finalY, { align: "right" });
 
-      doc.save(`order-${order.order_no}.pdf`);
+      // Create filename with shop name, city, and order number
+      const shopName = (order.customer?.name || 'Customer').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const cityName = (order.customer?.area || order.customer?.district || 'City').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 20);
+      const fileName = `${shopName}_${cityName}_${order.order_no}.pdf`;
+      doc.save(fileName);
       toast.success("PDF downloaded successfully");
     } catch (error: any) {
       toast.error("Error downloading PDF: " + error.message);
