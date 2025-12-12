@@ -41,6 +41,7 @@ import SupplierDetails from "./pages/purchasing/SupplierDetails";
 import DebitNotes from "./pages/purchasing/DebitNotes";
 import Payments from "./pages/purchasing/Payments";
 import SupplierCheques from "./pages/purchasing/SupplierCheques";
+import GoodsReOrderForm from "./pages/purchasing/GoodsReOrderForm";
 import Items from "./pages/inventory/Items";
 import Stock from "./pages/inventory/Stock";
 import MainStock from "./pages/inventory/MainStock";
@@ -136,6 +137,7 @@ const App = () => (
               <Route path="/purchasing/cheques" element={<ProtectedRoute><SupplierCheques /></ProtectedRoute>} />
               <Route path="/purchasing/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
               <Route path="/purchasing/suppliers/:id" element={<ProtectedRoute><SupplierDetails /></ProtectedRoute>} />
+              <Route path="/purchasing/reorder-form" element={<ProtectedRoute><GoodsReOrderForm /></ProtectedRoute>} />
               {/* Inventory routes */}
               <Route path="/inventory/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
               <Route path="/inventory/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />

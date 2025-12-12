@@ -87,6 +87,7 @@ export function AppSidebar() {
   ];
 
   const purchasingItems = [
+    { title: 'Re-Order Form', url: '/purchasing/reorder-form' },
     { title: t('purchasing.bills'), url: '/purchasing/bills' },
     { title: t('purchasing.debitNotes'), url: '/purchasing/debit-notes' },
     { title: t('purchasing.payments'), url: '/purchasing/payments' },
