@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, Palette, Ruler, Package, Flame } from "lucide-react";
+import { TrendingUp, TrendingDown, Palette, Ruler, Package, Flame, Download, FileSpreadsheet } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -11,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { exportToExcel } from "@/lib/export";
 
 interface SalesData {
   artNo: string;
@@ -149,8 +153,173 @@ export default function HotSelling() {
     } catch (error: any) {
       toast.error("Error fetching sales data: " + error.message);
     } finally {
-      setLoading(false);
+    setLoading(false);
     }
+  };
+
+  const getPeriodLabel = () => {
+    switch (period) {
+      case "week": return "Last 7 Days";
+      case "month": return "Last 30 Days";
+      case "year": return "Last Year";
+      default: return "All Time";
+    }
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("HOT SELLING REPORT", pageWidth / 2, 20, { align: "center" });
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Period: ${getPeriodLabel()}`, pageWidth / 2, 28, { align: "center" });
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 34, { align: "center" });
+    doc.text(`Total Sold: ${totalSold.toLocaleString()} pairs`, pageWidth / 2, 40, { align: "center" });
+
+    let yPos = 50;
+
+    // Top Selling Designs
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Top Selling Designs", 14, yPos);
+    
+    autoTable(doc, {
+      startY: yPos + 5,
+      head: [["Rank", "Design", "Qty", "%"]],
+      body: topDesigns.map((item, i) => [
+        i + 1,
+        item.name,
+        item.quantity.toLocaleString(),
+        item.percentage.toFixed(1) + "%"
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [34, 197, 94] },
+      margin: { left: 14, right: pageWidth / 2 + 5 },
+      tableWidth: pageWidth / 2 - 20,
+    });
+
+    // Top Selling Colors (right side)
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Top Selling Colors", pageWidth / 2 + 5, yPos);
+    
+    autoTable(doc, {
+      startY: yPos + 5,
+      head: [["Rank", "Color", "Qty", "%"]],
+      body: topColors.map((item, i) => [
+        i + 1,
+        item.name,
+        item.quantity.toLocaleString(),
+        item.percentage.toFixed(1) + "%"
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [168, 85, 247] },
+      margin: { left: pageWidth / 2 + 5, right: 14 },
+      tableWidth: pageWidth / 2 - 20,
+    });
+
+    // Get the final Y position
+    const finalY = Math.max(
+      (doc as any).lastAutoTable?.finalY || yPos + 50,
+      yPos + 50
+    );
+
+    // Top Selling Sizes
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Top Selling Sizes", 14, finalY + 15);
+    
+    autoTable(doc, {
+      startY: finalY + 20,
+      head: [["Rank", "Size", "Qty", "%"]],
+      body: topSizes.map((item, i) => [
+        i + 1,
+        item.name,
+        item.quantity.toLocaleString(),
+        item.percentage.toFixed(1) + "%"
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+      margin: { left: 14, right: pageWidth / 2 + 5 },
+      tableWidth: pageWidth / 2 - 20,
+    });
+
+    // Low Selling Designs
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Low Selling Designs", pageWidth / 2 + 5, finalY + 15);
+    
+    autoTable(doc, {
+      startY: finalY + 20,
+      head: [["Rank", "Design", "Qty", "%"]],
+      body: lowDesigns.map((item, i) => [
+        i + 1,
+        item.name,
+        item.quantity.toLocaleString(),
+        item.percentage.toFixed(1) + "%"
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [239, 68, 68] },
+      margin: { left: pageWidth / 2 + 5, right: 14 },
+      tableWidth: pageWidth / 2 - 20,
+    });
+
+    doc.save(`hot-selling-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success("PDF downloaded successfully");
+  };
+
+  const handleExportExcel = () => {
+    // Create multiple sheets data
+    const designsData = topDesigns.map((item, i) => ({
+      "Rank": i + 1,
+      "Design": item.name,
+      "Quantity": item.quantity,
+      "Percentage": item.percentage.toFixed(1) + "%"
+    }));
+
+    const colorsData = topColors.map((item, i) => ({
+      "Rank": i + 1,
+      "Color": item.name,
+      "Quantity": item.quantity,
+      "Percentage": item.percentage.toFixed(1) + "%"
+    }));
+
+    const sizesData = topSizes.map((item, i) => ({
+      "Rank": i + 1,
+      "Size": item.name,
+      "Quantity": item.quantity,
+      "Percentage": item.percentage.toFixed(1) + "%"
+    }));
+
+    const lowDesignsData = lowDesigns.map((item, i) => ({
+      "Rank": i + 1,
+      "Design": item.name,
+      "Quantity": item.quantity,
+      "Percentage": item.percentage.toFixed(1) + "%"
+    }));
+
+    // Combined data for single sheet
+    const combinedData = [
+      { "Category": "=== TOP SELLING DESIGNS ===" },
+      ...designsData.map(d => ({ "Category": "Design", ...d })),
+      { "Category": "" },
+      { "Category": "=== TOP SELLING COLORS ===" },
+      ...colorsData.map(c => ({ "Category": "Color", "Rank": c.Rank, "Design": c.Color, "Quantity": c.Quantity, "Percentage": c.Percentage })),
+      { "Category": "" },
+      { "Category": "=== TOP SELLING SIZES ===" },
+      ...sizesData.map(s => ({ "Category": "Size", "Rank": s.Rank, "Design": s.Size, "Quantity": s.Quantity, "Percentage": s.Percentage })),
+      { "Category": "" },
+      { "Category": "=== LOW SELLING DESIGNS ===" },
+      ...lowDesignsData.map(d => ({ "Category": "Low Design", ...d })),
+    ];
+
+    exportToExcel(`hot-selling-report-${new Date().toISOString().split('T')[0]}`, combinedData, "Hot Selling Report");
+    toast.success("Excel exported successfully");
   };
 
   const RankingCard = ({
@@ -223,17 +392,27 @@ export default function HotSelling() {
             <p className="text-muted-foreground text-sm">Sales analytics by design, size, and color</p>
           </div>
         </div>
-        <Select value={period} onValueChange={setPeriod}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Time Period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Time</SelectItem>
-            <SelectItem value="week">Last 7 Days</SelectItem>
-            <SelectItem value="month">Last 30 Days</SelectItem>
-            <SelectItem value="year">Last Year</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Select value={period} onValueChange={setPeriod}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Time Period" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="week">Last 7 Days</SelectItem>
+              <SelectItem value="month">Last 30 Days</SelectItem>
+              <SelectItem value="year">Last Year</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={handleExportExcel}>
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Excel
+          </Button>
+          <Button onClick={handleExportPDF}>
+            <Download className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {/* Summary Card */}
