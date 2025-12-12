@@ -130,11 +130,11 @@ export default function HotSelling() {
       };
 
       const designRanking = calcRanking(designTotals);
-      setTopDesigns(designRanking.slice(0, 10));
-      setLowDesigns(designRanking.filter(d => d.quantity > 0).slice(-5).reverse());
+      setTopDesigns(designRanking); // Show all designs
+      setLowDesigns(designRanking.filter(d => d.quantity > 0).slice(-10).reverse());
 
       const colorRanking = calcRanking(colorTotals);
-      setTopColors(colorRanking.slice(0, 8));
+      setTopColors(colorRanking); // Show all colors
 
       // Size ranking
       const sizeRanking = Object.entries(sizeTotals)
@@ -168,12 +168,17 @@ export default function HotSelling() {
   }) => (
     <Card className="h-full">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Icon className={`h-5 w-5 ${iconColor}`} />
-          {title}
+        <CardTitle className="flex items-center justify-between text-lg">
+          <div className="flex items-center gap-2">
+            <Icon className={`h-5 w-5 ${iconColor}`} />
+            {title}
+          </div>
+          <span className="text-sm font-normal text-muted-foreground">
+            {items.length} items
+          </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
         {loading ? (
           <div className="text-center py-4 text-muted-foreground">Loading...</div>
         ) : items.length === 0 ? (
