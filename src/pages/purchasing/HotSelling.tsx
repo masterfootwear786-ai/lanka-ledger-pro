@@ -170,103 +170,82 @@ export default function HotSelling() {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Title
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.text("HOT SELLING REPORT", pageWidth / 2, 20, { align: "center" });
+    const addHeader = (title: string) => {
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
+      doc.text("HOT SELLING REPORT", pageWidth / 2, 20, { align: "center" });
+      
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(title, pageWidth / 2, 30, { align: "center" });
 
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Period: ${getPeriodLabel()}`, pageWidth / 2, 28, { align: "center" });
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 34, { align: "center" });
-    doc.text(`Total Sold: ${totalSold.toLocaleString()} pairs`, pageWidth / 2, 40, { align: "center" });
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Period: ${getPeriodLabel()} | Total Sold: ${totalSold.toLocaleString()} pairs`, pageWidth / 2, 38, { align: "center" });
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 44, { align: "center" });
+    };
 
-    let yPos = 50;
-
-    // Top Selling Designs
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Top Selling Designs", 14, yPos);
-    
+    // Page 1: Top Selling Designs
+    addHeader("Top Selling Designs");
     autoTable(doc, {
-      startY: yPos + 5,
-      head: [["Rank", "Design", "Qty", "%"]],
+      startY: 55,
+      head: [["Rank", "Design", "Quantity", "Percentage"]],
       body: topDesigns.map((item, i) => [
         i + 1,
         item.name,
         item.quantity.toLocaleString(),
         item.percentage.toFixed(1) + "%"
       ]),
-      styles: { fontSize: 8 },
+      styles: { fontSize: 9 },
       headStyles: { fillColor: [34, 197, 94] },
-      margin: { left: 14, right: pageWidth / 2 + 5 },
-      tableWidth: pageWidth / 2 - 20,
     });
 
-    // Top Selling Colors (right side)
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Top Selling Colors", pageWidth / 2 + 5, yPos);
-    
+    // Page 2: Top Selling Colors
+    doc.addPage();
+    addHeader("Top Selling Colors");
     autoTable(doc, {
-      startY: yPos + 5,
-      head: [["Rank", "Color", "Qty", "%"]],
+      startY: 55,
+      head: [["Rank", "Color", "Quantity", "Percentage"]],
       body: topColors.map((item, i) => [
         i + 1,
         item.name,
         item.quantity.toLocaleString(),
         item.percentage.toFixed(1) + "%"
       ]),
-      styles: { fontSize: 8 },
+      styles: { fontSize: 9 },
       headStyles: { fillColor: [168, 85, 247] },
-      margin: { left: pageWidth / 2 + 5, right: 14 },
-      tableWidth: pageWidth / 2 - 20,
     });
 
-    // Get the final Y position
-    const finalY = Math.max(
-      (doc as any).lastAutoTable?.finalY || yPos + 50,
-      yPos + 50
-    );
-
-    // Top Selling Sizes
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Top Selling Sizes", 14, finalY + 15);
-    
+    // Page 3: Top Selling Sizes
+    doc.addPage();
+    addHeader("Top Selling Sizes");
     autoTable(doc, {
-      startY: finalY + 20,
-      head: [["Rank", "Size", "Qty", "%"]],
+      startY: 55,
+      head: [["Rank", "Size", "Quantity", "Percentage"]],
       body: topSizes.map((item, i) => [
         i + 1,
         item.name,
         item.quantity.toLocaleString(),
         item.percentage.toFixed(1) + "%"
       ]),
-      styles: { fontSize: 8 },
+      styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
-      margin: { left: 14, right: pageWidth / 2 + 5 },
-      tableWidth: pageWidth / 2 - 20,
     });
 
-    // Low Selling Designs
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Low Selling Designs", pageWidth / 2 + 5, finalY + 15);
-    
+    // Page 4: Low Selling Designs
+    doc.addPage();
+    addHeader("Low Selling Designs");
     autoTable(doc, {
-      startY: finalY + 20,
-      head: [["Rank", "Design", "Qty", "%"]],
+      startY: 55,
+      head: [["Rank", "Design", "Quantity", "Percentage"]],
       body: lowDesigns.map((item, i) => [
         i + 1,
         item.name,
         item.quantity.toLocaleString(),
         item.percentage.toFixed(1) + "%"
       ]),
-      styles: { fontSize: 8 },
+      styles: { fontSize: 9 },
       headStyles: { fillColor: [239, 68, 68] },
-      margin: { left: pageWidth / 2 + 5, right: 14 },
-      tableWidth: pageWidth / 2 - 20,
     });
 
     doc.save(`hot-selling-report-${new Date().toISOString().split('T')[0]}.pdf`);
