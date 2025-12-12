@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Printer, Download, FileSpreadsheet, ClipboardList } from "lucide-react";
+import { Printer, Download, FileSpreadsheet, ClipboardList, Plus } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { exportToExcel } from "@/lib/export";
+import { CreateReOrderFormDialog } from "@/components/purchasing/CreateReOrderFormDialog";
 import {
   Table,
   TableBody,
@@ -39,7 +40,7 @@ export default function GoodsReOrderForm() {
   const [companyData, setCompanyData] = useState<any>(null);
   const [stockType, setStockType] = useState<string>("all");
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
-
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   useEffect(() => {
     fetchStockData();
   }, [stockType]);
@@ -376,6 +377,10 @@ export default function GoodsReOrderForm() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Form
+          </Button>
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="h-4 w-4 mr-2" />
             Print
@@ -384,7 +389,7 @@ export default function GoodsReOrderForm() {
             <FileSpreadsheet className="h-4 w-4 mr-2" />
             Excel
           </Button>
-          <Button onClick={handleDownloadPDF}>
+          <Button variant="outline" onClick={handleDownloadPDF}>
             <Download className="h-4 w-4 mr-2" />
             PDF
           </Button>
@@ -492,6 +497,12 @@ export default function GoodsReOrderForm() {
         <p>• Low stock items (≤10 pairs) are highlighted in red</p>
         <p>• Use this form to identify items that need to be re-ordered from suppliers</p>
       </div>
+
+      <CreateReOrderFormDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        companyData={companyData}
+      />
     </div>
   );
 }
