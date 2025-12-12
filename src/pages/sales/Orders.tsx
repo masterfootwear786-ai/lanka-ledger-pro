@@ -68,6 +68,7 @@ export default function Orders() {
   const [mergedPreviewOpen, setMergedPreviewOpen] = useState(false);
   const [mergedData, setMergedData] = useState<MergedLineItem[]>([]);
   const [mergedOrdersInfo, setMergedOrdersInfo] = useState<any[]>([]);
+  const [showPriceTotal, setShowPriceTotal] = useState(true);
   
   const {
     isPasswordDialogOpen,
@@ -749,27 +750,32 @@ export default function Orders() {
   };
 
   const handleExportMergedExcel = () => {
-    const exportData: any[] = mergedData.map(item => ({
-      "Art No": item.artNo,
-      "Color": item.color,
-      "Size 39": item.sizes[39] || 0,
-      "Size 40": item.sizes[40] || 0,
-      "Size 41": item.sizes[41] || 0,
-      "Size 42": item.sizes[42] || 0,
-      "Size 43": item.sizes[43] || 0,
-      "Size 44": item.sizes[44] || 0,
-      "Size 45": item.sizes[45] || 0,
-      "Total Pairs": item.totalPairs,
-      "Unit Price": item.unitPrice,
-      "Line Total": item.lineTotal,
-      "Orders": item.orders.join(", "),
-    }));
+    const exportData: any[] = mergedData.map(item => {
+      const row: any = {
+        "Art No": item.artNo,
+        "Color": item.color,
+        "Size 39": item.sizes[39] || 0,
+        "Size 40": item.sizes[40] || 0,
+        "Size 41": item.sizes[41] || 0,
+        "Size 42": item.sizes[42] || 0,
+        "Size 43": item.sizes[43] || 0,
+        "Size 44": item.sizes[44] || 0,
+        "Size 45": item.sizes[45] || 0,
+        "Total Pairs": item.totalPairs,
+      };
+      if (showPriceTotal) {
+        row["Unit Price"] = item.unitPrice;
+        row["Line Total"] = item.lineTotal;
+      }
+      row["Orders"] = item.orders.join(", ");
+      return row;
+    });
 
     // Add summary row
     const totalPairs = mergedData.reduce((sum, item) => sum + item.totalPairs, 0);
     const grandTotal = mergedData.reduce((sum, item) => sum + item.lineTotal, 0);
     
-    exportData.push({
+    const summaryRow: any = {
       "Art No": "",
       "Color": "GRAND TOTAL",
       "Size 39": mergedData.reduce((sum, item) => sum + (item.sizes[39] || 0), 0),
@@ -780,10 +786,13 @@ export default function Orders() {
       "Size 44": mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0),
       "Size 45": mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0),
       "Total Pairs": totalPairs,
-      "Unit Price": "",
-      "Line Total": grandTotal,
-      "Orders": "",
-    });
+    };
+    if (showPriceTotal) {
+      summaryRow["Unit Price"] = "";
+      summaryRow["Line Total"] = grandTotal;
+    }
+    summaryRow["Orders"] = "";
+    exportData.push(summaryRow);
 
     exportToExcel(`pending-orders-merged-${new Date().toISOString().split('T')[0]}`, exportData, "Pending Orders");
     toast.success(`Exported ${selectedOrderIds.size} pending orders to Excel`);
@@ -813,25 +822,30 @@ export default function Orders() {
     doc.text(`Orders: ${mergedOrdersInfo.map(o => o.order_no).join(", ")}`, pageWidth - 14, 27, { align: "right" });
 
     // Table
-    const tableData = mergedData.map(item => [
-      item.artNo,
-      item.color,
-      item.sizes[39] || "-",
-      item.sizes[40] || "-",
-      item.sizes[41] || "-",
-      item.sizes[42] || "-",
-      item.sizes[43] || "-",
-      item.sizes[44] || "-",
-      item.sizes[45] || "-",
-      item.totalPairs,
-      item.unitPrice.toFixed(2),
-      item.lineTotal.toFixed(2),
-    ]);
+    const tableData = mergedData.map(item => {
+      const row: any[] = [
+        item.artNo,
+        item.color,
+        item.sizes[39] || "-",
+        item.sizes[40] || "-",
+        item.sizes[41] || "-",
+        item.sizes[42] || "-",
+        item.sizes[43] || "-",
+        item.sizes[44] || "-",
+        item.sizes[45] || "-",
+        item.totalPairs,
+      ];
+      if (showPriceTotal) {
+        row.push(item.unitPrice.toFixed(2));
+        row.push(item.lineTotal.toFixed(2));
+      }
+      return row;
+    });
 
     // Add totals row
     const totalPairs = mergedData.reduce((sum, item) => sum + item.totalPairs, 0);
     const grandTotal = mergedData.reduce((sum, item) => sum + item.lineTotal, 0);
-    tableData.push([
+    const totalsRow: any[] = [
       "",
       "GRAND TOTAL",
       mergedData.reduce((sum, item) => sum + (item.sizes[39] || 0), 0),
@@ -842,23 +856,34 @@ export default function Orders() {
       mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0),
       mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0),
       totalPairs,
-      "",
-      grandTotal.toFixed(2),
-    ]);
+    ];
+    if (showPriceTotal) {
+      totalsRow.push("");
+      totalsRow.push(grandTotal.toFixed(2));
+    }
+    tableData.push(totalsRow);
+
+    const headers = showPriceTotal 
+      ? [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Pairs", "Price", "Total"]]
+      : [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Pairs"]];
+
+    const columnStyles: any = {
+      0: { cellWidth: 35 },
+      1: { cellWidth: 30 },
+      9: { halign: "center", fontStyle: "bold" },
+    };
+    if (showPriceTotal) {
+      columnStyles[10] = { halign: "right" };
+      columnStyles[11] = { halign: "right" };
+    }
 
     autoTable(doc, {
       startY: 55,
-      head: [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Pairs", "Price", "Total"]],
+      head: headers,
       body: tableData,
       styles: { fontSize: 9 },
       headStyles: { fillColor: [66, 66, 66] },
-      columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 30 },
-        9: { halign: "center", fontStyle: "bold" },
-        10: { halign: "right" },
-        11: { halign: "right" },
-      },
+      columnStyles,
       didParseCell: function(data) {
         // Bold the totals row
         if (data.row.index === tableData.length - 1) {
@@ -875,6 +900,10 @@ export default function Orders() {
   const handlePrintMerged = () => {
     const totalPairs = mergedData.reduce((sum, item) => sum + item.totalPairs, 0);
     const grandTotal = mergedData.reduce((sum, item) => sum + item.lineTotal, 0);
+
+    const priceHeaders = showPriceTotal ? `
+                <th>Price</th>
+                <th>Total</th>` : '';
 
     const printContent = `
       <!DOCTYPE html>
@@ -928,8 +957,7 @@ export default function Orders() {
                 <th class="size-col">44</th>
                 <th class="size-col">45</th>
                 <th class="size-col">Pairs</th>
-                <th>Price</th>
-                <th>Total</th>
+                ${priceHeaders}
               </tr>
             </thead>
             <tbody>
@@ -945,8 +973,8 @@ export default function Orders() {
                   <td class="size-col">${item.sizes[44] || '-'}</td>
                   <td class="size-col">${item.sizes[45] || '-'}</td>
                   <td class="size-col" style="font-weight: bold;">${item.totalPairs}</td>
-                  <td style="text-align: right;">${item.unitPrice.toFixed(2)}</td>
-                  <td style="text-align: right;">${item.lineTotal.toFixed(2)}</td>
+                  ${showPriceTotal ? `<td style="text-align: right;">${item.unitPrice.toFixed(2)}</td>
+                  <td style="text-align: right;">${item.lineTotal.toFixed(2)}</td>` : ''}
                 </tr>
               `).join('')}
               <tr class="total-row">
@@ -960,8 +988,8 @@ export default function Orders() {
                 <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0)}</td>
                 <td class="size-col">${mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0)}</td>
                 <td class="size-col">${totalPairs}</td>
-                <td></td>
-                <td style="text-align: right;">${grandTotal.toFixed(2)}</td>
+                ${showPriceTotal ? `<td></td>
+                <td style="text-align: right;">${grandTotal.toFixed(2)}</td>` : ''}
               </tr>
             </tbody>
           </table>
@@ -1684,6 +1712,18 @@ export default function Orders() {
               </p>
             </div>
 
+            {/* Show Price/Total Toggle */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="showPriceTotal"
+                checked={showPriceTotal}
+                onCheckedChange={(checked) => setShowPriceTotal(checked === true)}
+              />
+              <Label htmlFor="showPriceTotal" className="text-sm cursor-pointer">
+                Show Price & Total columns
+              </Label>
+            </div>
+
             {/* Preview Table */}
             <div className="border rounded-lg overflow-x-auto">
               <Table>
@@ -1699,8 +1739,12 @@ export default function Orders() {
                     <TableHead className="text-center w-12">44</TableHead>
                     <TableHead className="text-center w-12">45</TableHead>
                     <TableHead className="text-center font-bold">Pairs</TableHead>
-                    <TableHead className="text-right">Price</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
+                    {showPriceTotal && (
+                      <>
+                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1716,8 +1760,12 @@ export default function Orders() {
                       <TableCell className="text-center">{item.sizes[44] || "-"}</TableCell>
                       <TableCell className="text-center">{item.sizes[45] || "-"}</TableCell>
                       <TableCell className="text-center font-bold">{item.totalPairs}</TableCell>
-                      <TableCell className="text-right font-mono">{item.unitPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-mono">{item.lineTotal.toFixed(2)}</TableCell>
+                      {showPriceTotal && (
+                        <>
+                          <TableCell className="text-right font-mono">{item.unitPrice.toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-mono">{item.lineTotal.toFixed(2)}</TableCell>
+                        </>
+                      )}
                     </TableRow>
                   ))}
                   {/* Totals Row */}
@@ -1732,8 +1780,12 @@ export default function Orders() {
                     <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[44] || 0), 0)}</TableCell>
                     <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + (item.sizes[45] || 0), 0)}</TableCell>
                     <TableCell className="text-center">{mergedData.reduce((sum, item) => sum + item.totalPairs, 0)}</TableCell>
-                    <TableCell></TableCell>
-                    <TableCell className="text-right font-mono">{mergedData.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2)}</TableCell>
+                    {showPriceTotal && (
+                      <>
+                        <TableCell></TableCell>
+                        <TableCell className="text-right font-mono">{mergedData.reduce((sum, item) => sum + item.lineTotal, 0).toFixed(2)}</TableCell>
+                      </>
+                    )}
                   </TableRow>
                 </TableBody>
               </Table>
