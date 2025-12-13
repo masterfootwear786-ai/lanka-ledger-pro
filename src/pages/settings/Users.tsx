@@ -50,7 +50,6 @@ export default function Users() {
           event: '*',
           schema: 'public',
           table: 'profiles',
-          filter: `company_id=eq.${companyId}`
         },
         () => {
           fetchUsers();
