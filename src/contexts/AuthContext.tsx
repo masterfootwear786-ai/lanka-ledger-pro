@@ -30,14 +30,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Ensure profile exists for any authenticated user (handles rejected users logging in again)
+      if (session?.user) {
+        await ensureUserProfile(session.user);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const ensureUserProfile = async (user: User) => {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    if (!profile) {
+      await supabase.from('profiles').insert({
+        id: user.id,
+        email: user.email,
+        full_name: user.user_metadata?.full_name || user.email,
+        active: true,
+      });
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -47,21 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // If login successful, ensure profile exists (for rejected users who try again)
     if (!error && data?.user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', data.user.id)
-        .single();
-      
-      // If no profile exists, create one
-      if (!profile) {
-        await supabase.from('profiles').insert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: data.user.user_metadata?.full_name || data.user.email,
-          active: true,
-        });
-      }
+      await ensureUserProfile(data.user);
     }
     
     return { error };
