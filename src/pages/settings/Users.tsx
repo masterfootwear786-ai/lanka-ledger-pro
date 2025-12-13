@@ -249,7 +249,15 @@ export default function Users() {
     if (!userToReject) return;
 
     try {
-      // Delete the profile completely (this will cascade delete roles if any)
+      // First remove any roles assigned to this user so they truly become pending again on next login
+      const { error: rolesError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userToReject.id);
+
+      if (rolesError) throw rolesError;
+
+      // Then delete the profile completely (auth user remains, so they can log in again)
       const { error: profileError } = await supabase
         .from("profiles")
         .delete()
@@ -258,8 +266,8 @@ export default function Users() {
       if (profileError) throw profileError;
 
       toast({
-        title: "Success",
-        description: "User has been rejected and removed from the system",
+        title: "User Rejected",
+        description: "User has been rejected and will appear in waiting list again if they log in.",
       });
 
       fetchUsers();
@@ -274,7 +282,6 @@ export default function Users() {
       setUserToReject(null);
     }
   };
-
   // Pending = users with no roles (regardless of active status - they need permission assignment)
   const pendingUsers = users.filter(u => u.roles.length === 0);
   const activeUsers = users.filter(u => u.roles.length > 0 && u.company_id && u.active);
