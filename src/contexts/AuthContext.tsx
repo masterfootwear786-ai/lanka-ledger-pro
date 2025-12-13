@@ -40,10 +40,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    // If login successful, ensure profile exists (for rejected users who try again)
+    if (!error && data?.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .single();
+      
+      // If no profile exists, create one
+      if (!profile) {
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || data.user.email,
+          active: true,
+        });
+      }
+    }
+    
     return { error };
   };
 
