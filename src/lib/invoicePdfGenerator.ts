@@ -351,21 +351,21 @@ export async function generateInvoicePDF(
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
-    compress: false, // Disable compression for better quality
+    compress: false,
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
 
   // Load and add company logo
-  let yPos = 15;
+  let yPos = 12;
   let logoAdded = false;
   
   if (company?.logo_url) {
     try {
       const logoBase64 = await loadImageAsBase64(company.logo_url);
       if (logoBase64) {
-        // Add logo with good quality - 25mm width, auto height
-        doc.addImage(logoBase64, 'PNG', 14, yPos - 5, 25, 25, undefined, 'FAST');
+        doc.addImage(logoBase64, 'PNG', 14, yPos - 3, 20, 20, undefined, 'FAST');
         logoAdded = true;
       }
     } catch (e) {
@@ -373,75 +373,70 @@ export async function generateInvoicePDF(
     }
   }
 
-  // Company name - position based on whether logo was added
-  const textStartX = logoAdded ? 42 : 14;
+  // Company name - compact header
+  const textStartX = logoAdded ? 37 : 14;
   
-  doc.setFontSize(18);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text(company?.name || "Company", textStartX, yPos);
-  yPos += 6;
+  yPos += 4;
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   if (company?.address) {
     doc.text(company.address, textStartX, yPos);
-    yPos += 4;
+    yPos += 3;
   }
   doc.text(`Tel: ${company?.phone || ""} | Email: ${company?.email || ""}`, textStartX, yPos);
 
-  // Invoice title on right
-  doc.setFontSize(22);
+  // Invoice title on right - compact
+  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
-  doc.text("INVOICE", pageWidth - 14, 15, { align: "right" });
-
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text(`#${invoice.invoice_no}`, pageWidth - 14, 23, { align: "right" });
+  doc.text("INVOICE", pageWidth - 14, 12, { align: "right" });
 
   doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.text(`#${invoice.invoice_no}`, pageWidth - 14, 18, { align: "right" });
+
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(`Date: ${new Date(invoice.invoice_date).toLocaleDateString()}`, pageWidth - 14, 30, { align: "right" });
+  doc.text(`Date: ${new Date(invoice.invoice_date).toLocaleDateString()}`, pageWidth - 14, 23, { align: "right" });
   if (invoice.due_date) {
-    doc.text(`Due: ${new Date(invoice.due_date).toLocaleDateString()}`, pageWidth - 14, 36, { align: "right" });
+    doc.text(`Due: ${new Date(invoice.due_date).toLocaleDateString()}`, pageWidth - 14, 27, { align: "right" });
   }
 
   // Divider line
-  yPos = logoAdded ? 45 : 40;
-  doc.setLineWidth(0.5);
+  yPos = logoAdded ? 34 : 30;
+  doc.setLineWidth(0.3);
   doc.setDrawColor(100, 100, 100);
   doc.line(14, yPos, pageWidth - 14, yPos);
-  yPos += 10;
+  yPos += 6;
 
-  // Customer info boxes with better styling
-  doc.setFontSize(10);
+  // Customer info boxes - compact
+  doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(60, 60, 60);
   doc.text("BILL TO:", 14, yPos);
   doc.text("PAYMENT:", 85, yPos);
   doc.text("GOODS ISSUE BY:", 145, yPos);
-  yPos += 6;
+  yPos += 4;
 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0, 0, 0);
-  doc.setFontSize(11);
+  doc.setFontSize(9);
   doc.text(invoice.customer?.name || "N/A", 14, yPos);
   doc.text(getPaymentMethod(invoice.terms), 85, yPos);
   doc.text(invoice.stock_type === "store" ? "Warehouse" : "Lorry", 145, yPos);
-  yPos += 5;
+  yPos += 4;
 
-  doc.setFontSize(9);
+  doc.setFontSize(8);
   if (invoice.customer?.area) {
     doc.text(invoice.customer.area, 14, yPos);
-    yPos += 4;
-  }
-  if (invoice.customer?.phone) {
-    doc.text(`Tel: ${invoice.customer.phone}`, 14, yPos);
-    yPos += 4;
   }
 
-  yPos += 8;
+  yPos += 6;
 
-  // Items table with improved styling
+  // Items table - compact styling
   const tableData = groupedLines.map((line) => [
     line.artNo,
     line.color,
@@ -478,8 +473,8 @@ export async function generateInvoicePDF(
     head: [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Pairs", "Price", "Total"]],
     body: tableData,
     styles: { 
-      fontSize: 9, 
-      cellPadding: 3,
+      fontSize: 7, 
+      cellPadding: 1.5,
       lineColor: [200, 200, 200],
       lineWidth: 0.1,
     },
@@ -487,24 +482,24 @@ export async function generateInvoicePDF(
       fillColor: [50, 50, 50], 
       textColor: 255,
       fontStyle: 'bold',
-      fontSize: 9,
+      fontSize: 7,
+      cellPadding: 2,
     },
     columnStyles: {
-      0: { cellWidth: 24 },
-      1: { cellWidth: 20 },
-      2: { cellWidth: 11, halign: "center" },
-      3: { cellWidth: 11, halign: "center" },
-      4: { cellWidth: 11, halign: "center" },
-      5: { cellWidth: 11, halign: "center" },
-      6: { cellWidth: 11, halign: "center" },
-      7: { cellWidth: 11, halign: "center" },
-      8: { cellWidth: 11, halign: "center" },
-      9: { cellWidth: 14, halign: "center", fontStyle: "bold" },
-      10: { cellWidth: 22, halign: "right" },
-      11: { cellWidth: 24, halign: "right" },
+      0: { cellWidth: 22 },
+      1: { cellWidth: 18 },
+      2: { cellWidth: 10, halign: "center" },
+      3: { cellWidth: 10, halign: "center" },
+      4: { cellWidth: 10, halign: "center" },
+      5: { cellWidth: 10, halign: "center" },
+      6: { cellWidth: 10, halign: "center" },
+      7: { cellWidth: 10, halign: "center" },
+      8: { cellWidth: 10, halign: "center" },
+      9: { cellWidth: 12, halign: "center", fontStyle: "bold" },
+      10: { cellWidth: 20, halign: "right" },
+      11: { cellWidth: 22, halign: "right" },
     },
     didParseCell: (data) => {
-      // Style the last row (totals)
       if (data.row.index === tableData.length - 1) {
         data.cell.styles.fillColor = [224, 231, 255];
         data.cell.styles.fontStyle = "bold";
@@ -513,86 +508,74 @@ export async function generateInvoicePDF(
     },
   });
 
-  let finalY = (doc as any).lastAutoTable.finalY + 12;
+  let finalY = (doc as any).lastAutoTable.finalY + 8;
 
-  // Summary section on the right with better styling
-  const summaryX = pageWidth - 75;
+  // Summary section - compact
+  const summaryX = pageWidth - 70;
   doc.setFillColor(248, 248, 248);
   doc.setDrawColor(200, 200, 200);
-  doc.roundedRect(summaryX - 5, finalY, 65, 48, 3, 3, "FD");
+  doc.roundedRect(summaryX - 5, finalY, 60, 38, 2, 2, "FD");
 
-  doc.setFontSize(10);
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0);
 
-  doc.text("Subtotal:", summaryX, finalY + 10);
-  doc.text((invoice.subtotal || 0).toFixed(2), pageWidth - 16, finalY + 10, { align: "right" });
+  doc.text("Subtotal:", summaryX, finalY + 8);
+  doc.text((invoice.subtotal || 0).toFixed(2), pageWidth - 16, finalY + 8, { align: "right" });
 
-  doc.text("Tax:", summaryX, finalY + 18);
-  doc.text((invoice.tax_total || 0).toFixed(2), pageWidth - 16, finalY + 18, { align: "right" });
+  doc.text("Tax:", summaryX, finalY + 14);
+  doc.text((invoice.tax_total || 0).toFixed(2), pageWidth - 16, finalY + 14, { align: "right" });
 
-  let discountY = finalY + 26;
+  let discountY = finalY + 20;
   if (invoice.discount && invoice.discount > 0) {
     doc.setTextColor(200, 0, 0);
     doc.text("Discount:", summaryX, discountY);
     doc.text(`-${invoice.discount.toFixed(2)}`, pageWidth - 16, discountY, { align: "right" });
     doc.setTextColor(0);
-    discountY += 8;
+    discountY += 6;
   }
 
   // Grand total
-  doc.setLineWidth(0.5);
+  doc.setLineWidth(0.3);
   doc.setDrawColor(100, 100, 100);
   doc.line(summaryX, discountY, pageWidth - 14, discountY);
-  discountY += 6;
+  discountY += 5;
 
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("Grand Total:", summaryX, discountY + 3);
-  doc.text((invoice.grand_total || 0).toFixed(2), pageWidth - 16, discountY + 3, { align: "right" });
+  doc.text("Grand Total:", summaryX, discountY + 2);
+  doc.text((invoice.grand_total || 0).toFixed(2), pageWidth - 16, discountY + 2, { align: "right" });
 
-  // Notes section
-  let contentEndY = discountY + 15;
+  // Notes section - compact
   if (invoice.notes) {
-    contentEndY = discountY + 25;
-    doc.setFontSize(10);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text("NOTES:", 14, contentEndY);
+    doc.text("NOTES:", 14, finalY + 8);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text(invoice.notes, 14, contentEndY + 6, { maxWidth: pageWidth - 28 });
-    contentEndY += 20;
+    doc.setFontSize(7);
+    doc.text(invoice.notes, 14, finalY + 12, { maxWidth: 80 });
   }
 
-  // Signature section - ensure there's always space for signatures
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const signatureSpaceNeeded = 50; // Space needed for signatures + footer
-  let sigY = contentEndY + 30; // Position 30px below content
-
-  // If not enough space on current page, add a new page
-  if (sigY + signatureSpaceNeeded > pageHeight) {
-    doc.addPage();
-    sigY = 40; // Start near top of new page
-  }
+  // Signature section - fixed at bottom of page
+  const sigY = pageHeight - 28;
   
   doc.setLineWidth(0.3);
   doc.setDrawColor(0, 0, 0);
 
   // Customer signature
-  doc.line(30, sigY, 85, sigY);
-  doc.setFontSize(9);
+  doc.line(25, sigY, 75, sigY);
+  doc.setFontSize(7);
   doc.setTextColor(80, 80, 80);
-  doc.text("Customer Signature", 40, sigY + 6);
+  doc.text("Customer Signature", 35, sigY + 4);
 
   // Sales rep signature
-  doc.line(pageWidth - 85, sigY, pageWidth - 30, sigY);
-  doc.text("Sales Rep Signature", pageWidth - 75, sigY + 6);
+  doc.line(pageWidth - 75, sigY, pageWidth - 25, sigY);
+  doc.text("Sales Rep Signature", pageWidth - 65, sigY + 4);
 
-  // Footer - position below signatures
-  const footerY = sigY + 20;
-  doc.setFontSize(9);
+  // Footer
+  doc.setFontSize(7);
   doc.setTextColor(100, 100, 100);
-  doc.text("Thank you for your business!", pageWidth / 2, footerY, { align: "center" });
+  doc.text("Thank you for your business!", pageWidth / 2, pageHeight - 10, { align: "center" });
 
   return doc;
 }
