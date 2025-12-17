@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Search, AlertTriangle, Truck, ArrowRight, Store, MoreHorizontal, Trash2, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -43,6 +44,7 @@ export default function LorryStock() {
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchStock();
@@ -121,6 +123,7 @@ export default function LorryStock() {
       }) || [];
 
       setStockData(combinedData);
+      setSelectedItems(new Set());
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -174,6 +177,58 @@ export default function LorryStock() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedItems.size} selected items from lorry stock? This will also delete from main stock.`)) {
+      return;
+    }
+
+    try {
+      for (const itemId of selectedItems) {
+        // Delete lorry stock
+        await supabase
+          .from("stock_by_size")
+          .delete()
+          .eq("item_id", itemId)
+          .eq("stock_type", "lorry");
+
+        // Also delete from main stock
+        await supabase
+          .from("stock_by_size")
+          .delete()
+          .eq("item_id", itemId)
+          .eq("stock_type", "main");
+      }
+
+      toast.success(`${selectedItems.size} items deleted successfully`);
+      fetchStock();
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(filteredStock.map(item => item.item_id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItems);
+    if (checked) {
+      newSelected.add(itemId);
+    } else {
+      newSelected.delete(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const isAllSelected = filteredStock.length > 0 && filteredStock.every(item => selectedItems.has(item.item_id));
+  const isSomeSelected = filteredStock.some(item => selectedItems.has(item.item_id));
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -187,6 +242,15 @@ export default function LorryStock() {
           </div>
         </div>
         <div className="flex gap-2">
+          {selectedItems.size > 0 && (
+            <Button 
+              variant="destructive"
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Selected ({selectedItems.size})
+            </Button>
+          )}
           <Button 
             variant="outline"
             onClick={() => setPreviewDialogOpen(true)}
@@ -255,6 +319,11 @@ export default function LorryStock() {
                   Low Stock Filter Active
                 </Badge>
               )}
+              {selectedItems.size > 0 && (
+                <Badge variant="secondary">
+                  {selectedItems.size} selected
+                </Badge>
+              )}
             </div>
             <div className="relative w-96">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -275,6 +344,14 @@ export default function LorryStock() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all"
+                        className={isSomeSelected && !isAllSelected ? "opacity-50" : ""}
+                      />
+                    </TableHead>
                     <TableHead className="w-32">Art No</TableHead>
                     <TableHead className="w-32">Color</TableHead>
                     <TableHead className="w-40">Name</TableHead>
@@ -293,7 +370,7 @@ export default function LorryStock() {
                 <TableBody>
                   {filteredStock.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={13} className="text-center py-8">
+                      <TableCell colSpan={14} className="text-center py-8">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Truck className="h-12 w-12 opacity-50" />
                           <p>No stock found in lorry stock</p>
@@ -310,7 +387,14 @@ export default function LorryStock() {
                     </TableRow>
                   ) : (
                     filteredStock.map((item) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className={selectedItems.has(item.item_id) ? "bg-primary/5" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedItems.has(item.item_id)}
+                            onCheckedChange={(checked) => handleSelectItem(item.item_id, checked as boolean)}
+                            aria-label={`Select ${item.code}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono font-semibold">{item.code}</TableCell>
                         <TableCell className="font-medium">{item.color}</TableCell>
                         <TableCell>{item.name}</TableCell>
