@@ -564,11 +564,16 @@ export async function generateInvoicePDF(
     contentEndY += 20;
   }
 
-  // Signature section - position below content with minimum spacing
+  // Signature section - ensure there's always space for signatures
   const pageHeight = doc.internal.pageSize.getHeight();
-  const minSigY = contentEndY + 30; // Minimum 30px below content
-  const maxSigY = pageHeight - 40; // Maximum position from bottom
-  const sigY = Math.max(minSigY, maxSigY); // Use whichever is lower on page
+  const signatureSpaceNeeded = 50; // Space needed for signatures + footer
+  let sigY = contentEndY + 30; // Position 30px below content
+
+  // If not enough space on current page, add a new page
+  if (sigY + signatureSpaceNeeded > pageHeight) {
+    doc.addPage();
+    sigY = 40; // Start near top of new page
+  }
   
   doc.setLineWidth(0.3);
   doc.setDrawColor(0, 0, 0);
