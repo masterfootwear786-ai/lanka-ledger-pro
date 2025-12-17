@@ -552,18 +552,24 @@ export async function generateInvoicePDF(
   doc.text((invoice.grand_total || 0).toFixed(2), pageWidth - 16, discountY + 3, { align: "right" });
 
   // Notes section
+  let contentEndY = discountY + 15;
   if (invoice.notes) {
-    finalY = discountY + 25;
+    contentEndY = discountY + 25;
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("NOTES:", 14, finalY);
+    doc.text("NOTES:", 14, contentEndY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(invoice.notes, 14, finalY + 6, { maxWidth: pageWidth - 28 });
+    doc.text(invoice.notes, 14, contentEndY + 6, { maxWidth: pageWidth - 28 });
+    contentEndY += 20;
   }
 
-  // Signature section
-  const sigY = doc.internal.pageSize.getHeight() - 40;
+  // Signature section - position below content with minimum spacing
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const minSigY = contentEndY + 30; // Minimum 30px below content
+  const maxSigY = pageHeight - 40; // Maximum position from bottom
+  const sigY = Math.max(minSigY, maxSigY); // Use whichever is lower on page
+  
   doc.setLineWidth(0.3);
   doc.setDrawColor(0, 0, 0);
 
@@ -577,10 +583,11 @@ export async function generateInvoicePDF(
   doc.line(pageWidth - 85, sigY, pageWidth - 30, sigY);
   doc.text("Sales Rep Signature", pageWidth - 75, sigY + 6);
 
-  // Footer
+  // Footer - position below signatures
+  const footerY = sigY + 20;
   doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
-  doc.text("Thank you for your business!", pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: "center" });
+  doc.text("Thank you for your business!", pageWidth / 2, footerY, { align: "center" });
 
   return doc;
 }
