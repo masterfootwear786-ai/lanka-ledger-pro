@@ -101,8 +101,6 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
       const parts = (line.description || "").split(" - ");
       const artNo = parts[0] || "";
       const color = parts[1] || "";
-      const sizeInfo = parts[2] || "";
-      const size = sizeInfo.replace("Size ", "");
       
       const key = `${artNo}|||${color}`;
       
@@ -123,8 +121,18 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
         };
       }
       
-      if (size && acc[key].sizes.hasOwnProperty(size)) {
-        acc[key].sizes[size] = line.quantity || 0;
+      // Read sizes directly from the line columns
+      acc[key].sizes["39"] += line.size_39 || 0;
+      acc[key].sizes["40"] += line.size_40 || 0;
+      acc[key].sizes["41"] += line.size_41 || 0;
+      acc[key].sizes["42"] += line.size_42 || 0;
+      acc[key].sizes["43"] += line.size_43 || 0;
+      acc[key].sizes["44"] += line.size_44 || 0;
+      acc[key].sizes["45"] += line.size_45 || 0;
+      
+      // Use higher unit price if available
+      if (line.unit_price > acc[key].unitPrice) {
+        acc[key].unitPrice = line.unit_price;
       }
       
       return acc;
@@ -218,28 +226,41 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
 
       if (deleteError) throw deleteError;
 
-      // Convert grouped lines back to individual lines
+      // Convert grouped lines to order lines with size columns
       const linesToInsert: any[] = [];
       let lineNo = 1;
 
       groupedLines.forEach((group) => {
-        Object.entries(group.sizes).forEach(([size, quantity]) => {
-          if (quantity && parseFloat(quantity as string) > 0) {
-            const qty = parseFloat(quantity as string);
-            const unitPrice = parseFloat(group.unitPrice) || 0;
-            linesToInsert.push({
-              order_id: order.id,
-              line_no: lineNo++,
-              description: `${group.artNo} - ${group.color} - Size ${size}`,
-              quantity: qty,
-              unit_price: unitPrice,
-              line_total: qty * unitPrice,
-              discount: 0,
-              tax_amount: 0,
-              tax_rate: 0,
-            });
-          }
-        });
+        const totalPairs = 
+          (parseFloat(group.sizes["39"]) || 0) +
+          (parseFloat(group.sizes["40"]) || 0) +
+          (parseFloat(group.sizes["41"]) || 0) +
+          (parseFloat(group.sizes["42"]) || 0) +
+          (parseFloat(group.sizes["43"]) || 0) +
+          (parseFloat(group.sizes["44"]) || 0) +
+          (parseFloat(group.sizes["45"]) || 0);
+
+        if (totalPairs > 0) {
+          const unitPrice = parseFloat(group.unitPrice) || 0;
+          linesToInsert.push({
+            order_id: order.id,
+            line_no: lineNo++,
+            description: `${group.artNo} - ${group.color}`,
+            quantity: totalPairs,
+            unit_price: unitPrice,
+            line_total: totalPairs * unitPrice,
+            size_39: parseFloat(group.sizes["39"]) || 0,
+            size_40: parseFloat(group.sizes["40"]) || 0,
+            size_41: parseFloat(group.sizes["41"]) || 0,
+            size_42: parseFloat(group.sizes["42"]) || 0,
+            size_43: parseFloat(group.sizes["43"]) || 0,
+            size_44: parseFloat(group.sizes["44"]) || 0,
+            size_45: parseFloat(group.sizes["45"]) || 0,
+            discount: 0,
+            tax_amount: 0,
+            tax_rate: 0,
+          });
+        }
       });
 
       if (linesToInsert.length > 0) {
