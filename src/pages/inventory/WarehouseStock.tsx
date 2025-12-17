@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Plus, AlertTriangle, Warehouse, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Search, Plus, AlertTriangle, Warehouse, MoreHorizontal, Pencil, Trash2, Truck, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StockBySizeDialog } from "@/components/inventory/StockBySizeDialog";
+import { BulkStockTransferDialog } from "@/components/inventory/BulkStockTransferDialog";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -14,6 +16,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 interface StockItem {
   id: string;
   item_id: string;
@@ -41,6 +44,8 @@ export default function WarehouseStock() {
   const [stockDialogOpen, setStockDialogOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
 
   useEffect(() => {
     fetchStock();
@@ -119,6 +124,7 @@ export default function WarehouseStock() {
       }) || [];
 
       setStockData(combinedData);
+      setSelectedItems(new Set());
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -183,6 +189,31 @@ export default function WarehouseStock() {
     }
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(filteredStock.map(item => item.item_id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedItems);
+    if (checked) {
+      newSelected.add(itemId);
+    } else {
+      newSelected.delete(itemId);
+    }
+    setSelectedItems(newSelected);
+  };
+
+  const getSelectedStockItems = () => {
+    return filteredStock.filter(item => selectedItems.has(item.item_id));
+  };
+
+  const isAllSelected = filteredStock.length > 0 && filteredStock.every(item => selectedItems.has(item.item_id));
+  const isSomeSelected = filteredStock.some(item => selectedItems.has(item.item_id));
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -195,13 +226,27 @@ export default function WarehouseStock() {
             <p className="text-muted-foreground mt-1">View and manage warehouse stock levels</p>
           </div>
         </div>
-        <Button onClick={() => {
-          setSelectedItem(null);
-          setStockDialogOpen(true);
-        }}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Stock
-        </Button>
+        <div className="flex gap-2">
+          {selectedItems.size > 0 && (
+            <Button 
+              variant="default"
+              onClick={() => setBulkTransferOpen(true)}
+              className="gap-2"
+            >
+              <Warehouse className="h-4 w-4" />
+              <ArrowRight className="h-3 w-3" />
+              <Truck className="h-4 w-4" />
+              Transfer to Lorry ({selectedItems.size})
+            </Button>
+          )}
+          <Button onClick={() => {
+            setSelectedItem(null);
+            setStockDialogOpen(true);
+          }}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Stock
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -252,6 +297,11 @@ export default function WarehouseStock() {
                   Low Stock Filter Active
                 </Badge>
               )}
+              {selectedItems.size > 0 && (
+                <Badge variant="secondary">
+                  {selectedItems.size} selected
+                </Badge>
+              )}
             </div>
             <div className="relative w-96">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -272,6 +322,14 @@ export default function WarehouseStock() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={isAllSelected}
+                        onCheckedChange={handleSelectAll}
+                        aria-label="Select all"
+                        className={isSomeSelected && !isAllSelected ? "opacity-50" : ""}
+                      />
+                    </TableHead>
                     <TableHead className="w-32">Art No</TableHead>
                     <TableHead className="w-32">Color</TableHead>
                     <TableHead className="w-40">Name</TableHead>
@@ -290,7 +348,7 @@ export default function WarehouseStock() {
                 <TableBody>
                   {filteredStock.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={13} className="text-center py-8">
+                      <TableCell colSpan={14} className="text-center py-8">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Warehouse className="h-12 w-12 opacity-50" />
                           <p>No stock found in warehouse</p>
@@ -310,7 +368,14 @@ export default function WarehouseStock() {
                     </TableRow>
                   ) : (
                     filteredStock.map((item) => (
-                      <TableRow key={item.id}>
+                      <TableRow key={item.id} className={selectedItems.has(item.item_id) ? "bg-primary/5" : ""}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedItems.has(item.item_id)}
+                            onCheckedChange={(checked) => handleSelectItem(item.item_id, checked as boolean)}
+                            aria-label={`Select ${item.code}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono font-semibold">{item.code}</TableCell>
                         <TableCell className="font-medium">{item.color}</TableCell>
                         <TableCell>{item.name}</TableCell>
@@ -370,6 +435,13 @@ export default function WarehouseStock() {
         onOpenChange={setStockDialogOpen}
         preSelectedItem={selectedItem}
         stockType="store"
+        onSuccess={fetchStock}
+      />
+
+      <BulkStockTransferDialog
+        open={bulkTransferOpen}
+        onOpenChange={setBulkTransferOpen}
+        selectedItems={getSelectedStockItems()}
         onSuccess={fetchStock}
       />
     </div>
