@@ -106,7 +106,7 @@ export function SendDocumentDropdown({
         invoiceLines = fetchedLines || [];
       }
       
-      return generateInvoicePDFBase64(document, invoiceLines, companyData);
+      return await generateInvoicePDFBase64(document, invoiceLines, companyData);
     }
 
     // For other document types, use the generic generator

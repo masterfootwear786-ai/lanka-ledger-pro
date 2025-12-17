@@ -322,74 +322,114 @@ export function generateInvoicePrintContent(
   `;
 }
 
-export function generateInvoicePDF(
+// Helper function to convert image URL to base64
+async function loadImageAsBase64(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function generateInvoicePDF(
   invoice: InvoiceData,
   lines: InvoiceLine[],
   company: CompanyData | null
-): jsPDF {
+): Promise<jsPDF> {
   const groupedLines = groupInvoiceLines(lines);
   const grandTotals = calculateGrandTotals(groupedLines);
 
-  const doc = new jsPDF();
+  // Create high-quality PDF with better settings
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    compress: false, // Disable compression for better quality
+  });
+
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Company header
+  // Load and add company logo
   let yPos = 15;
+  let logoAdded = false;
+  
   if (company?.logo_url) {
-    // Add logo placeholder - in production you'd need to convert image to base64
-    doc.setFontSize(8);
-    doc.text("[Logo]", 14, yPos);
-    yPos += 5;
+    try {
+      const logoBase64 = await loadImageAsBase64(company.logo_url);
+      if (logoBase64) {
+        // Add logo with good quality - 25mm width, auto height
+        doc.addImage(logoBase64, 'PNG', 14, yPos - 5, 25, 25, undefined, 'FAST');
+        logoAdded = true;
+      }
+    } catch (e) {
+      console.log('Could not load logo:', e);
+    }
   }
 
+  // Company name - position based on whether logo was added
+  const textStartX = logoAdded ? 42 : 14;
+  
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
-  doc.text(company?.name || "Company", 14, yPos);
+  doc.text(company?.name || "Company", textStartX, yPos);
   yPos += 6;
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   if (company?.address) {
-    doc.text(company.address, 14, yPos);
+    doc.text(company.address, textStartX, yPos);
     yPos += 4;
   }
-  doc.text(`Tel: ${company?.phone || ""} | Email: ${company?.email || ""}`, 14, yPos);
+  doc.text(`Tel: ${company?.phone || ""} | Email: ${company?.email || ""}`, textStartX, yPos);
 
   // Invoice title on right
-  doc.setFontSize(20);
+  doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   doc.text("INVOICE", pageWidth - 14, 15, { align: "right" });
 
-  doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
-  doc.text(`#${invoice.invoice_no}`, pageWidth - 14, 22, { align: "right" });
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text(`#${invoice.invoice_no}`, pageWidth - 14, 23, { align: "right" });
 
-  doc.setFontSize(9);
-  doc.text(`Date: ${new Date(invoice.invoice_date).toLocaleDateString()}`, pageWidth - 14, 28, { align: "right" });
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Date: ${new Date(invoice.invoice_date).toLocaleDateString()}`, pageWidth - 14, 30, { align: "right" });
   if (invoice.due_date) {
-    doc.text(`Due: ${new Date(invoice.due_date).toLocaleDateString()}`, pageWidth - 14, 33, { align: "right" });
+    doc.text(`Due: ${new Date(invoice.due_date).toLocaleDateString()}`, pageWidth - 14, 36, { align: "right" });
   }
 
   // Divider line
-  yPos = 40;
+  yPos = logoAdded ? 45 : 40;
   doc.setLineWidth(0.5);
+  doc.setDrawColor(100, 100, 100);
   doc.line(14, yPos, pageWidth - 14, yPos);
-  yPos += 8;
+  yPos += 10;
 
-  // Customer info boxes
-  doc.setFontSize(9);
+  // Customer info boxes with better styling
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
+  doc.setTextColor(60, 60, 60);
   doc.text("BILL TO:", 14, yPos);
-  doc.text("PAYMENT:", 80, yPos);
-  doc.text("GOODS ISSUE BY:", 140, yPos);
-  yPos += 5;
+  doc.text("PAYMENT:", 85, yPos);
+  doc.text("GOODS ISSUE BY:", 145, yPos);
+  yPos += 6;
 
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(11);
   doc.text(invoice.customer?.name || "N/A", 14, yPos);
-  doc.text(getPaymentMethod(invoice.terms), 80, yPos);
-  doc.text(invoice.stock_type === "store" ? "Warehouse" : "Lorry", 140, yPos);
-  yPos += 4;
+  doc.text(getPaymentMethod(invoice.terms), 85, yPos);
+  doc.text(invoice.stock_type === "store" ? "Warehouse" : "Lorry", 145, yPos);
+  yPos += 5;
 
+  doc.setFontSize(9);
   if (invoice.customer?.area) {
     doc.text(invoice.customer.area, 14, yPos);
     yPos += 4;
@@ -399,9 +439,9 @@ export function generateInvoicePDF(
     yPos += 4;
   }
 
-  yPos += 6;
+  yPos += 8;
 
-  // Items table
+  // Items table with improved styling
   const tableData = groupedLines.map((line) => [
     line.artNo,
     line.color,
@@ -437,21 +477,31 @@ export function generateInvoicePDF(
     startY: yPos,
     head: [["Art No", "Color", "39", "40", "41", "42", "43", "44", "45", "Pairs", "Price", "Total"]],
     body: tableData,
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [66, 66, 66], textColor: 255 },
+    styles: { 
+      fontSize: 9, 
+      cellPadding: 3,
+      lineColor: [200, 200, 200],
+      lineWidth: 0.1,
+    },
+    headStyles: { 
+      fillColor: [50, 50, 50], 
+      textColor: 255,
+      fontStyle: 'bold',
+      fontSize: 9,
+    },
     columnStyles: {
-      0: { cellWidth: 22 },
-      1: { cellWidth: 18 },
-      2: { cellWidth: 10, halign: "center" },
-      3: { cellWidth: 10, halign: "center" },
-      4: { cellWidth: 10, halign: "center" },
-      5: { cellWidth: 10, halign: "center" },
-      6: { cellWidth: 10, halign: "center" },
-      7: { cellWidth: 10, halign: "center" },
-      8: { cellWidth: 10, halign: "center" },
+      0: { cellWidth: 24 },
+      1: { cellWidth: 20 },
+      2: { cellWidth: 11, halign: "center" },
+      3: { cellWidth: 11, halign: "center" },
+      4: { cellWidth: 11, halign: "center" },
+      5: { cellWidth: 11, halign: "center" },
+      6: { cellWidth: 11, halign: "center" },
+      7: { cellWidth: 11, halign: "center" },
+      8: { cellWidth: 11, halign: "center" },
       9: { cellWidth: 14, halign: "center", fontStyle: "bold" },
-      10: { cellWidth: 20, halign: "right" },
-      11: { cellWidth: 22, halign: "right" },
+      10: { cellWidth: 22, halign: "right" },
+      11: { cellWidth: 24, halign: "right" },
     },
     didParseCell: (data) => {
       // Style the last row (totals)
@@ -463,78 +513,83 @@ export function generateInvoicePDF(
     },
   });
 
-  let finalY = (doc as any).lastAutoTable.finalY + 10;
+  let finalY = (doc as any).lastAutoTable.finalY + 12;
 
-  // Summary section on the right
-  const summaryX = pageWidth - 70;
+  // Summary section on the right with better styling
+  const summaryX = pageWidth - 75;
   doc.setFillColor(248, 248, 248);
-  doc.roundedRect(summaryX - 5, finalY, 60, 45, 3, 3, "F");
+  doc.setDrawColor(200, 200, 200);
+  doc.roundedRect(summaryX - 5, finalY, 65, 48, 3, 3, "FD");
 
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(0);
 
-  doc.text("Subtotal:", summaryX, finalY + 8);
-  doc.text((invoice.subtotal || 0).toFixed(2), pageWidth - 16, finalY + 8, { align: "right" });
+  doc.text("Subtotal:", summaryX, finalY + 10);
+  doc.text((invoice.subtotal || 0).toFixed(2), pageWidth - 16, finalY + 10, { align: "right" });
 
-  doc.text("Tax:", summaryX, finalY + 15);
-  doc.text((invoice.tax_total || 0).toFixed(2), pageWidth - 16, finalY + 15, { align: "right" });
+  doc.text("Tax:", summaryX, finalY + 18);
+  doc.text((invoice.tax_total || 0).toFixed(2), pageWidth - 16, finalY + 18, { align: "right" });
 
-  let discountY = finalY + 22;
+  let discountY = finalY + 26;
   if (invoice.discount && invoice.discount > 0) {
     doc.setTextColor(200, 0, 0);
     doc.text("Discount:", summaryX, discountY);
     doc.text(`-${invoice.discount.toFixed(2)}`, pageWidth - 16, discountY, { align: "right" });
     doc.setTextColor(0);
-    discountY += 7;
+    discountY += 8;
   }
 
   // Grand total
   doc.setLineWidth(0.5);
+  doc.setDrawColor(100, 100, 100);
   doc.line(summaryX, discountY, pageWidth - 14, discountY);
-  discountY += 5;
+  discountY += 6;
 
-  doc.setFontSize(11);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text("Grand Total:", summaryX, discountY + 3);
   doc.text((invoice.grand_total || 0).toFixed(2), pageWidth - 16, discountY + 3, { align: "right" });
 
   // Notes section
   if (invoice.notes) {
-    finalY = discountY + 20;
-    doc.setFontSize(9);
+    finalY = discountY + 25;
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("NOTES:", 14, finalY);
     doc.setFont("helvetica", "normal");
-    doc.text(invoice.notes, 14, finalY + 5, { maxWidth: pageWidth - 28 });
+    doc.setFontSize(9);
+    doc.text(invoice.notes, 14, finalY + 6, { maxWidth: pageWidth - 28 });
   }
 
   // Signature section
   const sigY = doc.internal.pageSize.getHeight() - 40;
   doc.setLineWidth(0.3);
+  doc.setDrawColor(0, 0, 0);
 
   // Customer signature
-  doc.line(30, sigY, 80, sigY);
+  doc.line(30, sigY, 85, sigY);
   doc.setFontSize(9);
-  doc.text("Customer Signature", 35, sigY + 5);
+  doc.setTextColor(80, 80, 80);
+  doc.text("Customer Signature", 40, sigY + 6);
 
   // Sales rep signature
-  doc.line(pageWidth - 80, sigY, pageWidth - 30, sigY);
-  doc.text("Sales Rep Signature", pageWidth - 75, sigY + 5);
+  doc.line(pageWidth - 85, sigY, pageWidth - 30, sigY);
+  doc.text("Sales Rep Signature", pageWidth - 75, sigY + 6);
 
   // Footer
-  doc.setFontSize(8);
-  doc.setTextColor(100);
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
   doc.text("Thank you for your business!", pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: "center" });
 
   return doc;
 }
 
-export function generateInvoicePDFBase64(
+export async function generateInvoicePDFBase64(
   invoice: InvoiceData,
   lines: InvoiceLine[],
   company: CompanyData | null
-): string {
-  const doc = generateInvoicePDF(invoice, lines, company);
+): Promise<string> {
+  const doc = await generateInvoicePDF(invoice, lines, company);
   return doc.output("datauristring").split(",")[1];
 }
