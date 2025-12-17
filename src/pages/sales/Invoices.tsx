@@ -370,7 +370,7 @@ export default function Invoices() {
         .eq("id", invoice.company_id)
         .single();
 
-      const doc = generateInvoicePDF(invoice, lines || [], company);
+      const doc = await generateInvoicePDF(invoice, lines || [], company);
       
       // Create filename with shop name, city, and invoice number
       const shopName = (invoice.customer?.name || 'Customer').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
