@@ -107,23 +107,34 @@ export default function Users() {
       const allProfiles = [...(companyProfiles || []), ...(pendingProfiles || [])];
 
       if (allProfiles.length > 0) {
-        // Fetch roles for each user
-        const usersWithRoles = await Promise.all(
+        // Fetch roles and permissions for each user
+        const usersWithRolesAndPermissions = await Promise.all(
           allProfiles.map(async (profile) => {
             const { data: roles } = await supabase
               .from('user_roles')
               .select('role')
               .eq('user_id', profile.id);
 
+            const { data: permissions } = await supabase
+              .from('user_permissions')
+              .select('module, can_view, can_create, can_edit, can_delete')
+              .eq('user_id', profile.id);
+
+            // Filter to only show modules with at least one permission granted
+            const grantedPermissions = permissions?.filter(p => 
+              p.can_view || p.can_create || p.can_edit || p.can_delete
+            ) || [];
+
             return {
               ...profile,
               roles: roles?.map(r => r.role) || [],
+              permissions: grantedPermissions,
               isPendingAssignment: !profile.company_id, // Mark users without company
             };
           })
         );
 
-        setUsers(usersWithRoles);
+        setUsers(usersWithRolesAndPermissions);
       } else {
         setUsers([]);
       }
@@ -466,6 +477,28 @@ export default function Users() {
                         ))}
                       </div>
                     </div>
+
+                    {/* Show permissions */}
+                    {user.permissions && user.permissions.length > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-sm font-semibold">Permissions:</div>
+                        <div className="flex flex-wrap gap-1">
+                          {user.permissions.map((perm: any) => (
+                            <Badge
+                              key={perm.module}
+                              variant="outline"
+                              className="text-xs"
+                            >
+                              {perm.module}: 
+                              {perm.can_view && ' V'}
+                              {perm.can_create && ' C'}
+                              {perm.can_edit && ' E'}
+                              {perm.can_delete && ' D'}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-semibold">Status:</span>
