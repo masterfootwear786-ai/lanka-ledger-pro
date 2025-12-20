@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -98,6 +98,8 @@ const defaultPermissions = {
 export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(false);
+  const initKeyRef = useRef<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -128,79 +130,103 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
   });
 
   useEffect(() => {
+    if (!open) {
+      initKeyRef.current = null;
+      setInitializing(false);
+      return;
+    }
+
+    const initKey = user ? user.id : "new";
+    if (initKeyRef.current === initKey) return;
+    initKeyRef.current = initKey;
+
+    let cancelled = false;
+
     const loadUserData = async () => {
-      if (user) {
-        // Fetch user permissions
-        const { data: permissions } = await supabase
-          .from('user_permissions')
-          .select('*')
-          .eq('user_id', user.id);
+      setInitializing(true);
 
-        const permissionsData: any = {
-          sales: { ...defaultPermissions },
-          purchasing: { ...defaultPermissions },
-          inventory: { ...defaultPermissions },
-          expenses: { ...defaultPermissions },
-          reports: { ...defaultPermissions },
-          settings: { ...defaultPermissions },
-        };
+      try {
+        if (user) {
+          // Fetch user permissions
+          const { data: permissions } = await supabase
+            .from("user_permissions")
+            .select("*")
+            .eq("user_id", user.id);
 
-        permissions?.forEach((perm) => {
-          permissionsData[perm.module] = {
-            view: perm.can_view,
-            create: perm.can_create,
-            edit: perm.can_edit,
-            delete: perm.can_delete,
-          };
-        });
+          if (cancelled) return;
 
-        form.reset({
-          full_name: user.full_name || "",
-          email: user.email || "",
-          username: user.username || "",
-          password: "",
-          active: user.active ?? true,
-          language: user.language || "en",
-          is_sales_rep: user.is_sales_rep || false,
-          roles: {
-            admin: user.roles?.includes("admin") || false,
-            accountant: user.roles?.includes("accountant") || false,
-            clerk: user.roles?.includes("clerk") || false,
-            sales_rep: user.roles?.includes("sales_rep") || false,
-            storekeeper: user.roles?.includes("storekeeper") || false,
-          },
-          permissions: permissionsData,
-        });
-      } else {
-        form.reset({
-          full_name: "",
-          email: "",
-          username: "",
-          password: "",
-          active: true,
-          language: "en",
-          is_sales_rep: false,
-          roles: {
-            admin: false,
-            accountant: false,
-            clerk: false,
-            sales_rep: false,
-            storekeeper: false,
-          },
-          permissions: {
+          const permissionsData: any = {
             sales: { ...defaultPermissions },
             purchasing: { ...defaultPermissions },
             inventory: { ...defaultPermissions },
             expenses: { ...defaultPermissions },
             reports: { ...defaultPermissions },
             settings: { ...defaultPermissions },
-          },
-        });
+          };
+
+          permissions?.forEach((perm) => {
+            permissionsData[perm.module] = {
+              view: perm.can_view,
+              create: perm.can_create,
+              edit: perm.can_edit,
+              delete: perm.can_delete,
+            };
+          });
+
+          form.reset({
+            full_name: user.full_name || "",
+            email: user.email || "",
+            username: user.username || "",
+            password: "",
+            active: user.active ?? true,
+            language: user.language || "en",
+            is_sales_rep: user.is_sales_rep || false,
+            roles: {
+              admin: user.roles?.includes("admin") || false,
+              accountant: user.roles?.includes("accountant") || false,
+              clerk: user.roles?.includes("clerk") || false,
+              sales_rep: user.roles?.includes("sales_rep") || false,
+              storekeeper: user.roles?.includes("storekeeper") || false,
+            },
+            permissions: permissionsData,
+          });
+        } else {
+          form.reset({
+            full_name: "",
+            email: "",
+            username: "",
+            password: "",
+            active: true,
+            language: "en",
+            is_sales_rep: false,
+            roles: {
+              admin: false,
+              accountant: false,
+              clerk: false,
+              sales_rep: false,
+              storekeeper: false,
+            },
+            permissions: {
+              sales: { ...defaultPermissions },
+              purchasing: { ...defaultPermissions },
+              inventory: { ...defaultPermissions },
+              expenses: { ...defaultPermissions },
+              reports: { ...defaultPermissions },
+              settings: { ...defaultPermissions },
+            },
+          });
+        }
+      } finally {
+        if (!cancelled) setInitializing(false);
       }
     };
 
-    loadUserData();
-  }, [user, form]);
+    void loadUserData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user?.id]);
 
   const onSubmit = async (data: FormData) => {
     try {
@@ -449,7 +475,15 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className={
+              initializing
+                ? "space-y-6 opacity-60 pointer-events-none"
+                : "space-y-6"
+            }
+            aria-busy={initializing}
+          >
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -691,7 +725,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               </Button>
               <Button 
                 type="submit" 
-                disabled={loading || (!form.formState.isDirty && !!user)}
+                disabled={loading || initializing || (!form.formState.isDirty && !!user)}
               >
                 {loading ? "Saving..." : user ? "Save Changes" : "Create User"}
               </Button>
