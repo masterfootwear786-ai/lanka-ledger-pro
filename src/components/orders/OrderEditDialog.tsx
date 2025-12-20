@@ -99,8 +99,8 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
   const groupLinesByArtNoColor = (lines: any[]) => {
     const grouped = lines.reduce((acc, line) => {
       const parts = (line.description || "").split(" - ");
-      const artNo = parts[0] || "";
-      const color = parts[1] || "";
+      const artNo = parts[0]?.trim() || "";
+      const color = parts[1]?.trim() || "";
       
       const key = `${artNo}|||${color}`;
       
@@ -108,7 +108,7 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
         acc[key] = {
           artNo,
           color,
-          unitPrice: line.unit_price || 0,
+          unitPrice: Number(line.unit_price) || 0,
           sizes: {
             "39": 0,
             "40": 0,
@@ -121,23 +121,25 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
         };
       }
       
-      // Read sizes directly from the line columns
-      acc[key].sizes["39"] += line.size_39 || 0;
-      acc[key].sizes["40"] += line.size_40 || 0;
-      acc[key].sizes["41"] += line.size_41 || 0;
-      acc[key].sizes["42"] += line.size_42 || 0;
-      acc[key].sizes["43"] += line.size_43 || 0;
-      acc[key].sizes["44"] += line.size_44 || 0;
-      acc[key].sizes["45"] += line.size_45 || 0;
+      // Read sizes directly from the line columns - ensure numeric conversion
+      acc[key].sizes["39"] += Number(line.size_39) || 0;
+      acc[key].sizes["40"] += Number(line.size_40) || 0;
+      acc[key].sizes["41"] += Number(line.size_41) || 0;
+      acc[key].sizes["42"] += Number(line.size_42) || 0;
+      acc[key].sizes["43"] += Number(line.size_43) || 0;
+      acc[key].sizes["44"] += Number(line.size_44) || 0;
+      acc[key].sizes["45"] += Number(line.size_45) || 0;
       
       // Use higher unit price if available
-      if (line.unit_price > acc[key].unitPrice) {
-        acc[key].unitPrice = line.unit_price;
+      const linePrice = Number(line.unit_price) || 0;
+      if (linePrice > acc[key].unitPrice) {
+        acc[key].unitPrice = linePrice;
       }
       
       return acc;
     }, {} as Record<string, any>);
 
+    console.log('Grouped lines from DB:', grouped);
     setGroupedLines(Object.values(grouped));
   };
 
