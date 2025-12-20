@@ -251,6 +251,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         userId = authData.user.id;
 
         // Update the new user's profile with company ID and username
+        // Sync is_sales_rep based on sales_rep role selection
         const { error: profileUpdateError } = await supabase
           .from("profiles")
           .update({
@@ -259,7 +260,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             active: data.active,
             language: data.language,
             username: data.username ? data.username.toLowerCase().trim() : null,
-            is_sales_rep: data.is_sales_rep,
+            is_sales_rep: data.roles.sales_rep, // Sync with sales_rep role
           })
           .eq("id", userId);
 
@@ -267,6 +268,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
       } else {
         // Update existing user profile (including assigning company_id for pending users)
+        // Sync is_sales_rep based on sales_rep role selection
         const { error: profileError } = await supabase
           .from("profiles")
           .update({
@@ -275,7 +277,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             active: data.active,
             language: data.language,
             username: data.username ? data.username.toLowerCase().trim() : null,
-            is_sales_rep: data.is_sales_rep,
+            is_sales_rep: data.roles.sales_rep, // Sync with sales_rep role
           })
           .eq("id", user.id);
 
@@ -527,49 +529,26 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="is_sales_rep"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between space-y-0 rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Sales Representative</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Mark as sales rep for activity tracking
-                      </div>
+            <FormField
+              control={form.control}
+              name="active"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between space-y-0 rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Active Status</FormLabel>
+                    <div className="text-sm text-muted-foreground">
+                      Enable or disable this user account
                     </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="active"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between space-y-0 rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Active Status</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Enable or disable this user account
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            </div>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <Separator />
 

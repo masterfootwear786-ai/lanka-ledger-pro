@@ -90,12 +90,27 @@ export default function SalesRepActivity() {
 
       if (!profile?.company_id) return;
 
-      // Fetch all sales reps in company
+      // Fetch all users with sales_rep role in company
+      const { data: salesRepRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "sales_rep")
+        .eq("company_id", profile.company_id);
+
+      if (!salesRepRoles || salesRepRoles.length === 0) {
+        setSalesReps([]);
+        setLoading(false);
+        return;
+      }
+
+      const salesRepUserIds = salesRepRoles.map(r => r.user_id);
+
+      // Fetch profiles for these sales reps
       const { data: profiles } = await supabase
         .from("profiles")
         .select("*")
-        .eq("company_id", profile.company_id)
-        .eq("is_sales_rep", true);
+        .in("id", salesRepUserIds)
+        .eq("active", true);
 
       if (!profiles || profiles.length === 0) {
         setSalesReps([]);
