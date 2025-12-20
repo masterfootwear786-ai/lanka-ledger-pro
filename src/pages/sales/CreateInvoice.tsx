@@ -296,22 +296,25 @@ export default function CreateInvoice() {
         .order('line_no', { ascending: true });
 
       if (lines && lines.length > 0) {
-        // Group lines by Art No and Color
-        const grouped = lines.reduce((acc: any, line: any) => {
-          const parts = (line.description || "").split(" - ");
-          const artNo = parts[0] || "";
-          const color = parts[1] || "";
-          const sizeInfo = parts[2] || "";
-          const size = sizeInfo.replace("Size ", "");
-          
+        const sizes = [39, 40, 41, 42, 43, 44, 45] as const;
+
+        // Support BOTH storage formats:
+        // A) Aggregated lines with size_39..size_45 columns (current)
+        // B) Legacy per-size lines: "ART - COLOR - Size 39" with qty in `quantity`
+        const grouped = (lines || []).reduce((acc: Record<string, any>, line: any) => {
+          const desc = String(line.description || "");
+          const m = desc.match(/^(.+?)\s*-\s*(.+?)\s*-\s*Size\s*(\d+)\s*$/i);
+
+          const artNo = (m?.[1] ?? desc.split(" - ")[0] ?? "").trim();
+          const color = (m?.[2] ?? desc.split(" - ")[1] ?? "").trim();
           const key = `${artNo}|||${color}`;
-          
+
           if (!acc[key]) {
             acc[key] = {
-              id: Math.random().toString(),
+              id: crypto.randomUUID(),
               art_no: artNo,
-              description: '',
-              color: color,
+              description: "",
+              color,
               size_39: 0,
               size_40: 0,
               size_41: 0,
@@ -320,31 +323,45 @@ export default function CreateInvoice() {
               size_44: 0,
               size_45: 0,
               total_pairs: 0,
-              unit_price: line.unit_price || 0,
+              unit_price: Number(line.unit_price) || 0,
               tax_rate: 0,
               line_total: 0,
               tax_amount: 0,
               discount_selected: false,
             };
           }
-          
-          // Set size quantity
-          if (size && ['39', '40', '41', '42', '43', '44', '45'].includes(size)) {
-            acc[key][`size_${size}`] = line.quantity || 0;
-          }
-          
-          return acc;
-        }, {} as Record<string, any>);
 
-        // Calculate totals for each group
-        const reconstructedLines = Object.values(grouped).map((line: any) => {
-          line.total_pairs = line.size_39 + line.size_40 + line.size_41 + 
-                             line.size_42 + line.size_43 + line.size_44 + line.size_45;
-          line.line_total = line.total_pairs * line.unit_price;
-          return line;
+          // If description contains a size (legacy), use quantity
+          if (m?.[3] && sizes.map(String).includes(m[3])) {
+            const s = Number(m[3]) as typeof sizes[number];
+            acc[key][`size_${s}`] = (Number(acc[key][`size_${s}`]) || 0) + (Number(line.quantity) || 0);
+          } else {
+            // Otherwise use stored size columns (current)
+            sizes.forEach((s) => {
+              acc[key][`size_${s}`] = (Number(acc[key][`size_${s}`]) || 0) + (Number(line[`size_${s}`]) || 0);
+            });
+          }
+
+          const linePrice = Number(line.unit_price) || 0;
+          if (linePrice > acc[key].unit_price) acc[key].unit_price = linePrice;
+
+          return acc;
+        }, {});
+
+        const reconstructedLines = Object.values(grouped).map((li: any) => {
+          li.total_pairs =
+            Number(li.size_39) +
+            Number(li.size_40) +
+            Number(li.size_41) +
+            Number(li.size_42) +
+            Number(li.size_43) +
+            Number(li.size_44) +
+            Number(li.size_45);
+          li.line_total = li.total_pairs * Number(li.unit_price || 0);
+          return li as LineItem;
         });
 
-        setLineItems(reconstructedLines as LineItem[]);
+        setLineItems(reconstructedLines);
       }
 
       if (orderData.discount && orderData.discount > 0) {
