@@ -125,28 +125,66 @@ export default function SalesRepActivity() {
       // Fetch data for each sales rep
       const repsData: SalesRepData[] = await Promise.all(
         profiles.map(async (rep) => {
-          // Get stats
+          // Get stats from sales_rep_stats table
           const { data: stats } = await supabase
             .from("sales_rep_stats")
             .select("*")
             .eq("user_id", rep.id)
             .gte("period_date", startDateStr);
 
-          const aggregatedStats = {
-            invoices_created: 0,
-            orders_created: 0,
-            receipts_created: 0,
-            total_sales: 0,
-            total_collections: 0,
-          };
+          // Also fetch actual counts from invoices, orders, receipts for accurate data
+          const { count: invoiceCount } = await supabase
+            .from("invoices")
+            .select("*", { count: "exact", head: true })
+            .eq("created_by", rep.id)
+            .eq("company_id", profile.company_id)
+            .gte("invoice_date", startDateStr)
+            .is("deleted_at", null);
 
-          stats?.forEach((s) => {
-            aggregatedStats.invoices_created += s.invoices_created || 0;
-            aggregatedStats.orders_created += s.orders_created || 0;
-            aggregatedStats.receipts_created += s.receipts_created || 0;
-            aggregatedStats.total_sales += Number(s.total_sales) || 0;
-            aggregatedStats.total_collections += Number(s.total_collections) || 0;
-          });
+          const { count: orderCount } = await supabase
+            .from("sales_orders")
+            .select("*", { count: "exact", head: true })
+            .eq("created_by", rep.id)
+            .eq("company_id", profile.company_id)
+            .gte("order_date", startDateStr)
+            .is("deleted_at", null);
+
+          const { count: receiptCount } = await supabase
+            .from("receipts")
+            .select("*", { count: "exact", head: true })
+            .eq("created_by", rep.id)
+            .eq("company_id", profile.company_id)
+            .gte("receipt_date", startDateStr)
+            .is("deleted_at", null);
+
+          // Get invoice totals
+          const { data: invoiceTotals } = await supabase
+            .from("invoices")
+            .select("grand_total")
+            .eq("created_by", rep.id)
+            .eq("company_id", profile.company_id)
+            .gte("invoice_date", startDateStr)
+            .is("deleted_at", null);
+
+          // Get receipt totals
+          const { data: receiptTotals } = await supabase
+            .from("receipts")
+            .select("amount")
+            .eq("created_by", rep.id)
+            .eq("company_id", profile.company_id)
+            .gte("receipt_date", startDateStr)
+            .is("deleted_at", null);
+
+          const totalSales = invoiceTotals?.reduce((sum, inv) => sum + (Number(inv.grand_total) || 0), 0) || 0;
+          const totalCollections = receiptTotals?.reduce((sum, rec) => sum + (Number(rec.amount) || 0), 0) || 0;
+
+          const aggregatedStats = {
+            invoices_created: invoiceCount || 0,
+            orders_created: orderCount || 0,
+            receipts_created: receiptCount || 0,
+            total_sales: totalSales,
+            total_collections: totalCollections,
+          };
 
           // Get login history
           const { data: loginHistory } = await supabase

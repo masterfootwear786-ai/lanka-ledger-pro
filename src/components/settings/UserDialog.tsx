@@ -689,7 +689,10 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading}>
+              <Button 
+                type="submit" 
+                disabled={loading || (!form.formState.isDirty && !!user)}
+              >
                 {loading ? "Saving..." : user ? "Save Changes" : "Create User"}
               </Button>
             </div>
