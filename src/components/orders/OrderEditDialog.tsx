@@ -97,13 +97,21 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
   };
 
   const groupLinesByArtNoColor = (lines: any[]) => {
+    const sizes = ["39", "40", "41", "42", "43", "44", "45"] as const;
+
     const grouped = lines.reduce((acc, line) => {
-      const parts = (line.description || "").split(" - ");
-      const artNo = parts[0]?.trim() || "";
-      const color = parts[1]?.trim() || "";
-      
+      const desc = String(line.description || "");
+
+      // Current order data model stores each size as a separate line:
+      // "ARTNO - COLOR - Size 39" with quantity in `line.quantity`
+      const sizeMatch = desc.match(/^(.+?)\s*-\s*(.+?)\s*-\s*Size\s*(\d+)\s*$/i);
+
+      const artNo = (sizeMatch?.[1] ?? desc.split(" - ")[0] ?? "").trim();
+      const color = (sizeMatch?.[2] ?? desc.split(" - ")[1] ?? "").trim();
+      const sizeFromDesc = sizeMatch?.[3];
+
       const key = `${artNo}|||${color}`;
-      
+
       if (!acc[key]) {
         acc[key] = {
           artNo,
@@ -116,30 +124,34 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
             "42": 0,
             "43": 0,
             "44": 0,
-            "45": 0
-          }
+            "45": 0,
+          },
         };
       }
-      
-      // Read sizes directly from the line columns - ensure numeric conversion
-      acc[key].sizes["39"] += Number(line.size_39) || 0;
-      acc[key].sizes["40"] += Number(line.size_40) || 0;
-      acc[key].sizes["41"] += Number(line.size_41) || 0;
-      acc[key].sizes["42"] += Number(line.size_42) || 0;
-      acc[key].sizes["43"] += Number(line.size_43) || 0;
-      acc[key].sizes["44"] += Number(line.size_44) || 0;
-      acc[key].sizes["45"] += Number(line.size_45) || 0;
-      
+
+      // Prefer parsing from description + quantity (works for existing saved orders)
+      if (sizeFromDesc && sizes.includes(sizeFromDesc as any)) {
+        acc[key].sizes[sizeFromDesc] += Number(line.quantity) || 0;
+      } else {
+        // Fallback: if some legacy records store size columns
+        acc[key].sizes["39"] += Number(line.size_39) || 0;
+        acc[key].sizes["40"] += Number(line.size_40) || 0;
+        acc[key].sizes["41"] += Number(line.size_41) || 0;
+        acc[key].sizes["42"] += Number(line.size_42) || 0;
+        acc[key].sizes["43"] += Number(line.size_43) || 0;
+        acc[key].sizes["44"] += Number(line.size_44) || 0;
+        acc[key].sizes["45"] += Number(line.size_45) || 0;
+      }
+
       // Use higher unit price if available
       const linePrice = Number(line.unit_price) || 0;
       if (linePrice > acc[key].unitPrice) {
         acc[key].unitPrice = linePrice;
       }
-      
+
       return acc;
     }, {} as Record<string, any>);
 
-    console.log('Grouped lines from DB:', grouped);
     setGroupedLines(Object.values(grouped));
   };
 
@@ -168,8 +180,8 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
         "42": 0,
         "43": 0,
         "44": 0,
-        "45": 0
-      }
+        "45": 0,
+      },
     };
     setGroupedLines([...groupedLines, newGroup]);
   };
@@ -228,42 +240,29 @@ export function OrderEditDialog({ open, onOpenChange, order, onSuccess }: OrderE
 
       if (deleteError) throw deleteError;
 
-      // Convert grouped lines to order lines with size columns
+      // Convert grouped lines to order lines (expand sizes to individual lines)
       const linesToInsert: any[] = [];
       let lineNo = 1;
+      const sizes = ["39", "40", "41", "42", "43", "44", "45"] as const;
 
       groupedLines.forEach((group) => {
-        const totalPairs = 
-          (parseFloat(group.sizes["39"]) || 0) +
-          (parseFloat(group.sizes["40"]) || 0) +
-          (parseFloat(group.sizes["41"]) || 0) +
-          (parseFloat(group.sizes["42"]) || 0) +
-          (parseFloat(group.sizes["43"]) || 0) +
-          (parseFloat(group.sizes["44"]) || 0) +
-          (parseFloat(group.sizes["45"]) || 0);
+        const unitPrice = parseFloat(String(group.unitPrice)) || 0;
 
-        if (totalPairs > 0) {
-          const unitPrice = parseFloat(group.unitPrice) || 0;
+        sizes.forEach((size) => {
+          const qty = parseFloat(String(group.sizes?.[size])) || 0;
+          if (qty <= 0) return;
+
           linesToInsert.push({
             order_id: order.id,
             line_no: lineNo++,
-            description: `${group.artNo} - ${group.color}`,
-            quantity: totalPairs,
+            description: `${group.artNo} - ${group.color} - Size ${size}`,
+            quantity: qty,
             unit_price: unitPrice,
-            line_total: totalPairs * unitPrice,
-            size_39: parseFloat(group.sizes["39"]) || 0,
-            size_40: parseFloat(group.sizes["40"]) || 0,
-            size_41: parseFloat(group.sizes["41"]) || 0,
-            size_42: parseFloat(group.sizes["42"]) || 0,
-            size_43: parseFloat(group.sizes["43"]) || 0,
-            size_44: parseFloat(group.sizes["44"]) || 0,
-            size_45: parseFloat(group.sizes["45"]) || 0,
-            discount: 0,
-            tax_amount: 0,
-            tax_rate: 0,
+            line_total: qty * unitPrice,
           });
-        }
+        });
       });
+
 
       if (linesToInsert.length > 0) {
         const { error: insertError } = await supabase
