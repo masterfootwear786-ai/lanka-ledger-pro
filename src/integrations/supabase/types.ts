@@ -518,6 +518,79 @@ export type Database = {
           },
         ]
       }
+      chat_group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_groups: {
+        Row: {
+          avatar_url: string | null
+          company_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          company_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_groups_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_message_deletions: {
         Row: {
           created_at: string
@@ -553,6 +626,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           duration_seconds: number | null
+          group_id: string | null
           id: string
           image_url: string | null
           message_type: string
@@ -564,6 +638,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           duration_seconds?: number | null
+          group_id?: string | null
           id?: string
           image_url?: string | null
           message_type?: string
@@ -575,6 +650,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           duration_seconds?: number | null
+          group_id?: string | null
           id?: string
           image_url?: string | null
           message_type?: string
@@ -587,6 +663,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "chat_groups"
             referencedColumns: ["id"]
           },
         ]
