@@ -48,11 +48,13 @@ export const useVoiceCall = () => {
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const signalingChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const iceCandidatesQueue = useRef<RTCIceCandidateInit[]>([]);
+  const localIceCandidates = useRef<RTCIceCandidateInit[]>([]); // Store local ICE candidates to resend
   const isSubscribed = useRef<boolean>(false);
   const callStatusRef = useRef<CallStatus>('idle');
   const connectionFailTimer = useRef<NodeJS.Timeout | null>(null);
   const endCallRef = useRef<() => void>(() => {});
   const isCleaningUp = useRef<boolean>(false);
+  const answererReady = useRef<boolean>(false);
 
   useEffect(() => {
     callStatusRef.current = callState.status;
@@ -113,8 +115,10 @@ export const useVoiceCall = () => {
       remoteAudio.current.srcObject = null;
     }
 
-    // Clear ICE queue
+    // Clear ICE queues
     iceCandidatesQueue.current = [];
+    localIceCandidates.current = [];
+    answererReady.current = false;
 
     // Remove signaling channel with delay
     if (signalingChannel.current) {
@@ -148,6 +152,7 @@ export const useVoiceCall = () => {
   const processIceCandidateQueue = useCallback(async () => {
     if (!peerConnection.current || !peerConnection.current.remoteDescription) return;
     
+    console.log('Processing ICE candidate queue, count:', iceCandidatesQueue.current.length);
     while (iceCandidatesQueue.current.length > 0) {
       const candidate = iceCandidatesQueue.current.shift();
       if (candidate) {
@@ -161,23 +166,57 @@ export const useVoiceCall = () => {
     }
   }, []);
 
-  const setupPeerConnection = useCallback(() => {
-    console.log('Setting up peer connection...');
+  const sendStoredIceCandidates = useCallback(() => {
+    if (!signalingChannel.current || !isSubscribed.current) return;
+    
+    console.log('Sending stored ICE candidates, count:', localIceCandidates.current.length);
+    localIceCandidates.current.forEach(candidate => {
+      signalingChannel.current?.send({
+        type: 'broadcast',
+        event: 'ice-candidate',
+        payload: { candidate }
+      });
+    });
+  }, []);
+
+  const setupPeerConnection = useCallback((isCaller: boolean) => {
+    console.log('Setting up peer connection... isCaller:', isCaller);
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && signalingChannel.current && isSubscribed.current) {
-        console.log('Sending ICE candidate');
-        signalingChannel.current.send({
-          type: 'broadcast',
-          event: 'ice-candidate',
-          payload: { candidate: event.candidate.toJSON() }
-        });
+      if (event.candidate) {
+        const candidateJson = event.candidate.toJSON();
+        console.log('Got ICE candidate');
+        
+        if (isCaller) {
+          // Store ICE candidates - will send when answerer is ready
+          localIceCandidates.current.push(candidateJson);
+          
+          // If answerer is already ready, send immediately
+          if (answererReady.current && signalingChannel.current && isSubscribed.current) {
+            console.log('Sending ICE candidate immediately (answerer ready)');
+            signalingChannel.current.send({
+              type: 'broadcast',
+              event: 'ice-candidate',
+              payload: { candidate: candidateJson }
+            });
+          }
+        } else {
+          // Answerer sends ICE candidates immediately
+          if (signalingChannel.current && isSubscribed.current) {
+            console.log('Sending ICE candidate (answerer)');
+            signalingChannel.current.send({
+              type: 'broadcast',
+              event: 'ice-candidate',
+              payload: { candidate: candidateJson }
+            });
+          }
+        }
       }
     };
 
     pc.ontrack = (event) => {
-      console.log('Received remote track:', event.track.kind, event.streams);
+      console.log('Received remote track:', event.track.kind);
       if (event.streams[0]) {
         const remoteStream = event.streams[0];
         console.log('Remote stream tracks:', remoteStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
@@ -207,7 +246,7 @@ export const useVoiceCall = () => {
       const state = pc.iceConnectionState;
       console.log('ICE connection state:', state);
 
-      if (state === 'connected') {
+      if (state === 'connected' || state === 'completed') {
         console.log('Call connected!');
         if (connectionFailTimer.current) {
           clearTimeout(connectionFailTimer.current);
@@ -220,8 +259,7 @@ export const useVoiceCall = () => {
         const currentStatus = callStatusRef.current;
         console.log('ICE issue while call status:', currentStatus);
 
-        // Avoid ending the call too early during setup; give it time.
-        const graceMs = currentStatus === 'connected' ? 1500 : 10000;
+        const graceMs = currentStatus === 'connected' ? 3000 : 15000;
 
         if (connectionFailTimer.current) {
           clearTimeout(connectionFailTimer.current);
@@ -232,13 +270,7 @@ export const useVoiceCall = () => {
           const stillIceState = pc.iceConnectionState;
           console.log('ICE grace elapsed. status:', stillStatus, 'ice:', stillIceState);
 
-          const shouldEndConnected =
-            stillStatus === 'connected' && (stillIceState === 'failed' || stillIceState === 'disconnected');
-
-          const shouldEndTrying =
-            (stillStatus === 'calling' || stillStatus === 'ringing') && stillIceState === 'failed';
-
-          if (shouldEndConnected || shouldEndTrying) {
+          if (stillIceState === 'failed' || stillIceState === 'disconnected') {
             console.log('Ending call due to ICE failure/disconnect');
             endCallRef.current();
           }
@@ -364,24 +396,10 @@ export const useVoiceCall = () => {
     try {
       console.log('Starting call to:', targetUserName);
       
-      // Check microphone permission first
-      let permissionStatus: PermissionStatus | null = null;
-      try {
-        permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      } catch (e) {
-        // Some browsers don't support permission query for microphone
-        console.log('Permissions API not supported, will try direct access');
-      }
-
-      if (permissionStatus?.state === 'denied') {
-        toast({
-          title: "Microphone Access Denied",
-          description: "Please enable microphone access in your browser settings to make calls.",
-          variant: "destructive"
-        });
-        return;
-      }
-
+      // Reset state
+      localIceCandidates.current = [];
+      answererReady.current = false;
+      
       // Get microphone access
       let stream: MediaStream;
       try {
@@ -394,19 +412,9 @@ export const useVoiceCall = () => {
         });
       } catch (mediaError: any) {
         console.error('Microphone access error:', mediaError);
-        let errorMessage = "Could not access microphone.";
-        
-        if (mediaError.name === 'NotAllowedError' || mediaError.name === 'PermissionDeniedError') {
-          errorMessage = "Microphone permission denied. Please allow microphone access and try again.";
-        } else if (mediaError.name === 'NotFoundError' || mediaError.name === 'DevicesNotFoundError') {
-          errorMessage = "No microphone found. Please connect a microphone and try again.";
-        } else if (mediaError.name === 'NotReadableError' || mediaError.name === 'TrackStartError') {
-          errorMessage = "Microphone is in use by another application. Please close other apps using the microphone.";
-        }
-        
         toast({
           title: "Microphone Error",
-          description: errorMessage,
+          description: "Could not access microphone. Please check permissions.",
           variant: "destructive"
         });
         return;
@@ -433,15 +441,15 @@ export const useVoiceCall = () => {
       callLogId.current = callLog.id;
       console.log('Created call log:', callLog.id);
 
-      // Set up peer connection
-      const pc = setupPeerConnection();
+      // Set up peer connection (as caller)
+      const pc = setupPeerConnection(true);
       stream.getTracks().forEach(track => {
         pc.addTrack(track, stream);
         console.log('Added track to peer connection:', track.kind);
       });
 
-      // Set up signaling channel with unique timestamp to avoid conflicts
-      const channelName = `voice-call-${[user.id, targetUserId].sort().join('-')}-${Date.now()}`;
+      // Set up signaling channel
+      const channelName = `voice-call-${callLog.id}`;
       console.log('Setting up signaling channel:', channelName);
       
       signalingChannel.current = supabase.channel(channelName, {
@@ -449,11 +457,15 @@ export const useVoiceCall = () => {
       });
 
       signalingChannel.current
+        .on('broadcast', { event: 'answerer-ready' }, () => {
+          console.log('Answerer is ready, sending stored ICE candidates');
+          answererReady.current = true;
+          sendStoredIceCandidates();
+        })
         .on('broadcast', { event: 'answer' }, async ({ payload }) => {
           console.log('Received answer');
           if (peerConnection.current && payload.answer) {
             try {
-              // Stop outgoing ring and play connected sound
               audioNotifications.stopOutgoingRing();
               audioNotifications.playCallConnected();
               
@@ -464,7 +476,6 @@ export const useVoiceCall = () => {
               setCallState(prev => ({ ...prev, status: 'connected' }));
               startDurationTimer();
               
-              // Update call log
               await supabase
                 .from('call_logs')
                 .update({ status: 'answered', answered_at: new Date().toISOString() })
@@ -475,7 +486,7 @@ export const useVoiceCall = () => {
           }
         })
         .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-          console.log('Received ICE candidate');
+          console.log('Received ICE candidate from answerer');
           if (payload.candidate) {
             if (peerConnection.current?.remoteDescription) {
               try {
@@ -508,7 +519,6 @@ export const useVoiceCall = () => {
         }
       });
 
-      // Wait for subscription to be ready
       await new Promise(resolve => setTimeout(resolve, 500));
 
       // Create and send offer
@@ -537,12 +547,10 @@ export const useVoiceCall = () => {
       });
       console.log('Sent offer to incoming call channel');
 
-      // Clean up the incoming call channel after sending
       setTimeout(() => {
         supabase.removeChannel(incomingCallChannel);
       }, 1000);
 
-      // Start outgoing ring sound
       audioNotifications.playOutgoingRing();
 
       setCallState({
@@ -555,7 +563,6 @@ export const useVoiceCall = () => {
         duration: 0
       });
 
-      // Update call log to ringing
       await supabase
         .from('call_logs')
         .update({ status: 'ringing' })
@@ -584,7 +591,7 @@ export const useVoiceCall = () => {
         duration: 0
       });
     }
-  }, [user, profile, callState.status, setupPeerConnection, toast, startDurationTimer, endCall, cleanup, processIceCandidateQueue]);
+  }, [user, profile, callState.status, setupPeerConnection, toast, startDurationTimer, endCall, cleanup, processIceCandidateQueue, sendStoredIceCandidates]);
 
   const answerCall = useCallback(async (callerId: string, callerName: string, offer: RTCSessionDescriptionInit, incomingCallLogId: string, channelName: string) => {
     if (!user) return;
@@ -592,7 +599,6 @@ export const useVoiceCall = () => {
     try {
       console.log('Answering call from:', callerName, 'channel:', channelName);
       
-      // Stop incoming ring
       audioNotifications.stopIncomingRing();
       
       // Get microphone access
@@ -607,8 +613,8 @@ export const useVoiceCall = () => {
       callLogId.current = incomingCallLogId;
       console.log('Got local audio stream for answering');
 
-      // Set up peer connection
-      const pc = setupPeerConnection();
+      // Set up peer connection (as answerer)
+      const pc = setupPeerConnection(false);
       stream.getTracks().forEach(track => {
         pc.addTrack(track, stream);
         console.log('Added track for answer:', track.kind);
@@ -623,15 +629,17 @@ export const useVoiceCall = () => {
 
       signalingChannel.current
         .on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-          console.log('Received ICE candidate (answerer)');
+          console.log('Received ICE candidate from caller');
           if (payload.candidate) {
             if (peerConnection.current?.remoteDescription) {
               try {
                 await peerConnection.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                console.log('Added ICE candidate');
               } catch (err) {
                 console.error('Error adding ICE candidate:', err);
               }
             } else {
+              console.log('Queueing ICE candidate');
               iceCandidatesQueue.current.push(payload.candidate);
             }
           }
@@ -649,8 +657,15 @@ export const useVoiceCall = () => {
         }
       });
 
-      // Wait for subscription
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Notify caller that answerer is ready to receive ICE candidates
+      console.log('Sending answerer-ready signal');
+      signalingChannel.current.send({
+        type: 'broadcast',
+        event: 'answerer-ready',
+        payload: {}
+      });
 
       // Set remote description and create answer
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -668,10 +683,8 @@ export const useVoiceCall = () => {
       });
       console.log('Sent answer');
 
-      // Play connected sound
       audioNotifications.playCallConnected();
 
-      // Update call log
       await supabase
         .from('call_logs')
         .update({ status: 'answered', answered_at: new Date().toISOString() })
@@ -701,7 +714,7 @@ export const useVoiceCall = () => {
         description: "Could not answer call. Please check microphone permissions.",
         variant: "destructive"
       });
-      rejectCall(callerId, incomingCallLogId);
+      rejectCall(callerId, incomingCallLogId, channelName);
     }
   }, [user, setupPeerConnection, toast, startDurationTimer, endCall, processIceCandidateQueue]);
 
@@ -730,7 +743,6 @@ export const useVoiceCall = () => {
       }, 1000);
     }
 
-    // Update call log
     await supabase
       .from('call_logs')
       .update({ status: 'rejected', ended_at: new Date().toISOString() })
