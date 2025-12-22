@@ -552,6 +552,7 @@ export type Database = {
           content: string | null
           conversation_id: string
           created_at: string
+          duration_seconds: number | null
           id: string
           image_url: string | null
           message_type: string
@@ -562,6 +563,7 @@ export type Database = {
           content?: string | null
           conversation_id: string
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           image_url?: string | null
           message_type?: string
@@ -572,6 +574,7 @@ export type Database = {
           content?: string | null
           conversation_id?: string
           created_at?: string
+          duration_seconds?: number | null
           id?: string
           image_url?: string | null
           message_type?: string

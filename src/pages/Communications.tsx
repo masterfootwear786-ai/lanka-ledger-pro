@@ -9,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Phone, PhoneOff, Mic, MicOff, Send, Image as ImageIcon, 
   MessageCircle, Users, Loader2, Paperclip, Download, FileText, 
-  Trash2, X 
+  Trash2, X, Play, Pause, Square
 } from 'lucide-react';
 import { useChat, ChatConversation, ChatMessage } from '@/hooks/useChat';
 import { useVoiceCall } from '@/hooks/useVoiceCall';
+import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { usePresence } from '@/hooks/usePresence';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,15 +46,19 @@ const Communications = () => {
   const { conversations, activeConversation, setActiveConversation, messages, sendMessage, deleteMessage, unsendMessage, sendingMessage, startConversation, loading } = useChat();
   const { callState, startCall, endCall, toggleMute } = useVoiceCall();
   const { isUserOnline } = usePresence();
+  const { isRecording, duration: recordingDuration, startRecording, stopRecording, cancelRecording } = useVoiceRecorder();
   const [messageInput, setMessageInput] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [showUserList, setShowUserList] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadingVoice, setUploadingVoice] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [unsendDialogOpen, setUnsendDialogOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [messageToUnsend, setMessageToUnsend] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -292,6 +297,72 @@ const Communications = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const handleVoiceRecord = async () => {
+    if (isRecording) {
+      setUploadingVoice(true);
+      try {
+        const blob = await stopRecording();
+        if (!blob || !user || !activeConversation) return;
+
+        const fileName = `${user.id}/${Date.now()}_voice.webm`;
+        const { error: uploadError } = await supabase.storage
+          .from('chat-files')
+          .upload(fileName, blob, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: 'audio/webm'
+          });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('chat-files')
+          .getPublicUrl(fileName);
+
+        await sendMessage('Voice message', 'voice', publicUrl, 'voice.webm', blob.size, recordingDuration);
+        
+        toast({
+          title: "Voice message sent",
+          description: "Your voice message has been sent"
+        });
+      } catch (error) {
+        console.error('Error sending voice message:', error);
+        toast({
+          title: "Failed to send voice message",
+          description: "Please try again",
+          variant: "destructive"
+        });
+      } finally {
+        setUploadingVoice(false);
+      }
+    } else {
+      try {
+        await startRecording();
+      } catch (error) {
+        toast({
+          title: "Microphone access denied",
+          description: "Please allow microphone access to record voice messages",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  const handlePlayVoice = (messageId: string, url: string) => {
+    if (playingAudioId === messageId) {
+      audioRef.current?.pause();
+      setPlayingAudioId(null);
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      audioRef.current = new Audio(url);
+      audioRef.current.onended = () => setPlayingAudioId(null);
+      audioRef.current.play();
+      setPlayingAudioId(messageId);
+    }
+  };
+
   const renderMessage = (msg: ChatMessage) => {
     const isOwn = msg.sender_id === user?.id;
     
@@ -356,6 +427,37 @@ const Communications = () => {
                     <p className="text-xs opacity-70">Click to download</p>
                   </div>
                   <Download className="h-5 w-5 shrink-0" />
+                </div>
+              )}
+              {msg.message_type === 'voice' && msg.image_url && (
+                <div 
+                  className="flex items-center gap-3 p-2 bg-background/10 rounded cursor-pointer hover:bg-background/20 transition-colors min-w-[150px]"
+                  onClick={() => handlePlayVoice(msg.id, msg.image_url!)}
+                >
+                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0">
+                    {playingAudioId === msg.id ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <div className="flex-1">
+                    <div className="flex gap-0.5 items-center h-4">
+                      {Array.from({ length: 20 }).map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={cn(
+                            "w-0.5 bg-current rounded-full transition-all",
+                            playingAudioId === msg.id ? "animate-pulse" : ""
+                          )}
+                          style={{ height: `${Math.random() * 12 + 4}px` }}
+                        />
+                      ))}
+                    </div>
+                    <p className="text-xs opacity-70 mt-1">
+                      {msg.duration_seconds ? formatDuration(msg.duration_seconds) : '0:00'}
+                    </p>
+                  </div>
                 </div>
               )}
               {msg.message_type === 'text' && msg.content && (
@@ -552,21 +654,64 @@ const Communications = () => {
                   variant="outline" 
                   size="icon"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFile}
+                  disabled={uploadingFile || isRecording}
                   title="Send Document"
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
-                <Input
-                  value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
-                  placeholder="Type a message..."
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  className="flex-1"
-                />
-                <Button onClick={handleSend} disabled={sendingMessage || !messageInput.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
+                
+                {/* Voice Recording Button */}
+                {isRecording ? (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-destructive/10 rounded-lg">
+                    <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
+                    <span className="text-sm font-medium text-destructive">{formatDuration(recordingDuration)}</span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      onClick={cancelRecording}
+                      title="Cancel"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="default"
+                      className="h-8 w-8 bg-primary"
+                      onClick={handleVoiceRecord}
+                      disabled={uploadingVoice}
+                      title="Send Voice Message"
+                    >
+                      {uploadingVoice ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Send className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={handleVoiceRecord}
+                      disabled={uploadingFile}
+                      title="Record Voice Message"
+                    >
+                      <Mic className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      value={messageInput}
+                      onChange={(e) => setMessageInput(e.target.value)}
+                      placeholder="Type a message..."
+                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      className="flex-1"
+                    />
+                    <Button onClick={handleSend} disabled={sendingMessage || !messageInput.trim()}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </>
