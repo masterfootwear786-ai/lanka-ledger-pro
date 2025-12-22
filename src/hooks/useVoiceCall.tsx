@@ -47,6 +47,13 @@ export const useVoiceCall = () => {
   const signalingChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const iceCandidatesQueue = useRef<RTCIceCandidateInit[]>([]);
   const isSubscribed = useRef<boolean>(false);
+  const callStatusRef = useRef<CallStatus>('idle');
+  const connectionFailTimer = useRef<NodeJS.Timeout | null>(null);
+  const endCallRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    callStatusRef.current = callState.status;
+  }, [callState.status]);
 
   // Initialize audio element
   useEffect(() => {
@@ -62,6 +69,11 @@ export const useVoiceCall = () => {
 
   const cleanup = useCallback(() => {
     console.log('Cleaning up call...');
+
+    if (connectionFailTimer.current) {
+      clearTimeout(connectionFailTimer.current);
+      connectionFailTimer.current = null;
+    }
     
     // Stop duration timer
     if (durationInterval.current) {
@@ -142,12 +154,45 @@ export const useVoiceCall = () => {
     };
 
     pc.oniceconnectionstatechange = () => {
-      console.log('ICE connection state:', pc.iceConnectionState);
-      if (pc.iceConnectionState === 'connected') {
+      const state = pc.iceConnectionState;
+      console.log('ICE connection state:', state);
+
+      if (state === 'connected') {
         console.log('Call connected!');
-      } else if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-        console.log('Call disconnected or failed');
-        endCall();
+        if (connectionFailTimer.current) {
+          clearTimeout(connectionFailTimer.current);
+          connectionFailTimer.current = null;
+        }
+        return;
+      }
+
+      if (state === 'disconnected' || state === 'failed') {
+        const currentStatus = callStatusRef.current;
+        console.log('ICE issue while call status:', currentStatus);
+
+        // Avoid ending the call too early during setup; give it time.
+        const graceMs = currentStatus === 'connected' ? 1500 : 10000;
+
+        if (connectionFailTimer.current) {
+          clearTimeout(connectionFailTimer.current);
+        }
+
+        connectionFailTimer.current = setTimeout(() => {
+          const stillStatus = callStatusRef.current;
+          const stillIceState = pc.iceConnectionState;
+          console.log('ICE grace elapsed. status:', stillStatus, 'ice:', stillIceState);
+
+          const shouldEndConnected =
+            stillStatus === 'connected' && (stillIceState === 'failed' || stillIceState === 'disconnected');
+
+          const shouldEndTrying =
+            (stillStatus === 'calling' || stillStatus === 'ringing') && stillIceState === 'failed';
+
+          if (shouldEndConnected || shouldEndTrying) {
+            console.log('Ending call due to ICE failure/disconnect');
+            endCallRef.current();
+          }
+        }, graceMs);
       }
     };
 
@@ -230,6 +275,12 @@ export const useVoiceCall = () => {
       duration: 0
     });
   }, [callState.status, callState.duration, cleanup]);
+
+  useEffect(() => {
+    endCallRef.current = () => {
+      void endCall();
+    };
+  }, [endCall]);
 
   const startCall = useCallback(async (targetUserId: string, targetUserName: string) => {
     if (!user || !profile?.company_id) {
