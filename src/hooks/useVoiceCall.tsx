@@ -44,6 +44,7 @@ export const useVoiceCall = () => {
   const peerConnection = useRef<RTCPeerConnection | null>(null);
   const localStream = useRef<MediaStream | null>(null);
   const remoteAudio = useRef<HTMLAudioElement | null>(null);
+  const remoteStream = useRef<MediaStream | null>(null);
   const callLogId = useRef<string | null>(null);
   const durationInterval = useRef<NodeJS.Timeout | null>(null);
   const signalingChannel = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -60,16 +61,41 @@ export const useVoiceCall = () => {
     callStatusRef.current = callState.status;
   }, [callState.status]);
 
-  // Initialize audio element
+  // Initialize audio element (append to DOM to support mobile playback)
   useEffect(() => {
-    remoteAudio.current = new Audio();
-    remoteAudio.current.autoplay = true;
-    (remoteAudio.current as any).playsInline = true;
+    const audioEl = document.createElement('audio');
+    audioEl.autoplay = true;
+    audioEl.setAttribute('playsinline', 'true');
+    (audioEl as any).playsInline = true;
+    audioEl.style.position = 'fixed';
+    audioEl.style.left = '-9999px';
+    audioEl.style.width = '1px';
+    audioEl.style.height = '1px';
+    document.body.appendChild(audioEl);
+    remoteAudio.current = audioEl;
+
     return () => {
-      if (remoteAudio.current) {
-        remoteAudio.current.srcObject = null;
-      }
+      audioEl.srcObject = null;
+      audioEl.remove();
+      if (remoteAudio.current === audioEl) remoteAudio.current = null;
     };
+  }, []);
+
+  const ensureRemoteAudioUnlocked = useCallback(async () => {
+    const audioEl = remoteAudio.current;
+    if (!audioEl) return;
+
+    try {
+      // "Unlock" audio on iOS/Safari: play a muted element once from a user gesture
+      audioEl.muted = true;
+      await audioEl.play();
+      audioEl.pause();
+      audioEl.currentTime = 0;
+      audioEl.muted = false;
+      console.log('Remote audio unlocked');
+    } catch (err) {
+      console.log('Remote audio unlock failed (may still work):', err);
+    }
   }, []);
 
   const cleanup = useCallback(() => {
@@ -114,6 +140,7 @@ export const useVoiceCall = () => {
     if (remoteAudio.current) {
       remoteAudio.current.srcObject = null;
     }
+    remoteStream.current = null;
 
     // Clear ICE queues
     iceCandidatesQueue.current = [];
@@ -217,28 +244,38 @@ export const useVoiceCall = () => {
 
     pc.ontrack = (event) => {
       console.log('Received remote track:', event.track.kind);
-      if (event.streams[0]) {
-        const remoteStream = event.streams[0];
-        console.log('Remote stream tracks:', remoteStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
-        
-        if (remoteAudio.current) {
-          remoteAudio.current.srcObject = remoteStream;
-          remoteAudio.current.volume = 1.0;
-          
-          // Try to play with user interaction handling
-          const playAudio = () => {
-            if (remoteAudio.current) {
-              remoteAudio.current.play()
-                .then(() => console.log('Remote audio playing successfully'))
-                .catch(err => {
-                  console.error('Error playing audio:', err);
-                  // Retry after a short delay
-                  setTimeout(playAudio, 500);
-                });
-            }
-          };
-          playAudio();
-        }
+
+      // Safari/iOS sometimes doesn't populate event.streams
+      const streamFromEvent = event.streams && event.streams[0] ? event.streams[0] : null;
+      const stream = streamFromEvent ?? remoteStream.current ?? new MediaStream();
+
+      if (!stream.getTracks().some((t) => t.id === event.track.id)) {
+        stream.addTrack(event.track);
+      }
+
+      remoteStream.current = stream;
+      console.log(
+        'Remote stream tracks:',
+        stream.getTracks().map((t) => ({ kind: t.kind, enabled: t.enabled, muted: t.muted }))
+      );
+
+      if (remoteAudio.current) {
+        remoteAudio.current.srcObject = stream;
+        remoteAudio.current.volume = 1.0;
+        remoteAudio.current.muted = false;
+
+        const playAudio = () => {
+          if (!remoteAudio.current) return;
+          remoteAudio.current
+            .play()
+            .then(() => console.log('Remote audio playing successfully'))
+            .catch((err) => {
+              console.error('Error playing audio:', err);
+              setTimeout(playAudio, 500);
+            });
+        };
+
+        playAudio();
       }
     };
 
@@ -395,6 +432,7 @@ export const useVoiceCall = () => {
 
     try {
       console.log('Starting call to:', targetUserName);
+      void ensureRemoteAudioUnlocked();
       
       // Reset state
       localIceCandidates.current = [];
@@ -591,7 +629,7 @@ export const useVoiceCall = () => {
         duration: 0
       });
     }
-  }, [user, profile, callState.status, setupPeerConnection, toast, startDurationTimer, endCall, cleanup, processIceCandidateQueue, sendStoredIceCandidates]);
+  }, [user, profile, callState.status, setupPeerConnection, toast, startDurationTimer, endCall, cleanup, processIceCandidateQueue, sendStoredIceCandidates, ensureRemoteAudioUnlocked]);
 
   const answerCall = useCallback(async (callerId: string, callerName: string, offer: RTCSessionDescriptionInit, incomingCallLogId: string, channelName: string) => {
     if (!user) return;
@@ -600,6 +638,7 @@ export const useVoiceCall = () => {
       console.log('Answering call from:', callerName, 'channel:', channelName);
       
       audioNotifications.stopIncomingRing();
+      void ensureRemoteAudioUnlocked();
       
       // Get microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -738,7 +777,7 @@ export const useVoiceCall = () => {
         .update({ status: 'rejected', ended_at: new Date().toISOString() })
         .eq('id', incomingCallLogId);
     }
-  }, [user, setupPeerConnection, toast, startDurationTimer, endCall, processIceCandidateQueue, cleanup]);
+  }, [user, setupPeerConnection, toast, startDurationTimer, endCall, processIceCandidateQueue, cleanup, ensureRemoteAudioUnlocked]);
 
   const rejectCall = useCallback(async (callerId: string, incomingCallLogId: string, channelName?: string) => {
     if (!user) return;
