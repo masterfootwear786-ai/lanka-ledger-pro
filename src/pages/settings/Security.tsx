@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Lock } from "lucide-react";
+import { Shield, Lock, KeyRound, Users } from "lucide-react";
+import { PERMISSION_MANAGER_EMAILS } from "@/hooks/useUserRole";
 
 const securitySchema = z.object({
   action_password: z.string().min(4, "Password must be at least 4 characters"),
@@ -36,6 +38,12 @@ export default function Security() {
     suppliers: false,
     items: false,
   });
+  const [isPermissionManager, setIsPermissionManager] = useState(false);
+  const [users, setUsers] = useState<{ id: string; email: string; full_name: string | null }[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   const form = useForm<SecurityFormData>({
     resolver: zodResolver(securitySchema),
@@ -43,7 +51,92 @@ export default function Security() {
 
   useEffect(() => {
     checkActionPassword();
+    checkPermissionManager();
   }, []);
+
+  const checkPermissionManager = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+
+      if (PERMISSION_MANAGER_EMAILS.includes(user.email)) {
+        setIsPermissionManager(true);
+        fetchUsers();
+      }
+    } catch (error) {
+      console.error('Error checking permission manager:', error);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .order('email');
+
+      if (error) throw error;
+      setUsers(profiles || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!selectedUserId) {
+      toast({
+        title: "Error",
+        description: "Please select a user",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords don't match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+
+      const { data, error } = await supabase.functions.invoke('reset-user-password', {
+        body: { userId: selectedUserId, newPassword },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Password reset successfully",
+      });
+
+      setSelectedUserId("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const checkActionPassword = async () => {
     try {
@@ -336,6 +429,71 @@ export default function Security() {
           )}
         </CardContent>
       </Card>
+
+      {isPermissionManager && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              Admin Password Reset
+            </CardTitle>
+            <CardDescription>
+              Reset password for any user in the system. Only system owners can access this feature.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Select User</Label>
+              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a user to reset password" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        <span>{user.email}</span>
+                        {user.full_name && (
+                          <span className="text-muted-foreground">({user.full_name})</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password (minimum 6 characters)"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Confirm New Password</Label>
+              <Input
+                type="password"
+                value={confirmNewPassword}
+                onChange={(e) => setConfirmNewPassword(e.target.value)}
+                placeholder="Re-enter new password"
+              />
+            </div>
+
+            <Button 
+              onClick={handleResetPassword} 
+              disabled={resetLoading || !selectedUserId}
+              variant="destructive"
+            >
+              {resetLoading ? "Resetting..." : "Reset Password"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
