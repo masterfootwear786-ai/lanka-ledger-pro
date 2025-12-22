@@ -8,6 +8,7 @@ interface VoiceCallContextType {
   rejectCall: (callerId: string, incomingCallLogId: string, signalingChannel?: string) => Promise<void>;
   endCall: () => Promise<void>;
   toggleMute: () => void;
+  toggleSpeaker: () => void;
 }
 
 const VoiceCallContext = createContext<VoiceCallContextType | null>(null);

@@ -13,6 +13,7 @@ export interface CallState {
   remoteUserId: string | null;
   remoteUserName: string | null;
   isMuted: boolean;
+  isSpeakerOn: boolean;
   duration: number;
 }
 
@@ -36,6 +37,7 @@ export const useVoiceCall = () => {
     remoteUserId: null,
     remoteUserName: null,
     isMuted: false,
+    isSpeakerOn: true,
     duration: 0
   });
 
@@ -175,10 +177,29 @@ export const useVoiceCall = () => {
     };
 
     pc.ontrack = (event) => {
-      console.log('Received remote track:', event.track.kind);
-      if (remoteAudio.current && event.streams[0]) {
-        remoteAudio.current.srcObject = event.streams[0];
-        remoteAudio.current.play().catch(err => console.error('Error playing audio:', err));
+      console.log('Received remote track:', event.track.kind, event.streams);
+      if (event.streams[0]) {
+        const remoteStream = event.streams[0];
+        console.log('Remote stream tracks:', remoteStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted })));
+        
+        if (remoteAudio.current) {
+          remoteAudio.current.srcObject = remoteStream;
+          remoteAudio.current.volume = 1.0;
+          
+          // Try to play with user interaction handling
+          const playAudio = () => {
+            if (remoteAudio.current) {
+              remoteAudio.current.play()
+                .then(() => console.log('Remote audio playing successfully'))
+                .catch(err => {
+                  console.error('Error playing audio:', err);
+                  // Retry after a short delay
+                  setTimeout(playAudio, 500);
+                });
+            }
+          };
+          playAudio();
+        }
       }
     };
 
@@ -309,6 +330,7 @@ export const useVoiceCall = () => {
       remoteUserId: null,
       remoteUserName: null,
       isMuted: false,
+      isSpeakerOn: true,
       duration: 0
     });
   }, [callState.status, callState.duration, cleanup]);
@@ -529,6 +551,7 @@ export const useVoiceCall = () => {
         remoteUserId: targetUserId,
         remoteUserName: targetUserName,
         isMuted: false,
+        isSpeakerOn: true,
         duration: 0
       });
 
@@ -557,6 +580,7 @@ export const useVoiceCall = () => {
         remoteUserId: null,
         remoteUserName: null,
         isMuted: false,
+        isSpeakerOn: true,
         duration: 0
       });
     }
@@ -659,6 +683,7 @@ export const useVoiceCall = () => {
         remoteUserId: callerId,
         remoteUserName: callerName,
         isMuted: false,
+        isSpeakerOn: true,
         duration: 0
       });
 
@@ -726,12 +751,25 @@ export const useVoiceCall = () => {
     }
   }, [toast]);
 
+  const toggleSpeaker = useCallback(() => {
+    if (remoteAudio.current) {
+      const newSpeakerState = !callState.isSpeakerOn;
+      remoteAudio.current.volume = newSpeakerState ? 1.0 : 0;
+      setCallState(prev => ({ ...prev, isSpeakerOn: newSpeakerState }));
+      toast({
+        title: newSpeakerState ? "Speaker On" : "Speaker Off",
+        description: newSpeakerState ? "You can hear the caller" : "Audio muted"
+      });
+    }
+  }, [callState.isSpeakerOn, toast]);
+
   return {
     callState,
     startCall,
     answerCall,
     rejectCall,
     endCall,
-    toggleMute
+    toggleMute,
+    toggleSpeaker
   };
 };

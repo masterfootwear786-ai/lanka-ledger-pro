@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Phone, PhoneOff, Mic, MicOff, Send, Image as ImageIcon, 
   MessageCircle, Users, Loader2, Paperclip, Download, FileText, 
-  Trash2, X, Play, Pause, Plus, UsersRound
+  Trash2, X, Play, Pause, Plus, UsersRound, Volume2, VolumeX
 } from 'lucide-react';
 import { useChat, ChatConversation, ChatMessage } from '@/hooks/useChat';
 import { useGroupChat, ChatGroup, GroupMessage } from '@/hooks/useGroupChat';
@@ -56,7 +56,7 @@ const Communications = () => {
   // Group chat hooks
   const { groups, activeGroup, setActiveGroup, groupMessages, sendGroupMessage, createGroup, sendingMessage: sendingGroupMessage, loading: groupsLoading } = useGroupChat();
   
-  const { callState, startCall, endCall, toggleMute } = useVoiceCallContext();
+  const { callState, startCall, endCall, toggleMute, toggleSpeaker } = useVoiceCallContext();
   const { isUserOnline } = usePresence();
   const { isRecording, duration: recordingDuration, startRecording, stopRecording, cancelRecording } = useVoiceRecorder();
   
@@ -517,9 +517,16 @@ const Communications = () => {
                     </Button>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm">{formatDuration(callState.duration)}</span>
-                      <Button size="icon" variant="outline" onClick={toggleMute}>{callState.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}</Button>
-                      <Button size="icon" variant="destructive" onClick={endCall}><PhoneOff className="h-4 w-4" /></Button>
+                      <span className="text-sm font-medium">{formatDuration(callState.duration)}</span>
+                      <Button size="icon" variant="outline" onClick={toggleMute} title={callState.isMuted ? "Unmute" : "Mute"}>
+                        {callState.isMuted ? <MicOff className="h-4 w-4 text-destructive" /> : <Mic className="h-4 w-4" />}
+                      </Button>
+                      <Button size="icon" variant="outline" onClick={toggleSpeaker} title={callState.isSpeakerOn ? "Mute Speaker" : "Enable Speaker"}>
+                        {callState.isSpeakerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-destructive" />}
+                      </Button>
+                      <Button size="icon" variant="destructive" onClick={endCall} title="End Call">
+                        <PhoneOff className="h-4 w-4" />
+                      </Button>
                     </div>
                   )}
                 </div>
