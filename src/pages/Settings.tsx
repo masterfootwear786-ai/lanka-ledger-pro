@@ -1,23 +1,24 @@
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Settings as SettingsIcon, Building2, Users, DollarSign, Tag, Shield, Trash2, Download, Database, MapPin, Activity, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useUserPermissions } from "@/hooks/useUserPermissions";
 
 export default function Settings() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { canView, isAdmin, loading } = useUserPermissions();
 
-  const settingsModules = [
+  const allSettingsModules = [
     {
       title: "Install App",
       description: "Install the app on your device for offline access",
       icon: Download,
       path: "/install",
       color: "text-primary",
-      adminOnly: false,
+      subModule: null, // Always visible
     },
     {
       title: "App Update",
@@ -25,7 +26,7 @@ export default function Settings() {
       icon: RefreshCw,
       path: "/settings/app-update",
       color: "text-amber-600 dark:text-amber-400",
-      adminOnly: false,
+      subModule: "app_update",
     },
     {
       title: "Backup & Restore",
@@ -33,7 +34,7 @@ export default function Settings() {
       icon: Database,
       path: "/settings/backup",
       color: "text-green-600 dark:text-green-400",
-      adminOnly: true,
+      subModule: "backup",
     },
     {
       title: t('settings.company'),
@@ -41,7 +42,7 @@ export default function Settings() {
       icon: Building2,
       path: "/settings/company",
       color: "text-blue-600 dark:text-blue-400",
-      adminOnly: false,
+      subModule: "company",
     },
     {
       title: "Security",
@@ -49,7 +50,7 @@ export default function Settings() {
       icon: Shield,
       path: "/settings/security",
       color: "text-red-600 dark:text-red-400",
-      adminOnly: true,
+      subModule: "security",
     },
     {
       title: t('settings.users'),
@@ -57,7 +58,7 @@ export default function Settings() {
       icon: Users,
       path: "/settings/users",
       color: "text-green-600 dark:text-green-400",
-      adminOnly: true,
+      subModule: "users",
     },
     {
       title: "Sales Rep Activity",
@@ -65,7 +66,7 @@ export default function Settings() {
       icon: Activity,
       path: "/settings/sales-rep-activity",
       color: "text-purple-600 dark:text-purple-400",
-      adminOnly: true,
+      subModule: "sales_rep_activity",
     },
     {
       title: t('settings.taxRates'),
@@ -73,7 +74,7 @@ export default function Settings() {
       icon: DollarSign,
       path: "/settings/tax-rates",
       color: "text-purple-600 dark:text-purple-400",
-      adminOnly: true,
+      subModule: "tax_rates",
     },
     {
       title: t('settings.currencies'),
@@ -81,7 +82,7 @@ export default function Settings() {
       icon: DollarSign,
       path: "/settings/currencies",
       color: "text-orange-600 dark:text-orange-400",
-      adminOnly: true,
+      subModule: "currencies",
     },
     {
       title: t('settings.customFields'),
@@ -89,7 +90,7 @@ export default function Settings() {
       icon: Tag,
       path: "/settings/custom-fields",
       color: "text-pink-600 dark:text-pink-400",
-      adminOnly: true,
+      subModule: "custom_fields",
     },
     {
       title: "Routes",
@@ -97,7 +98,7 @@ export default function Settings() {
       icon: MapPin,
       path: "/settings/routes",
       color: "text-teal-600 dark:text-teal-400",
-      adminOnly: false,
+      subModule: "routes",
     },
     {
       title: "Trash",
@@ -105,9 +106,22 @@ export default function Settings() {
       icon: Trash2,
       path: "/settings/trash",
       color: "text-gray-600 dark:text-gray-400",
-      adminOnly: true,
+      subModule: "trash",
     },
-  ].filter(module => !module.adminOnly || isAdmin());
+  ];
+
+  // Filter settings based on user permissions
+  const settingsModules = useMemo(() => {
+    if (loading) return [];
+    return allSettingsModules.filter(module => {
+      // Always show items without subModule (like Install App)
+      if (module.subModule === null) return true;
+      // Admin sees everything
+      if (isAdmin) return true;
+      // Check specific permission
+      return canView('settings', module.subModule);
+    });
+  }, [loading, isAdmin, canView, t]);
 
   return (
     <div className="space-y-6">
