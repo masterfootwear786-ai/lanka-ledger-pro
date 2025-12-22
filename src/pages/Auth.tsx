@@ -136,13 +136,9 @@ const Auth = () => {
           navigate('/');
         }
       } else if (mode === 'reset') {
-        const { error } = await resetPassword(email);
-        if (error) {
-          toast.error(t('auth.resetError'));
-        } else {
-          toast.success(t('auth.resetSuccess'));
-          setMode('login');
-        }
+        // Show message to contact manager - no actual reset email
+        toast.info('Please contact your manager to reset your password.');
+        setMode('login');
       } else if (mode === 'update') {
         if (newPassword !== confirmPassword) {
           toast.error(t('auth.passwordMismatch'));

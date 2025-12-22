@@ -23,6 +23,9 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
+import { PERMISSION_MANAGER_EMAILS } from "@/hooks/useUserRole";
+import { KeyRound } from "lucide-react";
 
 const formSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
@@ -97,9 +100,61 @@ const defaultPermissions = {
 
 export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogProps) {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [initializing, setInitializing] = useState(false);
   const initKeyRef = useRef<string | null>(null);
+
+  const isSystemOwner = currentUser?.email && PERMISSION_MANAGER_EMAILS.includes(currentUser.email);
+
+  const handleResetPassword = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setResettingPassword(true);
+      
+      // Get company's action_password as default reset password
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (!profile?.company_id) {
+        throw new Error("User has no company");
+      }
+
+      const { data: company } = await supabase
+        .from('companies')
+        .select('action_password')
+        .eq('id', profile.company_id)
+        .single();
+
+      const defaultPassword = company?.action_password || "123456";
+
+      // Use admin API to reset password
+      const { error } = await supabase.functions.invoke('reset-user-password', {
+        body: { userId: user.id, newPassword: defaultPassword }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Password Reset",
+        description: `Password has been reset to: ${defaultPassword}`,
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset password",
+        variant: "destructive",
+      });
+    } finally {
+      setResettingPassword(false);
+    }
+  };
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -546,6 +601,23 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                     </FormItem>
                   )}
                 />
+              )}
+
+              {/* Reset Password Button - Only for system owners and existing users */}
+              {user && isSystemOwner && (
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetPassword}
+                    disabled={resettingPassword}
+                    className="gap-2"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    {resettingPassword ? "Resetting..." : "Reset Password"}
+                  </Button>
+                </div>
               )}
             </div>
 
