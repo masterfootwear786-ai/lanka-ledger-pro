@@ -63,32 +63,31 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2,json}"],
         cleanupOutdatedCaches: true,
         skipWaiting: true,
         clientsClaim: true,
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB limit
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/.*/i,
-            handler: "NetworkFirst",
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+            handler: "StaleWhileRevalidate",
             options: {
               cacheName: "supabase-api-cache",
-              networkTimeoutSeconds: 10,
               expiration: {
-                maxEntries: 200,
-                maxAgeSeconds: 60 * 60 * 2, // 2 hours
+                maxEntries: 500,
+                maxAgeSeconds: 60 * 60 * 24, // 24 hours
               },
               cacheableResponse: {
                 statuses: [0, 200],
               },
-              backgroundSync: {
-                name: "supabase-sync-queue",
-                options: {
-                  maxRetentionTime: 24 * 60, // 24 hours in minutes
-                },
-              },
             },
+          },
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/auth\/.*/i,
+            handler: "NetworkOnly",
           },
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/storage\/.*/i,
@@ -96,8 +95,8 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "supabase-storage-cache",
               expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
               },
               cacheableResponse: {
                 statuses: [0, 200],
@@ -110,19 +109,34 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: "google-fonts-cache",
               expiration: {
-                maxEntries: 20,
+                maxEntries: 30,
                 maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
               },
             },
           },
           {
-            urlPattern: ({ request }) => request.destination === 'document' || 
-                                        request.destination === 'script' ||
-                                        request.destination === 'style',
-            handler: "NetworkFirst",
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: "CacheFirst",
             options: {
-              cacheName: "app-cache",
-              networkTimeoutSeconds: 10,
+              cacheName: "google-fonts-webfonts",
+              expiration: {
+                maxEntries: 30,
+                maxAgeSeconds: 60 * 60 * 24 * 365, // 1 year
+              },
+            },
+          },
+          {
+            urlPattern: ({ request }) => 
+              request.destination === 'script' ||
+              request.destination === 'style' ||
+              request.destination === 'image',
+            handler: "StaleWhileRevalidate",
+            options: {
+              cacheName: "static-assets",
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7, // 7 days
+              },
             },
           },
         ],

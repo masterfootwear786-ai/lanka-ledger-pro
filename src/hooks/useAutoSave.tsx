@@ -1,30 +1,36 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { offlineStorage } from '@/lib/offlineStorage';
-import { useToast } from '@/hooks/use-toast';
-import { useOfflineSync } from './useOfflineSync';
 
 interface UseAutoSaveOptions {
   type: string;
   data: any;
   enabled?: boolean;
+  debounceMs?: number;
   onSave?: (draftId: string) => void;
 }
 
-export const useAutoSave = ({ type, data, enabled = true, onSave }: UseAutoSaveOptions) => {
-  const { toast } = useToast();
-  const { isOnline } = useOfflineSync();
+export const useAutoSave = ({ 
+  type, 
+  data, 
+  enabled = true, 
+  debounceMs = 1000,
+  onSave 
+}: UseAutoSaveOptions) => {
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
   const lastSavedRef = useRef<string>('');
   const draftIdRef = useRef<string>();
+  const isSavingRef = useRef(false);
 
   const saveDraft = useCallback(async () => {
-    if (!enabled || !data) return;
+    if (!enabled || !data || isSavingRef.current) return;
 
     const currentData = JSON.stringify(data);
     
     // Only save if data has changed
     if (currentData === lastSavedRef.current) return;
 
+    isSavingRef.current = true;
+    
     try {
       const draftId = await offlineStorage.saveDraft(type, data, draftIdRef.current);
       draftIdRef.current = draftId;
@@ -33,19 +39,12 @@ export const useAutoSave = ({ type, data, enabled = true, onSave }: UseAutoSaveO
       if (onSave) {
         onSave(draftId);
       }
-
-      // Show save indicator only when offline
-      if (!isOnline) {
-        toast({
-          title: "Saved Offline",
-          description: "Changes saved locally. Will sync when online.",
-          duration: 2000,
-        });
-      }
     } catch (error) {
       console.error('Auto-save error:', error);
+    } finally {
+      isSavingRef.current = false;
     }
-  }, [data, enabled, type, onSave, isOnline, toast]);
+  }, [data, enabled, type, onSave]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -55,15 +54,17 @@ export const useAutoSave = ({ type, data, enabled = true, onSave }: UseAutoSaveO
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // Save immediately on every change
-    saveDraft();
+    // Debounce the save operation
+    saveTimeoutRef.current = setTimeout(() => {
+      saveDraft();
+    }, debounceMs);
 
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [data, enabled, saveDraft]);
+  }, [data, enabled, saveDraft, debounceMs]);
 
   const clearDraft = useCallback(async () => {
     if (draftIdRef.current) {
@@ -73,5 +74,12 @@ export const useAutoSave = ({ type, data, enabled = true, onSave }: UseAutoSaveO
     }
   }, []);
 
-  return { saveDraft, clearDraft, draftId: draftIdRef.current };
+  const forceSave = useCallback(async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    await saveDraft();
+  }, [saveDraft]);
+
+  return { saveDraft: forceSave, clearDraft, draftId: draftIdRef.current };
 };

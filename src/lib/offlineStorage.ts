@@ -10,6 +10,7 @@ interface OfflineDB extends DBSchema {
       timestamp: number;
       synced: boolean;
     };
+    indexes: { 'by-type': string; 'by-timestamp': number };
   };
   syncQueue: {
     key: string;
@@ -21,31 +22,65 @@ interface OfflineDB extends DBSchema {
       timestamp: number;
       retries: number;
     };
+    indexes: { 'by-timestamp': number };
+  };
+  cache: {
+    key: string;
+    value: {
+      key: string;
+      data: any;
+      timestamp: number;
+      expiresAt: number;
+    };
+    indexes: { 'by-expires': number };
   };
 }
 
 class OfflineStorageService {
   private db: IDBPDatabase<OfflineDB> | null = null;
   private dbName = 'lanka_ledger_offline';
+  private dbVersion = 2;
+  private initPromise: Promise<IDBPDatabase<OfflineDB>> | null = null;
 
-  async initialize() {
+  async initialize(): Promise<IDBPDatabase<OfflineDB>> {
     if (this.db) return this.db;
     
-    this.db = await openDB<OfflineDB>(this.dbName, 1, {
-      upgrade(db) {
+    // Prevent multiple concurrent initializations
+    if (this.initPromise) return this.initPromise;
+    
+    this.initPromise = openDB<OfflineDB>(this.dbName, this.dbVersion, {
+      upgrade(db, oldVersion) {
+        // Drafts store
         if (!db.objectStoreNames.contains('drafts')) {
-          db.createObjectStore('drafts', { keyPath: 'id' });
+          const draftsStore = db.createObjectStore('drafts', { keyPath: 'id' });
+          draftsStore.createIndex('by-type', 'type');
+          draftsStore.createIndex('by-timestamp', 'timestamp');
         }
+        
+        // Sync queue store
         if (!db.objectStoreNames.contains('syncQueue')) {
-          db.createObjectStore('syncQueue', { keyPath: 'id' });
+          const syncStore = db.createObjectStore('syncQueue', { keyPath: 'id' });
+          syncStore.createIndex('by-timestamp', 'timestamp');
+        }
+        
+        // Cache store (new in v2)
+        if (!db.objectStoreNames.contains('cache')) {
+          const cacheStore = db.createObjectStore('cache', { keyPath: 'key' });
+          cacheStore.createIndex('by-expires', 'expiresAt');
         }
       },
     });
     
+    this.db = await this.initPromise;
+    
+    // Clean expired cache entries on init
+    this.cleanExpiredCache();
+    
     return this.db;
   }
 
-  async saveDraft(type: string, data: any, id?: string) {
+  // ===== DRAFT OPERATIONS =====
+  async saveDraft(type: string, data: any, id?: string): Promise<string> {
     const db = await this.initialize();
     const draftId = id || `${type}-${Date.now()}`;
     
@@ -62,28 +97,36 @@ class OfflineStorageService {
 
   async getDraft(id: string) {
     const db = await this.initialize();
-    return await db.get('drafts', id);
+    return db.get('drafts', id);
   }
 
   async getAllDrafts(type?: string) {
     const db = await this.initialize();
-    const allDrafts = await db.getAll('drafts');
     
     if (type) {
-      return allDrafts.filter(draft => draft.type === type);
+      return db.getAllFromIndex('drafts', 'by-type', type);
     }
     
-    return allDrafts;
+    return db.getAll('drafts');
   }
 
-  async deleteDraft(id: string) {
+  async deleteDraft(id: string): Promise<void> {
     const db = await this.initialize();
     await db.delete('drafts', id);
   }
 
-  async addToSyncQueue(operation: 'create' | 'update' | 'delete', table: string, data: any) {
+  async clearDraftsByType(type: string): Promise<void> {
     const db = await this.initialize();
-    const id = `${table}-${operation}-${Date.now()}`;
+    const drafts = await db.getAllFromIndex('drafts', 'by-type', type);
+    const tx = db.transaction('drafts', 'readwrite');
+    await Promise.all(drafts.map(d => tx.store.delete(d.id)));
+    await tx.done;
+  }
+
+  // ===== SYNC QUEUE OPERATIONS =====
+  async addToSyncQueue(operation: 'create' | 'update' | 'delete', table: string, data: any): Promise<string> {
+    const db = await this.initialize();
+    const id = `${table}-${operation}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     await db.put('syncQueue', {
       id,
@@ -99,15 +142,20 @@ class OfflineStorageService {
 
   async getSyncQueue() {
     const db = await this.initialize();
-    return await db.getAll('syncQueue');
+    return db.getAllFromIndex('syncQueue', 'by-timestamp');
   }
 
-  async removeSyncItem(id: string) {
+  async getSyncQueueCount(): Promise<number> {
+    const db = await this.initialize();
+    return db.count('syncQueue');
+  }
+
+  async removeSyncItem(id: string): Promise<void> {
     const db = await this.initialize();
     await db.delete('syncQueue', id);
   }
 
-  async updateSyncRetry(id: string, retries: number) {
+  async updateSyncRetry(id: string, retries: number): Promise<void> {
     const db = await this.initialize();
     const item = await db.get('syncQueue', id);
     if (item) {
@@ -116,10 +164,86 @@ class OfflineStorageService {
     }
   }
 
-  async clearAll() {
+  async clearFailedSyncItems(maxRetries: number = 5): Promise<number> {
     const db = await this.initialize();
-    await db.clear('drafts');
-    await db.clear('syncQueue');
+    const items = await db.getAll('syncQueue');
+    const failedItems = items.filter(item => item.retries >= maxRetries);
+    const tx = db.transaction('syncQueue', 'readwrite');
+    await Promise.all(failedItems.map(item => tx.store.delete(item.id)));
+    await tx.done;
+    return failedItems.length;
+  }
+
+  // ===== CACHE OPERATIONS =====
+  async setCache(key: string, data: any, ttlMs: number = 5 * 60 * 1000): Promise<void> {
+    const db = await this.initialize();
+    const now = Date.now();
+    
+    await db.put('cache', {
+      key,
+      data,
+      timestamp: now,
+      expiresAt: now + ttlMs,
+    });
+  }
+
+  async getCache<T = any>(key: string): Promise<T | null> {
+    const db = await this.initialize();
+    const item = await db.get('cache', key);
+    
+    if (!item) return null;
+    
+    // Check if expired
+    if (Date.now() > item.expiresAt) {
+      await db.delete('cache', key);
+      return null;
+    }
+    
+    return item.data as T;
+  }
+
+  async deleteCache(key: string): Promise<void> {
+    const db = await this.initialize();
+    await db.delete('cache', key);
+  }
+
+  async cleanExpiredCache(): Promise<number> {
+    try {
+      const db = await this.initialize();
+      const now = Date.now();
+      const allCache = await db.getAll('cache');
+      const expired = allCache.filter(item => item.expiresAt < now);
+      
+      if (expired.length > 0) {
+        const tx = db.transaction('cache', 'readwrite');
+        await Promise.all(expired.map(item => tx.store.delete(item.key)));
+        await tx.done;
+      }
+      
+      return expired.length;
+    } catch {
+      return 0;
+    }
+  }
+
+  // ===== UTILITY OPERATIONS =====
+  async clearAll(): Promise<void> {
+    const db = await this.initialize();
+    await Promise.all([
+      db.clear('drafts'),
+      db.clear('syncQueue'),
+      db.clear('cache'),
+    ]);
+  }
+
+  async getStorageStats(): Promise<{ drafts: number; syncQueue: number; cache: number }> {
+    const db = await this.initialize();
+    const [drafts, syncQueue, cache] = await Promise.all([
+      db.count('drafts'),
+      db.count('syncQueue'),
+      db.count('cache'),
+    ]);
+    return { drafts, syncQueue, cache };
   }
 }
 
