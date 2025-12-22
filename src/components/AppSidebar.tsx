@@ -110,11 +110,17 @@ export function AppSidebar() {
     return true;
   };
 
-  const mainMenuItems = [
-    { title: t('app.dashboard'), url: '/', icon: LayoutDashboard },
-    { title: 'Hot Selling', url: '/purchasing/hot-selling', icon: Flame },
-    { title: 'Send Documents', url: '/send-documents', icon: Send },
+  const allMainMenuItems = [
+    { title: t('app.dashboard'), url: '/', icon: LayoutDashboard, module: 'dashboard' as ModuleName },
+    { title: 'Hot Selling', url: '/purchasing/hot-selling', icon: Flame, module: 'hot_selling' as ModuleName },
+    { title: 'Send Documents', url: '/send-documents', icon: Send, module: 'send_documents' as ModuleName },
   ];
+
+  // Filter main menu items based on permissions
+  const mainMenuItems = useMemo(() => {
+    if (permissionsLoading) return [];
+    return allMainMenuItems.filter(item => isAdmin || hasAnyPermission(item.module));
+  }, [permissionsLoading, isAdmin, hasAnyPermission, t]);
 
   const salesItems = [
     { title: 'Orders', url: '/sales/orders' },
