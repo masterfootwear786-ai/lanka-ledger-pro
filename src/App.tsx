@@ -68,6 +68,7 @@ import { UpdateNotification } from "./components/UpdateNotification";
 import { useOfflineSync } from "./hooks/useOfflineSync";
 import { WaitingPermissions } from "./components/WaitingPermissions";
 import { useUserRole } from "./hooks/useUserRole";
+import { PermissionGuard } from "./components/PermissionGuard";
 
 const queryClient = new QueryClient();
 
@@ -113,66 +114,66 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/send-documents" element={<ProtectedRoute><SendDocuments /></ProtectedRoute>} />
               {/* Main module routes */}
-              <Route path="/sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
-              <Route path="/purchasing" element={<ProtectedRoute><Purchasing /></ProtectedRoute>} />
-              <Route path="/inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
-              <Route path="/accounting" element={<ProtectedRoute><Accounting /></ProtectedRoute>} />
-              <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+              <Route path="/sales" element={<ProtectedRoute><PermissionGuard module="sales"><Sales /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing" element={<ProtectedRoute><PermissionGuard module="purchasing"><Purchasing /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/inventory" element={<ProtectedRoute><PermissionGuard module="inventory"><Inventory /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/accounting" element={<ProtectedRoute><PermissionGuard module="expenses"><Accounting /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports" element={<ProtectedRoute><PermissionGuard module="reports"><Reports /></PermissionGuard></ProtectedRoute>} />
               {/* Sales routes */}
-              <Route path="/sales/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
-              <Route path="/sales/orders/create" element={<ProtectedRoute><CreateInvoice /></ProtectedRoute>} />
-              <Route path="/sales/orders/edit/:id" element={<ProtectedRoute><CreateInvoice /></ProtectedRoute>} />
-              <Route path="/sales/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-              <Route path="/sales/invoices/create" element={<ProtectedRoute><CreateInvoice /></ProtectedRoute>} />
-              <Route path="/sales/invoices/edit/:id" element={<ProtectedRoute><CreateInvoice /></ProtectedRoute>} />
-              <Route path="/sales/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
-              <Route path="/sales/cheques" element={<ProtectedRoute><Cheques /></ProtectedRoute>} />
-              <Route path="/sales/customers" element={<ProtectedRoute><Customers /></ProtectedRoute>} />
-              <Route path="/sales/customers/:id" element={<ProtectedRoute><CustomerDetails /></ProtectedRoute>} />
-              <Route path="/sales/customer-profiles" element={<ProtectedRoute><CustomerProfiles /></ProtectedRoute>} />
-              <Route path="/sales/customer-outstanding" element={<ProtectedRoute><CustomerOutstanding /></ProtectedRoute>} />
-              <Route path="/sales/return-notes" element={<ProtectedRoute><ReturnNotes /></ProtectedRoute>} />
+              <Route path="/sales/orders" element={<ProtectedRoute><PermissionGuard module="sales"><Orders /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/orders/create" element={<ProtectedRoute><PermissionGuard module="sales" permission="create"><CreateInvoice /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/orders/edit/:id" element={<ProtectedRoute><PermissionGuard module="sales" permission="edit"><CreateInvoice /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/invoices" element={<ProtectedRoute><PermissionGuard module="sales"><Invoices /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/invoices/create" element={<ProtectedRoute><PermissionGuard module="sales" permission="create"><CreateInvoice /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/invoices/edit/:id" element={<ProtectedRoute><PermissionGuard module="sales" permission="edit"><CreateInvoice /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/receipts" element={<ProtectedRoute><PermissionGuard module="sales"><Receipts /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/cheques" element={<ProtectedRoute><PermissionGuard module="sales"><Cheques /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/customers" element={<ProtectedRoute><PermissionGuard module="sales"><Customers /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/customers/:id" element={<ProtectedRoute><PermissionGuard module="sales"><CustomerDetails /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/customer-profiles" element={<ProtectedRoute><PermissionGuard module="sales"><CustomerProfiles /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/customer-outstanding" element={<ProtectedRoute><PermissionGuard module="sales"><CustomerOutstanding /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/sales/return-notes" element={<ProtectedRoute><PermissionGuard module="sales"><ReturnNotes /></PermissionGuard></ProtectedRoute>} />
               {/* Purchasing routes */}
-              <Route path="/purchasing/bills" element={<ProtectedRoute><Bills /></ProtectedRoute>} />
-              <Route path="/purchasing/debit-notes" element={<ProtectedRoute><DebitNotes /></ProtectedRoute>} />
-              <Route path="/purchasing/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-              <Route path="/purchasing/cheques" element={<ProtectedRoute><SupplierCheques /></ProtectedRoute>} />
-              <Route path="/purchasing/suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
-              <Route path="/purchasing/suppliers/:id" element={<ProtectedRoute><SupplierDetails /></ProtectedRoute>} />
-              <Route path="/purchasing/reorder-form" element={<ProtectedRoute><GoodsReOrderForm /></ProtectedRoute>} />
-              <Route path="/purchasing/hot-selling" element={<ProtectedRoute><HotSelling /></ProtectedRoute>} />
+              <Route path="/purchasing/bills" element={<ProtectedRoute><PermissionGuard module="purchasing"><Bills /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing/debit-notes" element={<ProtectedRoute><PermissionGuard module="purchasing"><DebitNotes /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing/payments" element={<ProtectedRoute><PermissionGuard module="purchasing"><Payments /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing/cheques" element={<ProtectedRoute><PermissionGuard module="purchasing"><SupplierCheques /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing/suppliers" element={<ProtectedRoute><PermissionGuard module="purchasing"><Suppliers /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing/suppliers/:id" element={<ProtectedRoute><PermissionGuard module="purchasing"><SupplierDetails /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing/reorder-form" element={<ProtectedRoute><PermissionGuard module="purchasing"><GoodsReOrderForm /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/purchasing/hot-selling" element={<ProtectedRoute><PermissionGuard module="purchasing"><HotSelling /></PermissionGuard></ProtectedRoute>} />
               {/* Inventory routes */}
-              <Route path="/inventory/items" element={<ProtectedRoute><Items /></ProtectedRoute>} />
-              <Route path="/inventory/stock" element={<ProtectedRoute><Stock /></ProtectedRoute>} />
-              <Route path="/inventory/main-stock" element={<ProtectedRoute><MainStock /></ProtectedRoute>} />
-              <Route path="/inventory/lorry-stock" element={<ProtectedRoute><LorryStock /></ProtectedRoute>} />
-              <Route path="/inventory/warehouse" element={<ProtectedRoute><WarehouseStock /></ProtectedRoute>} />
+              <Route path="/inventory/items" element={<ProtectedRoute><PermissionGuard module="inventory"><Items /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/inventory/stock" element={<ProtectedRoute><PermissionGuard module="inventory"><Stock /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/inventory/main-stock" element={<ProtectedRoute><PermissionGuard module="inventory"><MainStock /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/inventory/lorry-stock" element={<ProtectedRoute><PermissionGuard module="inventory"><LorryStock /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/inventory/warehouse" element={<ProtectedRoute><PermissionGuard module="inventory"><WarehouseStock /></PermissionGuard></ProtectedRoute>} />
               {/* Accounting routes */}
-              <Route path="/accounting/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
-              <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><CreditorsDebtors /></ProtectedRoute>} />
-              <Route path="/accounting/turns" element={<ProtectedRoute><Turns /></ProtectedRoute>} />
+              <Route path="/accounting/expenses" element={<ProtectedRoute><PermissionGuard module="expenses"><Expenses /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><PermissionGuard module="expenses"><CreditorsDebtors /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/accounting/turns" element={<ProtectedRoute><PermissionGuard module="expenses"><Turns /></PermissionGuard></ProtectedRoute>} />
               {/* Reports routes */}
-              <Route path="/reports/all" element={<ProtectedRoute><AllReportsDetails /></ProtectedRoute>} />
-              <Route path="/reports/sales" element={<ProtectedRoute><SalesReport /></ProtectedRoute>} />
-              <Route path="/reports/purchasing" element={<ProtectedRoute><PurchasingReport /></ProtectedRoute>} />
-              <Route path="/reports/inventory" element={<ProtectedRoute><InventoryReport /></ProtectedRoute>} />
-              <Route path="/reports/expenses" element={<ProtectedRoute><ExpensesReport /></ProtectedRoute>} />
-              <Route path="/reports/profit-loss" element={<ProtectedRoute><ProfitLoss /></ProtectedRoute>} />
-              <Route path="/reports/ar-aging" element={<ProtectedRoute><ARAging /></ProtectedRoute>} />
-              <Route path="/reports/ap-aging" element={<ProtectedRoute><APAging /></ProtectedRoute>} />
+              <Route path="/reports/all" element={<ProtectedRoute><PermissionGuard module="reports"><AllReportsDetails /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports/sales" element={<ProtectedRoute><PermissionGuard module="reports"><SalesReport /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports/purchasing" element={<ProtectedRoute><PermissionGuard module="reports"><PurchasingReport /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports/inventory" element={<ProtectedRoute><PermissionGuard module="reports"><InventoryReport /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports/expenses" element={<ProtectedRoute><PermissionGuard module="reports"><ExpensesReport /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports/profit-loss" element={<ProtectedRoute><PermissionGuard module="reports"><ProfitLoss /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports/ar-aging" element={<ProtectedRoute><PermissionGuard module="reports"><ARAging /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/reports/ap-aging" element={<ProtectedRoute><PermissionGuard module="reports"><APAging /></PermissionGuard></ProtectedRoute>} />
               {/* Settings */}
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/settings/company" element={<ProtectedRoute><Company /></ProtectedRoute>} />
-              <Route path="/settings/security" element={<ProtectedRoute><Security /></ProtectedRoute>} />
-              <Route path="/settings/users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
-              <Route path="/settings/tax-rates" element={<ProtectedRoute><TaxRates /></ProtectedRoute>} />
-              <Route path="/settings/currencies" element={<ProtectedRoute><Currencies /></ProtectedRoute>} />
-              <Route path="/settings/custom-fields" element={<ProtectedRoute><CustomFields /></ProtectedRoute>} />
-              <Route path="/settings/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
-              <Route path="/settings/backup" element={<ProtectedRoute><Backup /></ProtectedRoute>} />
-              <Route path="/settings/routes" element={<ProtectedRoute><RoutesSettings /></ProtectedRoute>} />
-              <Route path="/settings/sales-rep-activity" element={<ProtectedRoute><SalesRepActivity /></ProtectedRoute>} />
-              <Route path="/settings/app-update" element={<ProtectedRoute><AppUpdate /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><PermissionGuard module="settings"><Settings /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/company" element={<ProtectedRoute><PermissionGuard module="settings"><Company /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/security" element={<ProtectedRoute><PermissionGuard module="settings"><Security /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/users" element={<ProtectedRoute><PermissionGuard module="settings"><Users /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/tax-rates" element={<ProtectedRoute><PermissionGuard module="settings"><TaxRates /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/currencies" element={<ProtectedRoute><PermissionGuard module="settings"><Currencies /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/custom-fields" element={<ProtectedRoute><PermissionGuard module="settings"><CustomFields /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/trash" element={<ProtectedRoute><PermissionGuard module="settings"><Trash /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/backup" element={<ProtectedRoute><PermissionGuard module="settings"><Backup /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/routes" element={<ProtectedRoute><PermissionGuard module="settings"><RoutesSettings /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/sales-rep-activity" element={<ProtectedRoute><PermissionGuard module="settings"><SalesRepActivity /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/settings/app-update" element={<ProtectedRoute><PermissionGuard module="settings"><AppUpdate /></PermissionGuard></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

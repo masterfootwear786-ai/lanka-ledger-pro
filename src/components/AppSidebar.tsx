@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -28,12 +28,14 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { useUserPermissions, ModuleName } from '@/hooks/useUserPermissions';
 
 export function AppSidebar() {
   const { t } = useTranslation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  const { canView, hasAnyPermission, loading: permissionsLoading } = useUserPermissions();
   
   // Track which section is currently open (only one at a time)
   const [openSection, setOpenSection] = useState<string | null>(null);
@@ -116,7 +118,17 @@ export function AppSidebar() {
     { title: t('reports.apAging'), url: '/reports/ap-aging' },
   ];
 
-  const menuSections = [
+  // Map section id to module permission name
+  const sectionToModule: Record<string, ModuleName> = {
+    sales: 'sales',
+    customers: 'sales', // Customers is part of sales
+    purchasing: 'purchasing',
+    inventory: 'inventory',
+    accounting: 'expenses',
+    reports: 'reports',
+  };
+
+  const allMenuSections = [
     { id: 'sales', title: t('app.sales'), icon: ShoppingCart, items: salesItems },
     { id: 'customers', title: 'Customers', icon: Users, items: customerItems },
     { id: 'purchasing', title: t('app.purchasing'), icon: ShoppingBag, items: purchasingItems },
@@ -124,6 +136,15 @@ export function AppSidebar() {
     { id: 'accounting', title: 'Expenses and Other', icon: BookOpen, items: accountingItems },
     { id: 'reports', title: t('app.reports'), icon: FileText, items: reportItems },
   ];
+
+  // Filter sections based on user permissions
+  const menuSections = useMemo(() => {
+    if (permissionsLoading) return [];
+    return allMenuSections.filter(section => {
+      const moduleName = sectionToModule[section.id];
+      return moduleName ? hasAnyPermission(moduleName) : false;
+    });
+  }, [permissionsLoading, hasAnyPermission, t]);
 
   // Auto-open section based on current route
   useEffect(() => {
@@ -249,27 +270,29 @@ export function AppSidebar() {
           </Collapsible>
         ))}
 
-        {/* Settings */}
-        <SidebarGroup className="mt-auto py-3 border-t border-sidebar-border/50">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild>
-                <NavLink 
-                  to="/settings" 
-                  className={({ isActive }) => cn(
-                    "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
-                    isActive 
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
-                      : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
-                  )}
-                >
-                  <Settings className="h-4 w-4 shrink-0 z-10" />
-                  {!collapsed && <span>{t('app.settings')}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
+        {/* Settings - Only show if user has settings permission */}
+        {hasAnyPermission('settings') && (
+          <SidebarGroup className="mt-auto py-3 border-t border-sidebar-border/50">
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink 
+                    to="/settings" 
+                    className={({ isActive }) => cn(
+                      "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                      isActive 
+                        ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
+                        : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <Settings className="h-4 w-4 shrink-0 z-10" />
+                    {!collapsed && <span>{t('app.settings')}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
