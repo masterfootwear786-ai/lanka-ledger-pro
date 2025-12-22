@@ -12,6 +12,7 @@ import {
   Users,
   Flame,
   UserCircle,
+  MessageCircle,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -114,6 +115,7 @@ export function AppSidebar() {
     { title: t('app.dashboard'), url: '/', icon: LayoutDashboard, module: 'dashboard' as ModuleName },
     { title: 'Hot Selling', url: '/purchasing/hot-selling', icon: Flame, module: 'hot_selling' as ModuleName },
     { title: 'Send Documents', url: '/send-documents', icon: Send, module: 'send_documents' as ModuleName },
+    { title: 'Communications', url: '/communications', icon: MessageCircle, module: 'dashboard' as ModuleName },
   ];
 
   // Filter main menu items based on permissions

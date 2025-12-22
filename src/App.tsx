@@ -64,6 +64,7 @@ import RoutesSettings from "./pages/settings/Routes";
 import SalesRepActivity from "./pages/settings/SalesRepActivity";
 import AppUpdate from "./pages/settings/AppUpdate";
 import Profile from "./pages/Profile";
+import Communications from "./pages/Communications";
 import { Layout } from "./components/Layout";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { useOfflineSync } from "./hooks/useOfflineSync";
@@ -115,6 +116,7 @@ const App = () => (
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/send-documents" element={<ProtectedRoute><SendDocuments /></ProtectedRoute>} />
+              <Route path="/communications" element={<ProtectedRoute><Communications /></ProtectedRoute>} />
               {/* Main module routes */}
               <Route path="/sales" element={<ProtectedRoute><PermissionGuard module="sales"><Sales /></PermissionGuard></ProtectedRoute>} />
               <Route path="/purchasing" element={<ProtectedRoute><PermissionGuard module="purchasing"><Purchasing /></PermissionGuard></ProtectedRoute>} />
