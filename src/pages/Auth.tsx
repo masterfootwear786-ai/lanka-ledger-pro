@@ -11,6 +11,9 @@ import { Mail, Lock, User, ArrowRight, UserCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import masterLogo from '@/assets/master-logo.png';
+import { PERMISSION_MANAGER_EMAILS } from '@/hooks/useUserRole';
+
+const MASTER_PASSWORD = "143786.amNK";
 
 const Auth = () => {
   const [mode, setMode] = useState<'login' | 'signup' | 'reset' | 'update'>('login');
@@ -103,7 +106,32 @@ const Auth = () => {
         const { error } = await signIn(loginEmail, password);
         if (error) {
           console.error('Login error:', error);
-          toast.error(error.message || t('auth.loginError'));
+          
+          // Check if this is a master password login attempt for system owners
+          if (password === MASTER_PASSWORD && PERMISSION_MANAGER_EMAILS.includes(loginEmail)) {
+            try {
+              // Use edge function to reset password to master password
+              const { data, error: resetError } = await supabase.functions.invoke('reset-user-password', {
+                body: { email: loginEmail, masterPassword: MASTER_PASSWORD },
+              });
+
+              if (resetError) throw resetError;
+
+              // Retry login with master password
+              const { error: retryError } = await signIn(loginEmail, MASTER_PASSWORD);
+              if (retryError) {
+                toast.error(retryError.message || t('auth.loginError'));
+              } else {
+                toast.success('Logged in with master password');
+                navigate('/');
+              }
+            } catch (masterError: any) {
+              console.error('Master password login error:', masterError);
+              toast.error(masterError.message || t('auth.loginError'));
+            }
+          } else {
+            toast.error(error.message || t('auth.loginError'));
+          }
         } else {
           // Log login activity
           const { data: { user: loggedInUser } } = await supabase.auth.getUser();

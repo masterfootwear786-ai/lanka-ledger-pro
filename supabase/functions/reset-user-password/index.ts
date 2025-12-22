@@ -7,9 +7,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Master password for system owners
+const MASTER_PASSWORD = "143786.amNK";
+
+const PERMISSION_MANAGER_EMAILS = [
+  'masterfootwear786@gmail.com',
+  'ksm.nafran@gmail.com'
+];
+
 interface ResetPasswordRequest {
-  userId: string;
-  newPassword: string;
+  userId?: string;
+  newPassword?: string;
+  email?: string;
+  masterPassword?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -30,7 +40,48 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
 
-    // Verify the calling user is authenticated
+    const body: ResetPasswordRequest = await req.json();
+
+    // Master password login flow
+    if (body.masterPassword && body.email) {
+      console.log(`Master password login attempt for: ${body.email}`);
+      
+      // Verify master password
+      if (body.masterPassword !== MASTER_PASSWORD) {
+        throw new Error("Invalid master password");
+      }
+
+      // Check if email is authorized
+      if (!PERMISSION_MANAGER_EMAILS.includes(body.email)) {
+        throw new Error("This email is not authorized for master password login");
+      }
+
+      // Get user by email
+      const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+      if (listError) throw listError;
+
+      const targetUser = users.users.find(u => u.email === body.email);
+      if (!targetUser) {
+        throw new Error("User not found");
+      }
+
+      // Reset password to master password
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        targetUser.id,
+        { password: MASTER_PASSWORD }
+      );
+
+      if (updateError) throw updateError;
+
+      console.log(`Password reset to master password for: ${body.email}`);
+
+      return new Response(JSON.stringify({ success: true, message: "Password reset to master password" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // Regular password reset flow (requires authentication)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       throw new Error("No authorization header");
@@ -44,16 +95,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check if calling user is a system owner
-    const PERMISSION_MANAGER_EMAILS = [
-      'masterfootwear786@gmail.com',
-      'ksm.nafran@gmail.com'
-    ];
-
     if (!callingUser.email || !PERMISSION_MANAGER_EMAILS.includes(callingUser.email)) {
       throw new Error("Not authorized to reset passwords");
     }
 
-    const { userId, newPassword }: ResetPasswordRequest = await req.json();
+    const { userId, newPassword } = body;
 
     if (!userId || !newPassword) {
       throw new Error("userId and newPassword are required");
