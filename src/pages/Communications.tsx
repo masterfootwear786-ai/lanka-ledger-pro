@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useChat, ChatConversation, ChatMessage } from '@/hooks/useChat';
 import { useGroupChat, ChatGroup, GroupMessage } from '@/hooks/useGroupChat';
-import { useVoiceCall } from '@/hooks/useVoiceCall';
+import { useVoiceCallContext } from '@/contexts/VoiceCallContext';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { usePresence } from '@/hooks/usePresence';
 import { useProfile } from '@/hooks/useProfile';
@@ -56,7 +56,7 @@ const Communications = () => {
   // Group chat hooks
   const { groups, activeGroup, setActiveGroup, groupMessages, sendGroupMessage, createGroup, sendingMessage: sendingGroupMessage, loading: groupsLoading } = useGroupChat();
   
-  const { callState, startCall, endCall, toggleMute } = useVoiceCall();
+  const { callState, startCall, endCall, toggleMute } = useVoiceCallContext();
   const { isUserOnline } = usePresence();
   const { isRecording, duration: recordingDuration, startRecording, stopRecording, cancelRecording } = useVoiceRecorder();
   
