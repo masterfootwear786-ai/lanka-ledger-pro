@@ -31,7 +31,8 @@ const formSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
   username: z.string().optional(),
-  password: z.string().min(6, "Password must be at least 6 characters").optional(),
+  // Allow empty string (edit mode) but enforce min length when provided
+  password: z.union([z.literal(""), z.string().min(6, "Password must be at least 6 characters")]).optional(),
   active: z.boolean(),
   language: z.string(),
   roles: z.object({
@@ -538,10 +539,13 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(onSubmit, () => {
+            onSubmit={form.handleSubmit(onSubmit, (errors) => {
+              const fields = Object.keys(errors);
               toast({
                 title: "Validation error",
-                description: "Please check the highlighted fields and try again.",
+                description: fields.length
+                  ? `Please check: ${fields.join(", ")}`
+                  : "Please check the highlighted fields and try again.",
                 variant: "destructive",
               });
             })}
