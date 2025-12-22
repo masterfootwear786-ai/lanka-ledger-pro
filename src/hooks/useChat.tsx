@@ -127,19 +127,32 @@ export const useChat = () => {
   // Fetch messages for active conversation
   const fetchMessages = useCallback(async (conversationId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+      const [messagesRes, deletionsRes] = await Promise.all([
+        supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: true }),
+        user
+          ? supabase
+              .from('chat_message_deletions')
+              .select('message_id, chat_messages!inner(conversation_id)')
+              .eq('user_id', user.id)
+              .eq('chat_messages.conversation_id', conversationId)
+          : Promise.resolve({ data: [], error: null } as any)
+      ]);
 
-      if (error) throw error;
-      
-      const typedMessages: ChatMessage[] = (data || []).map(msg => ({
-        ...msg,
-        message_type: msg.message_type as ChatMessage['message_type']
-      }));
-      
+      if (messagesRes.error) throw messagesRes.error;
+
+      const deletedIds = new Set<string>((deletionsRes.data || []).map((d: any) => d.message_id));
+
+      const typedMessages: ChatMessage[] = (messagesRes.data || [])
+        .filter((msg: any) => !deletedIds.has(msg.id))
+        .map((msg: any) => ({
+          ...msg,
+          message_type: msg.message_type as ChatMessage['message_type']
+        }));
+
       setMessages(typedMessages);
 
       // Mark messages as read
@@ -198,38 +211,20 @@ export const useChat = () => {
     }
   }, [user, activeConversation, toast]);
 
-  // Delete message (just for me)
+  // Delete message (just for me) - implemented via per-user deletion marker
   const deleteMessage = useCallback(async (messageId: string) => {
     if (!user) return false;
 
     try {
-      // Get message to check for attached files
-      const { data: message } = await supabase
-        .from('chat_messages')
-        .select('*')
-        .eq('id', messageId)
-        .eq('sender_id', user.id)
-        .single();
-
-      if (!message) throw new Error('Message not found');
-
-      // Delete file from storage if exists
-      if (message.image_url) {
-        const url = new URL(message.image_url);
-        const pathParts = url.pathname.split('/chat-files/');
-        if (pathParts[1]) {
-          await supabase.storage.from('chat-files').remove([decodeURIComponent(pathParts[1])]);
-        }
-      }
-
-      // Delete message from database
       const { error } = await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('id', messageId)
-        .eq('sender_id', user.id);
+        .from('chat_message_deletions')
+        .insert({
+          message_id: messageId,
+          user_id: user.id
+        });
 
-      if (error) throw error;
+      // If already deleted for this user, treat as success
+      if (error && (error as any).code !== '23505') throw error;
 
       setMessages(prev => prev.filter(m => m.id !== messageId));
       return true;
@@ -262,9 +257,15 @@ export const useChat = () => {
       // Delete file from storage if exists
       if (message.image_url) {
         const url = new URL(message.image_url);
-        const pathParts = url.pathname.split('/chat-files/');
-        if (pathParts[1]) {
-          await supabase.storage.from('chat-files').remove([decodeURIComponent(pathParts[1])]);
+        // supports both /chat-files/ and /chat-images/ (legacy)
+        const parts = url.pathname.split('/');
+        const bucketIndex = parts.findIndex(p => p === 'chat-files' || p === 'chat-images');
+        if (bucketIndex !== -1) {
+          const bucket = parts[bucketIndex];
+          const objectPath = decodeURIComponent(parts.slice(bucketIndex + 1).join('/'));
+          if (objectPath) {
+            await supabase.storage.from(bucket).remove([objectPath]);
+          }
         }
       }
 
