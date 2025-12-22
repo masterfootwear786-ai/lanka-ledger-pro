@@ -112,7 +112,6 @@ export function AppSidebar() {
 
   const mainMenuItems = [
     { title: t('app.dashboard'), url: '/', icon: LayoutDashboard },
-    { title: 'My Profile', url: '/profile', icon: UserCircle },
     { title: 'Hot Selling', url: '/purchasing/hot-selling', icon: Flame },
     { title: 'Send Documents', url: '/send-documents', icon: Send },
   ];
@@ -324,10 +323,26 @@ export function AppSidebar() {
           </Collapsible>
         ))}
 
-        {/* Settings - Only show if user has settings permission */}
-        {hasAnyPermission('settings') && (
-          <SidebarGroup className="mt-auto py-3 border-t border-sidebar-border/50">
-            <SidebarMenu>
+        {/* Settings & Profile */}
+        <SidebarGroup className="mt-auto py-3 border-t border-sidebar-border/50">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink 
+                  to="/profile" 
+                  className={({ isActive }) => cn(
+                    "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                    isActive 
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
+                      : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                  )}
+                >
+                  <UserCircle className="h-4 w-4 shrink-0 z-10" />
+                  {!collapsed && <span>My Profile</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            {hasAnyPermission('settings') && (
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <NavLink 
@@ -344,9 +359,9 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroup>
-        )}
+            )}
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );
