@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Phone, PhoneOff, Mic, MicOff, Send, Image, MessageCircle, Users } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, Send, Image as ImageIcon, MessageCircle, Users, Loader2 } from 'lucide-react';
 import { useChat, ChatConversation } from '@/hooks/useChat';
 import { useVoiceCall } from '@/hooks/useVoiceCall';
 import { usePresence } from '@/hooks/usePresence';
@@ -15,18 +15,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const Communications = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { profile } = useProfile();
+  const { toast } = useToast();
   const { conversations, activeConversation, setActiveConversation, messages, sendMessage, sendingMessage, startConversation, loading } = useChat();
   const { callState, startCall, endCall, toggleMute } = useVoiceCall();
   const { isUserOnline } = usePresence();
   const [messageInput, setMessageInput] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [showUserList, setShowUserList] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch company users
   useEffect(() => {
@@ -60,6 +64,66 @@ const Communications = () => {
       setActiveConversation(enrichedConv as ChatConversation);
     }
     setShowUserList(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !activeConversation) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file",
+        description: "Please select an image file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select an image smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-images')
+        .getPublicUrl(fileName);
+
+      await sendMessage('', 'image', publicUrl);
+      
+      toast({
+        title: "Image sent",
+        description: "Your image has been sent successfully"
+      });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const formatDuration = (seconds: number) => {
@@ -223,11 +287,31 @@ const Communications = () => {
                 </div>
               </ScrollArea>
               <div className="flex gap-2 pt-4 border-t mt-4">
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                >
+                  {uploadingImage ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-4 w-4" />
+                  )}
+                </Button>
                 <Input
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   placeholder="Type a message..."
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                  className="flex-1"
                 />
                 <Button onClick={handleSend} disabled={sendingMessage || !messageInput.trim()}>
                   <Send className="h-4 w-4" />
