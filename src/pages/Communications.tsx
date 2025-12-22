@@ -6,12 +6,14 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Phone, PhoneOff, Mic, MicOff, Send, Image as ImageIcon, 
   MessageCircle, Users, Loader2, Paperclip, Download, FileText, 
-  Trash2, X, Play, Pause, Square
+  Trash2, X, Play, Pause, Plus, UsersRound
 } from 'lucide-react';
 import { useChat, ChatConversation, ChatMessage } from '@/hooks/useChat';
+import { useGroupChat, ChatGroup, GroupMessage } from '@/hooks/useGroupChat';
 import { useVoiceCall } from '@/hooks/useVoiceCall';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
 import { usePresence } from '@/hooks/usePresence';
@@ -21,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { CreateGroupDialog } from '@/components/communications/CreateGroupDialog';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -38,18 +41,28 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+type ChatType = 'conversation' | 'group';
+
 const Communications = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
+  
+  // 1-1 Chat hooks
   const { conversations, activeConversation, setActiveConversation, messages, sendMessage, deleteMessage, unsendMessage, sendingMessage, startConversation, loading } = useChat();
+  
+  // Group chat hooks
+  const { groups, activeGroup, setActiveGroup, groupMessages, sendGroupMessage, createGroup, sendingMessage: sendingGroupMessage, loading: groupsLoading } = useGroupChat();
+  
   const { callState, startCall, endCall, toggleMute } = useVoiceCall();
   const { isUserOnline } = usePresence();
   const { isRecording, duration: recordingDuration, startRecording, stopRecording, cancelRecording } = useVoiceRecorder();
+  
   const [messageInput, setMessageInput] = useState('');
   const [users, setUsers] = useState<any[]>([]);
-  const [showUserList, setShowUserList] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'chats' | 'users' | 'groups'>('chats');
+  const [activeChatType, setActiveChatType] = useState<ChatType | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadingVoice, setUploadingVoice] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -58,6 +71,7 @@ const Communications = () => {
   const [messageToUnsend, setMessageToUnsend] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -69,9 +83,10 @@ const Communications = () => {
       if (!profile?.company_id || !user) return;
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url')
+        .select('id, full_name, avatar_url, email')
         .eq('company_id', profile.company_id)
-        .neq('id', user.id);
+        .neq('id', user.id)
+        .eq('active', true);
       setUsers(data || []);
     };
     fetchUsers();
@@ -80,11 +95,16 @@ const Communications = () => {
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, groupMessages]);
 
   const handleSend = () => {
     if (!messageInput.trim()) return;
-    sendMessage(messageInput.trim());
+    
+    if (activeChatType === 'conversation' && activeConversation) {
+      sendMessage(messageInput.trim());
+    } else if (activeChatType === 'group' && activeGroup) {
+      sendGroupMessage(messageInput.trim());
+    }
     setMessageInput('');
   };
 
@@ -93,122 +113,94 @@ const Communications = () => {
     if (conv) {
       const enrichedConv = conversations.find(c => c.id === conv.id) || conv;
       setActiveConversation(enrichedConv as ChatConversation);
+      setActiveGroup(null);
+      setActiveChatType('conversation');
     }
-    setShowUserList(false);
+    setSidebarTab('chats');
+  };
+
+  const handleSelectConversation = (conv: ChatConversation) => {
+    setActiveConversation(conv);
+    setActiveGroup(null);
+    setActiveChatType('conversation');
+  };
+
+  const handleSelectGroup = (group: ChatGroup) => {
+    setActiveGroup(group);
+    setActiveConversation(null);
+    setActiveChatType('group');
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user || !activeConversation) return;
+    if (!file || !user) return;
+    if (!activeConversation && !activeGroup) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Invalid file",
-        description: "Please select an image file",
-        variant: "destructive"
-      });
+      toast({ title: "Invalid file", description: "Please select an image file", variant: "destructive" });
       return;
     }
 
-    // Validate file size (max 50MB for high quality)
     if (file.size > 50 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please select an image smaller than 50MB",
-        variant: "destructive"
-      });
+      toast({ title: "File too large", description: "Please select an image smaller than 50MB", variant: "destructive" });
       return;
     }
 
     setUploadingFile(true);
     try {
-      const fileExt = file.name.split('.').pop();
       const fileName = `${user.id}/${Date.now()}_${file.name}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('chat-files')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
+      const { error: uploadError } = await supabase.storage.from('chat-files').upload(fileName, file, { cacheControl: '3600', upsert: false });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-files')
-        .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from('chat-files').getPublicUrl(fileName);
 
-      await sendMessage(file.name, 'image', publicUrl, file.name, file.size);
+      if (activeChatType === 'conversation') {
+        await sendMessage(file.name, 'image', publicUrl, file.name, file.size);
+      } else {
+        await sendGroupMessage(file.name, 'image', publicUrl, file.name);
+      }
       
-      toast({
-        title: "Image sent",
-        description: "Your image has been sent successfully"
-      });
+      toast({ title: "Image sent", description: "Your image has been sent successfully" });
     } catch (error) {
       console.error('Error uploading image:', error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload image. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Upload failed", description: "Failed to upload image. Please try again.", variant: "destructive" });
     } finally {
       setUploadingFile(false);
-      if (imageInputRef.current) {
-        imageInputRef.current.value = '';
-      }
+      if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user || !activeConversation) return;
+    if (!file || !user) return;
+    if (!activeConversation && !activeGroup) return;
 
-    // Validate file size (max 50MB)
     if (file.size > 50 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please select a file smaller than 50MB",
-        variant: "destructive"
-      });
+      toast({ title: "File too large", description: "Please select a file smaller than 50MB", variant: "destructive" });
       return;
     }
 
     setUploadingFile(true);
     try {
       const fileName = `${user.id}/${Date.now()}_${file.name}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('chat-files')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
+      const { error: uploadError } = await supabase.storage.from('chat-files').upload(fileName, file, { cacheControl: '3600', upsert: false });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-files')
-        .getPublicUrl(fileName);
+      const { data: { publicUrl } } = supabase.storage.from('chat-files').getPublicUrl(fileName);
 
-      await sendMessage(file.name, 'file', publicUrl, file.name, file.size);
+      if (activeChatType === 'conversation') {
+        await sendMessage(file.name, 'file', publicUrl, file.name, file.size);
+      } else {
+        await sendGroupMessage(file.name, 'file', publicUrl, file.name);
+      }
       
-      toast({
-        title: "File sent",
-        description: "Your file has been sent successfully"
-      });
+      toast({ title: "File sent", description: "Your file has been sent successfully" });
     } catch (error) {
       console.error('Error uploading file:', error);
-      toast({
-        title: "Upload failed",
-        description: "Failed to upload file. Please try again.",
-        variant: "destructive"
-      });
+      toast({ title: "Upload failed", description: "Failed to upload file. Please try again.", variant: "destructive" });
     } finally {
       setUploadingFile(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -224,58 +216,31 @@ const Communications = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(downloadUrl);
-      
-      toast({
-        title: "Download started",
-        description: "Your file is being downloaded"
-      });
+      toast({ title: "Download started", description: "Your file is being downloaded" });
     } catch (error) {
       console.error('Download error:', error);
-      toast({
-        title: "Download failed",
-        description: "Failed to download file",
-        variant: "destructive"
-      });
+      toast({ title: "Download failed", description: "Failed to download file", variant: "destructive" });
     }
   };
 
   const handleDeleteMessage = async () => {
     if (!messageToDelete) return;
-    
     const success = await deleteMessage(messageToDelete);
-    if (success) {
-      toast({
-        title: "Message deleted",
-        description: "Message deleted for you"
-      });
-    }
+    if (success) toast({ title: "Message deleted", description: "Message deleted for you" });
     setDeleteDialogOpen(false);
     setMessageToDelete(null);
   };
 
   const handleUnsendMessage = async () => {
     if (!messageToUnsend) return;
-    
     const success = await unsendMessage(messageToUnsend);
-    if (success) {
-      toast({
-        title: "Message unsent",
-        description: "Message deleted for everyone"
-      });
-    }
+    if (success) toast({ title: "Message unsent", description: "Message deleted for everyone" });
     setUnsendDialogOpen(false);
     setMessageToUnsend(null);
   };
 
-  const confirmDelete = (messageId: string) => {
-    setMessageToDelete(messageId);
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmUnsend = (messageId: string) => {
-    setMessageToUnsend(messageId);
-    setUnsendDialogOpen(true);
-  };
+  const confirmDelete = (messageId: string) => { setMessageToDelete(messageId); setDeleteDialogOpen(true); };
+  const confirmUnsend = (messageId: string) => { setMessageToUnsend(messageId); setUnsendDialogOpen(true); };
 
   const formatFileSize = (bytes?: number | null) => {
     if (!bytes) return '';
@@ -302,36 +267,25 @@ const Communications = () => {
       setUploadingVoice(true);
       try {
         const blob = await stopRecording();
-        if (!blob || !user || !activeConversation) return;
+        if (!blob || !user) return;
+        if (!activeConversation && !activeGroup) return;
 
         const fileName = `${user.id}/${Date.now()}_voice.webm`;
-        const { error: uploadError } = await supabase.storage
-          .from('chat-files')
-          .upload(fileName, blob, {
-            cacheControl: '3600',
-            upsert: false,
-            contentType: 'audio/webm'
-          });
-
+        const { error: uploadError } = await supabase.storage.from('chat-files').upload(fileName, blob, { cacheControl: '3600', upsert: false, contentType: 'audio/webm' });
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('chat-files')
-          .getPublicUrl(fileName);
+        const { data: { publicUrl } } = supabase.storage.from('chat-files').getPublicUrl(fileName);
 
-        await sendMessage('Voice message', 'voice', publicUrl, 'voice.webm', blob.size, recordingDuration);
+        if (activeChatType === 'conversation') {
+          await sendMessage('Voice message', 'voice', publicUrl, 'voice.webm', blob.size, recordingDuration);
+        } else {
+          await sendGroupMessage('Voice message', 'voice', publicUrl, 'voice.webm', recordingDuration);
+        }
         
-        toast({
-          title: "Voice message sent",
-          description: "Your voice message has been sent"
-        });
+        toast({ title: "Voice message sent", description: "Your voice message has been sent" });
       } catch (error) {
         console.error('Error sending voice message:', error);
-        toast({
-          title: "Failed to send voice message",
-          description: "Please try again",
-          variant: "destructive"
-        });
+        toast({ title: "Failed to send voice message", description: "Please try again", variant: "destructive" });
       } finally {
         setUploadingVoice(false);
       }
@@ -339,11 +293,7 @@ const Communications = () => {
       try {
         await startRecording();
       } catch (error) {
-        toast({
-          title: "Microphone access denied",
-          description: "Please allow microphone access to record voice messages",
-          variant: "destructive"
-        });
+        toast({ title: "Microphone access denied", description: "Please allow microphone access to record voice messages", variant: "destructive" });
       }
     }
   };
@@ -353,9 +303,7 @@ const Communications = () => {
       audioRef.current?.pause();
       setPlayingAudioId(null);
     } else {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+      if (audioRef.current) audioRef.current.pause();
       audioRef.current = new Audio(url);
       audioRef.current.onended = () => setPlayingAudioId(null);
       audioRef.current.play();
@@ -363,23 +311,16 @@ const Communications = () => {
     }
   };
 
-  const renderMessage = (msg: ChatMessage) => {
+  const renderMessage = (msg: ChatMessage | GroupMessage, showSender = false) => {
     const isOwn = msg.sender_id === user?.id;
+    const senderName = 'sender' in msg ? msg.sender?.full_name : undefined;
     
-    // Handle deleted messages
     if (msg.message_type === 'deleted') {
       return (
         <div key={msg.id} className={cn("flex", isOwn ? "justify-end" : "justify-start")}>
-          <div
-            className={cn(
-              "max-w-[70%] rounded-lg px-3 py-2 italic opacity-60",
-              isOwn ? "bg-primary/50 text-primary-foreground" : "bg-muted"
-            )}
-          >
+          <div className={cn("max-w-[70%] rounded-lg px-3 py-2 italic opacity-60", isOwn ? "bg-primary/50 text-primary-foreground" : "bg-muted")}>
             <p className="text-sm">🚫 This message was deleted</p>
-            <p className="text-xs opacity-70 mt-1">
-              {format(new Date(msg.created_at), 'HH:mm')}
-            </p>
+            <p className="text-xs opacity-70 mt-1">{format(new Date(msg.created_at), 'HH:mm')}</p>
           </div>
         </div>
       );
@@ -389,38 +330,20 @@ const Communications = () => {
       <ContextMenu key={msg.id}>
         <ContextMenuTrigger>
           <div className={cn("flex", isOwn ? "justify-end" : "justify-start")}>
-            <div
-              className={cn(
-                "max-w-[70%] rounded-lg px-3 py-2 group relative",
-                isOwn ? "bg-primary text-primary-foreground" : "bg-muted"
+            <div className={cn("max-w-[70%] rounded-lg px-3 py-2 group relative", isOwn ? "bg-primary text-primary-foreground" : "bg-muted")}>
+              {showSender && !isOwn && senderName && (
+                <p className="text-xs font-semibold opacity-70 mb-1">{senderName}</p>
               )}
-            >
               {msg.message_type === 'image' && msg.image_url && (
                 <div className="relative">
-                  <img 
-                    src={msg.image_url} 
-                    alt="Shared" 
-                    className="rounded max-w-full mb-1 cursor-pointer hover:opacity-90 transition-opacity" 
-                    onClick={() => setImagePreview(msg.image_url)}
-                  />
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute bottom-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownload(msg.image_url!, msg.content || 'image.jpg');
-                    }}
-                  >
+                  <img src={msg.image_url} alt="Shared" className="rounded max-w-full mb-1 cursor-pointer hover:opacity-90 transition-opacity" onClick={() => setImagePreview(msg.image_url)} />
+                  <Button size="icon" variant="secondary" className="absolute bottom-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleDownload(msg.image_url!, msg.content || 'image.jpg'); }}>
                     <Download className="h-4 w-4" />
                   </Button>
                 </div>
               )}
               {msg.message_type === 'file' && msg.image_url && (
-                <div 
-                  className="flex items-center gap-3 p-2 bg-background/10 rounded cursor-pointer hover:bg-background/20 transition-colors"
-                  onClick={() => handleDownload(msg.image_url!, msg.content || 'file')}
-                >
+                <div className="flex items-center gap-3 p-2 bg-background/10 rounded cursor-pointer hover:bg-background/20 transition-colors" onClick={() => handleDownload(msg.image_url!, msg.content || 'file')}>
                   {getFileIcon(msg.content)}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{msg.content || 'File'}</p>
@@ -430,60 +353,32 @@ const Communications = () => {
                 </div>
               )}
               {msg.message_type === 'voice' && msg.image_url && (
-                <div 
-                  className="flex items-center gap-3 p-2 bg-background/10 rounded cursor-pointer hover:bg-background/20 transition-colors min-w-[150px]"
-                  onClick={() => handlePlayVoice(msg.id, msg.image_url!)}
-                >
+                <div className="flex items-center gap-3 p-2 bg-background/10 rounded cursor-pointer hover:bg-background/20 transition-colors min-w-[150px]" onClick={() => handlePlayVoice(msg.id, msg.image_url!)}>
                   <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0">
-                    {playingAudioId === msg.id ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4" />
-                    )}
+                    {playingAudioId === msg.id ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                   </Button>
                   <div className="flex-1">
                     <div className="flex gap-0.5 items-center h-4">
                       {Array.from({ length: 20 }).map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={cn(
-                            "w-0.5 bg-current rounded-full transition-all",
-                            playingAudioId === msg.id ? "animate-pulse" : ""
-                          )}
-                          style={{ height: `${Math.random() * 12 + 4}px` }}
-                        />
+                        <div key={i} className={cn("w-0.5 bg-current rounded-full transition-all", playingAudioId === msg.id ? "animate-pulse" : "")} style={{ height: `${Math.random() * 12 + 4}px` }} />
                       ))}
                     </div>
-                    <p className="text-xs opacity-70 mt-1">
-                      {msg.duration_seconds ? formatDuration(msg.duration_seconds) : '0:00'}
-                    </p>
+                    <p className="text-xs opacity-70 mt-1">{msg.duration_seconds ? formatDuration(msg.duration_seconds) : '0:00'}</p>
                   </div>
                 </div>
               )}
-              {msg.message_type === 'text' && msg.content && (
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              )}
-              <p className="text-xs opacity-70 mt-1">
-                {format(new Date(msg.created_at), 'HH:mm')}
-              </p>
+              {msg.message_type === 'text' && msg.content && <p className="text-sm whitespace-pre-wrap">{msg.content}</p>}
+              <p className="text-xs opacity-70 mt-1">{format(new Date(msg.created_at), 'HH:mm')}</p>
             </div>
           </div>
         </ContextMenuTrigger>
-        {isOwn && (
+        {isOwn && activeChatType === 'conversation' && (
           <ContextMenuContent>
-            <ContextMenuItem 
-              className="text-orange-600 focus:text-orange-600"
-              onClick={() => confirmUnsend(msg.id)}
-            >
-              <X className="h-4 w-4 mr-2" />
-              Unsend for Everyone
+            <ContextMenuItem className="text-orange-600 focus:text-orange-600" onClick={() => confirmUnsend(msg.id)}>
+              <X className="h-4 w-4 mr-2" />Unsend for Everyone
             </ContextMenuItem>
-            <ContextMenuItem 
-              className="text-destructive focus:text-destructive"
-              onClick={() => confirmDelete(msg.id)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete for Me
+            <ContextMenuItem className="text-destructive focus:text-destructive" onClick={() => confirmDelete(msg.id)}>
+              <Trash2 className="h-4 w-4 mr-2" />Delete for Me
             </ContextMenuItem>
           </ContextMenuContent>
         )}
@@ -491,82 +386,90 @@ const Communications = () => {
     );
   };
 
+  const currentMessages = activeChatType === 'group' ? groupMessages : messages;
+  const isSending = activeChatType === 'group' ? sendingGroupMessage : sendingMessage;
+
   return (
     <div className="h-[calc(100vh-120px)] flex gap-4 p-4">
-      {/* Conversations List */}
+      {/* Sidebar */}
       <Card className="w-80 flex flex-col">
-        <CardHeader className="pb-2 flex-row items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MessageCircle className="h-5 w-5" />
-            Chats
-          </CardTitle>
-          <Button size="sm" variant="outline" onClick={() => setShowUserList(!showUserList)}>
-            <Users className="h-4 w-4" />
-          </Button>
+        <CardHeader className="pb-2">
+          <Tabs value={sidebarTab} onValueChange={(v) => setSidebarTab(v as any)} className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="chats" className="text-xs"><MessageCircle className="h-3 w-3 mr-1" />Chats</TabsTrigger>
+              <TabsTrigger value="users" className="text-xs"><Users className="h-3 w-3 mr-1" />Users</TabsTrigger>
+              <TabsTrigger value="groups" className="text-xs"><UsersRound className="h-3 w-3 mr-1" />Groups</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </CardHeader>
         <CardContent className="flex-1 p-2 overflow-hidden">
-          {showUserList ? (
-            <ScrollArea className="h-full">
-              <div className="space-y-1">
-                {users.map(u => (
-                  <div
-                    key={u.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted cursor-pointer"
-                    onClick={() => handleStartChat(u.id)}
-                  >
-                    <div className="relative">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={u.avatar_url} />
-                        <AvatarFallback>{u.full_name?.[0] || '?'}</AvatarFallback>
-                      </Avatar>
-                      {isUserOnline(u.id) && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
-                      )}
-                    </div>
-                    <span className="font-medium">{u.full_name || 'Unknown'}</span>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          ) : (
+          {sidebarTab === 'chats' && (
             <ScrollArea className="h-full">
               <div className="space-y-1">
                 {conversations.map(conv => (
-                  <div
-                    key={conv.id}
-                    className={cn(
-                      "flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors",
-                      activeConversation?.id === conv.id ? "bg-primary/10" : "hover:bg-muted"
-                    )}
-                    onClick={() => setActiveConversation(conv)}
-                  >
+                  <div key={conv.id} className={cn("flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors", activeChatType === 'conversation' && activeConversation?.id === conv.id ? "bg-primary/10" : "hover:bg-muted")} onClick={() => handleSelectConversation(conv)}>
                     <div className="relative">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={conv.other_user?.avatar_url || ''} />
-                        <AvatarFallback>{conv.other_user?.full_name?.[0] || '?'}</AvatarFallback>
-                      </Avatar>
-                      {conv.other_user?.is_online && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />
-                      )}
+                      <Avatar className="h-10 w-10"><AvatarImage src={conv.other_user?.avatar_url || ''} /><AvatarFallback>{conv.other_user?.full_name?.[0] || '?'}</AvatarFallback></Avatar>
+                      {conv.other_user?.is_online && <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between">
                         <span className="font-medium truncate">{conv.other_user?.full_name || 'Unknown'}</span>
-                        {(conv.unread_count || 0) > 0 && (
-                          <Badge variant="destructive" className="ml-1">{conv.unread_count}</Badge>
-                        )}
+                        {(conv.unread_count || 0) > 0 && <Badge variant="destructive" className="ml-1">{conv.unread_count}</Badge>}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
-                        {conv.last_message?.message_type === 'image' ? '📷 Image' :
-                         conv.last_message?.message_type === 'file' ? '📎 File' :
-                         conv.last_message?.content || 'No messages yet'}
+                        {conv.last_message?.message_type === 'image' ? '📷 Image' : conv.last_message?.message_type === 'file' ? '📎 File' : conv.last_message?.message_type === 'voice' ? '🎤 Voice' : conv.last_message?.content || 'No messages yet'}
                       </p>
                     </div>
                   </div>
                 ))}
-                {conversations.length === 0 && !loading && (
-                  <p className="text-center text-muted-foreground py-8">No conversations yet</p>
-                )}
+                {conversations.length === 0 && !loading && <p className="text-center text-muted-foreground py-8">No conversations yet</p>}
+              </div>
+            </ScrollArea>
+          )}
+          
+          {sidebarTab === 'users' && (
+            <ScrollArea className="h-full">
+              <div className="space-y-1">
+                {users.map(u => (
+                  <div key={u.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted cursor-pointer" onClick={() => handleStartChat(u.id)}>
+                    <div className="relative">
+                      <Avatar className="h-10 w-10"><AvatarImage src={u.avatar_url} /><AvatarFallback>{u.full_name?.[0] || '?'}</AvatarFallback></Avatar>
+                      {isUserOnline(u.id) && <span className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{u.full_name || 'Unknown'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                    </div>
+                    <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                ))}
+                {users.length === 0 && <p className="text-center text-muted-foreground py-8">No users found</p>}
+              </div>
+            </ScrollArea>
+          )}
+          
+          {sidebarTab === 'groups' && (
+            <ScrollArea className="h-full">
+              <div className="space-y-1">
+                <Button variant="outline" className="w-full mb-2" onClick={() => setShowCreateGroup(true)}>
+                  <Plus className="h-4 w-4 mr-2" />Create Group
+                </Button>
+                {groups.map(group => (
+                  <div key={group.id} className={cn("flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors", activeChatType === 'group' && activeGroup?.id === group.id ? "bg-primary/10" : "hover:bg-muted")} onClick={() => handleSelectGroup(group)}>
+                    <Avatar className="h-10 w-10 bg-primary/20">
+                      <AvatarFallback><UsersRound className="h-5 w-5" /></AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between">
+                        <span className="font-medium truncate">{group.name}</span>
+                        {(group.unread_count || 0) > 0 && <Badge variant="destructive" className="ml-1">{group.unread_count}</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{group.members?.length || 0} members</p>
+                    </div>
+                  </div>
+                ))}
+                {groups.length === 0 && !groupsLoading && <p className="text-center text-muted-foreground py-4">No groups yet</p>}
               </div>
             </ScrollArea>
           )}
@@ -575,226 +478,105 @@ const Communications = () => {
 
       {/* Chat Area */}
       <Card className="flex-1 flex flex-col">
-        {activeConversation ? (
+        {(activeConversation || activeGroup) ? (
           <>
             <CardHeader className="pb-2 border-b flex-row items-center justify-between">
               <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarImage src={activeConversation.other_user?.avatar_url || ''} />
-                  <AvatarFallback>{activeConversation.other_user?.full_name?.[0] || '?'}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <CardTitle className="text-lg">{activeConversation.other_user?.full_name || 'Unknown'}</CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {activeConversation.other_user?.is_online ? 'Online' : 'Offline'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {callState.status === 'idle' ? (
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    disabled={!activeConversation.other_user?.id}
-                    onClick={() => {
-                      if (activeConversation.other_user?.id) {
-                        startCall(
-                          activeConversation.other_user.id,
-                          activeConversation.other_user.full_name || 'Unknown'
-                        );
-                      }
-                    }}
-                  >
-                    <Phone className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{formatDuration(callState.duration)}</span>
-                    <Button size="icon" variant="outline" onClick={toggleMute}>
-                      {callState.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    </Button>
-                    <Button size="icon" variant="destructive" onClick={endCall}>
-                      <PhoneOff className="h-4 w-4" />
-                    </Button>
-                  </div>
+                {activeChatType === 'conversation' && activeConversation ? (
+                  <>
+                    <Avatar><AvatarImage src={activeConversation.other_user?.avatar_url || ''} /><AvatarFallback>{activeConversation.other_user?.full_name?.[0] || '?'}</AvatarFallback></Avatar>
+                    <div>
+                      <CardTitle className="text-lg">{activeConversation.other_user?.full_name || 'Unknown'}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{activeConversation.other_user?.is_online ? 'Online' : 'Offline'}</p>
+                    </div>
+                  </>
+                ) : activeGroup && (
+                  <>
+                    <Avatar className="bg-primary/20"><AvatarFallback><UsersRound className="h-5 w-5" /></AvatarFallback></Avatar>
+                    <div>
+                      <CardTitle className="text-lg">{activeGroup.name}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{activeGroup.members?.length || 0} members</p>
+                    </div>
+                  </>
                 )}
               </div>
+              {activeChatType === 'conversation' && activeConversation && (
+                <div className="flex gap-2">
+                  {callState.status === 'idle' ? (
+                    <Button size="icon" variant="outline" disabled={!activeConversation.other_user?.id} onClick={() => { if (activeConversation.other_user?.id) startCall(activeConversation.other_user.id, activeConversation.other_user.full_name || 'Unknown'); }}>
+                      <Phone className="h-4 w-4" />
+                    </Button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{formatDuration(callState.duration)}</span>
+                      <Button size="icon" variant="outline" onClick={toggleMute}>{callState.isMuted ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}</Button>
+                      <Button size="icon" variant="destructive" onClick={endCall}><PhoneOff className="h-4 w-4" /></Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardHeader>
             <CardContent className="flex-1 p-4 overflow-hidden flex flex-col">
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-3">
-                  {messages.map(msg => renderMessage(msg))}
+                  {currentMessages.map(msg => renderMessage(msg, activeChatType === 'group'))}
                   <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
               <div className="flex gap-2 pt-4 border-t mt-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={imageInputRef}
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={uploadingFile}
-                  title="Send Image"
-                >
-                  {uploadingFile ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <ImageIcon className="h-4 w-4" />
-                  )}
+                <input type="file" accept="image/*" ref={imageInputRef} onChange={handleImageUpload} className="hidden" />
+                <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                <Button variant="outline" size="icon" onClick={() => imageInputRef.current?.click()} disabled={uploadingFile} title="Send Image">
+                  {uploadingFile ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFile || isRecording}
-                  title="Send Document"
-                >
-                  <Paperclip className="h-4 w-4" />
-                </Button>
+                <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile || isRecording} title="Send Document"><Paperclip className="h-4 w-4" /></Button>
                 
-                {/* Voice Recording Button */}
                 {isRecording ? (
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-destructive/10 rounded-lg">
                     <div className="w-2 h-2 bg-destructive rounded-full animate-pulse" />
                     <span className="text-sm font-medium text-destructive">{formatDuration(recordingDuration)}</span>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={cancelRecording}
-                      title="Cancel"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="default"
-                      className="h-8 w-8 bg-primary"
-                      onClick={handleVoiceRecord}
-                      disabled={uploadingVoice}
-                      title="Send Voice Message"
-                    >
-                      {uploadingVoice ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )}
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={cancelRecording} title="Cancel"><X className="h-4 w-4" /></Button>
+                    <Button size="icon" variant="default" className="h-8 w-8 bg-primary" onClick={handleVoiceRecord} disabled={uploadingVoice} title="Send Voice Message">
+                      {uploadingVoice ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </Button>
                   </div>
                 ) : (
                   <>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      onClick={handleVoiceRecord}
-                      disabled={uploadingFile}
-                      title="Record Voice Message"
-                    >
-                      <Mic className="h-4 w-4" />
-                    </Button>
-                    <Input
-                      value={messageInput}
-                      onChange={(e) => setMessageInput(e.target.value)}
-                      placeholder="Type a message..."
-                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                      className="flex-1"
-                    />
-                    <Button onClick={handleSend} disabled={sendingMessage || !messageInput.trim()}>
-                      <Send className="h-4 w-4" />
-                    </Button>
+                    <Button variant="outline" size="icon" onClick={handleVoiceRecord} disabled={uploadingFile} title="Record Voice Message"><Mic className="h-4 w-4" /></Button>
+                    <Input value={messageInput} onChange={(e) => setMessageInput(e.target.value)} placeholder="Type a message..." onKeyDown={(e) => e.key === 'Enter' && handleSend()} className="flex-1" />
+                    <Button onClick={handleSend} disabled={isSending || !messageInput.trim()}><Send className="h-4 w-4" /></Button>
                   </>
                 )}
               </div>
             </CardContent>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-muted-foreground">
-            Select a conversation or start a new chat
-          </div>
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">Select a conversation, group, or start a new chat</div>
         )}
       </Card>
 
-      {/* Image Preview Modal */}
+      {/* Dialogs */}
+      <CreateGroupDialog open={showCreateGroup} onOpenChange={setShowCreateGroup} onCreateGroup={createGroup} />
+
       {imagePreview && (
-        <div 
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-          onClick={() => setImagePreview(null)}
-        >
-          <Button
-            size="icon"
-            variant="ghost"
-            className="absolute top-4 right-4 text-white hover:bg-white/20"
-            onClick={() => setImagePreview(null)}
-          >
-            <X className="h-6 w-6" />
-          </Button>
-          <Button
-            size="icon"
-            variant="secondary"
-            className="absolute top-4 right-16"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleDownload(imagePreview, 'image.jpg');
-            }}
-          >
-            <Download className="h-5 w-5" />
-          </Button>
-          <img 
-            src={imagePreview} 
-            alt="Preview" 
-            className="max-w-full max-h-full object-contain rounded-lg"
-            onClick={(e) => e.stopPropagation()}
-          />
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setImagePreview(null)}>
+          <Button size="icon" variant="ghost" className="absolute top-4 right-4 text-white hover:bg-white/20" onClick={() => setImagePreview(null)}><X className="h-6 w-6" /></Button>
+          <Button size="icon" variant="secondary" className="absolute top-4 right-16" onClick={(e) => { e.stopPropagation(); handleDownload(imagePreview, 'image.jpg'); }}><Download className="h-5 w-5" /></Button>
+          <img src={imagePreview} alt="Preview" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
 
-      {/* Delete Confirmation Dialog */}
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Message</AlertDialogTitle>
-            <AlertDialogDescription>
-              Delete this message for yourself? The other person will still see it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteMessage} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete for Me
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Delete Message</AlertDialogTitle><AlertDialogDescription>Delete this message for yourself? The other person will still see it.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteMessage} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete for Me</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Unsend Confirmation Dialog */}
       <AlertDialog open={unsendDialogOpen} onOpenChange={setUnsendDialogOpen}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unsend Message</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will delete the message for everyone. The other person will see "This message was deleted".
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleUnsendMessage} className="bg-orange-600 text-white hover:bg-orange-700">
-              Unsend for Everyone
-            </AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Unsend Message</AlertDialogTitle><AlertDialogDescription>This will delete the message for everyone. The other person will see "This message was deleted".</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleUnsendMessage} className="bg-orange-600 text-white hover:bg-orange-700">Unsend for Everyone</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
