@@ -9,6 +9,7 @@ export interface IncomingCall {
   callerName: string;
   offer: RTCSessionDescriptionInit;
   callLogId: string;
+  signalingChannel: string;
 }
 
 // Request notification permission
@@ -42,7 +43,7 @@ export const useIncomingCall = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
-  const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const notificationRef = useRef<Notification | null>(null);
 
   const clearIncomingCall = useCallback(() => {
@@ -62,87 +63,86 @@ export const useIncomingCall = () => {
   }, []);
 
   useEffect(() => {
-    if (!user || !profile?.company_id) return;
+    if (!user?.id) return;
 
-    console.log('Setting up incoming call listeners for user:', user.id);
+    console.log('Setting up incoming call listener for user:', user.id);
 
-    const setupListeners = async () => {
-      // Get all users in company
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('company_id', profile.company_id)
-        .neq('id', user.id);
+    // Create a dedicated channel for this user to receive incoming calls
+    const channelName = `incoming-call-${user.id}`;
+    
+    channelRef.current = supabase.channel(channelName, {
+      config: { broadcast: { self: false } }
+    });
 
-      if (error) {
-        console.error('Error fetching profiles:', error);
-        return;
-      }
-
-      if (!profiles || profiles.length === 0) {
-        console.log('No other users in company');
-        return;
-      }
-
-      console.log('Setting up listeners for', profiles.length, 'users');
-
-      // Listen for calls from each user
-      for (const otherProfile of profiles) {
-        const channelName = `voice-call-${[user.id, otherProfile.id].sort().join('-')}`;
+    channelRef.current
+      .on('broadcast', { event: 'incoming-call' }, ({ payload }) => {
+        console.log('Received incoming call from:', payload.callerName);
         
-        // Skip if already listening
-        if (channelsRef.current.has(channelName)) continue;
+        // Don't process our own calls
+        if (payload.callerId === user.id) {
+          console.log('Ignoring own call');
+          return;
+        }
 
-        console.log('Creating listener channel:', channelName);
-        
-        const channel = supabase.channel(channelName, {
-          config: { broadcast: { self: false } }
+        setIncomingCall({
+          callerId: payload.callerId,
+          callerName: payload.callerName,
+          offer: payload.offer,
+          callLogId: payload.callLogId,
+          signalingChannel: payload.signalingChannel
         });
-
-        channel
-          .on('broadcast', { event: 'offer' }, ({ payload }) => {
-            console.log('Received call offer from:', payload.callerName);
-            if (payload.callerId !== user.id) {
-              setIncomingCall({
-                callerId: payload.callerId,
-                callerName: payload.callerName,
-                offer: payload.offer,
-                callLogId: payload.callLogId
-              });
-              // Play incoming ringtone
-              audioNotifications.playIncomingRing();
-              // Show browser notification
-              notificationRef.current = showCallNotification(payload.callerName);
-            }
-          })
-          .on('broadcast', { event: 'end-call' }, () => {
-            console.log('Caller ended call before answer');
-            clearIncomingCall();
-          })
-          .subscribe((status) => {
-            console.log(`Incoming call channel ${channelName} status:`, status);
-          });
-
-        channelsRef.current.set(channelName, channel);
-      }
-    };
-
-    setupListeners();
+        
+        // Play incoming ringtone
+        audioNotifications.playIncomingRing();
+        
+        // Show browser notification
+        notificationRef.current = showCallNotification(payload.callerName);
+      })
+      .subscribe((status) => {
+        console.log(`Incoming call channel ${channelName} status:`, status);
+      });
 
     return () => {
-      console.log('Cleaning up incoming call listeners');
-      channelsRef.current.forEach((channel, name) => {
-        console.log('Removing channel:', name);
-        supabase.removeChannel(channel);
-      });
-      channelsRef.current.clear();
+      console.log('Cleaning up incoming call listener');
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
       audioNotifications.stopIncomingRing();
       if (notificationRef.current) {
         notificationRef.current.close();
         notificationRef.current = null;
       }
     };
-  }, [user, profile?.company_id, clearIncomingCall]);
+  }, [user?.id]);
+
+  // Listen for call cancellation
+  useEffect(() => {
+    if (!incomingCall?.signalingChannel) return;
+
+    console.log('Setting up call cancellation listener on:', incomingCall.signalingChannel);
+    
+    const cancelChannel = supabase.channel(`cancel-${incomingCall.signalingChannel}`, {
+      config: { broadcast: { self: false } }
+    });
+
+    // Also listen on the actual signaling channel for end-call events
+    const signalingChannel = supabase.channel(incomingCall.signalingChannel, {
+      config: { broadcast: { self: false } }
+    });
+
+    signalingChannel
+      .on('broadcast', { event: 'end-call' }, () => {
+        console.log('Caller cancelled the call');
+        clearIncomingCall();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(cancelChannel);
+      supabase.removeChannel(signalingChannel);
+    };
+  }, [incomingCall?.signalingChannel, clearIncomingCall]);
 
   return {
     incomingCall,

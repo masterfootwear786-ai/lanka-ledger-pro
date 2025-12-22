@@ -4,8 +4,8 @@ import { useVoiceCall, CallState } from '@/hooks/useVoiceCall';
 interface VoiceCallContextType {
   callState: CallState;
   startCall: (targetUserId: string, targetUserName: string) => Promise<void>;
-  answerCall: (callerId: string, callerName: string, offer: RTCSessionDescriptionInit, incomingCallLogId: string) => Promise<void>;
-  rejectCall: (callerId: string, incomingCallLogId: string) => Promise<void>;
+  answerCall: (callerId: string, callerName: string, offer: RTCSessionDescriptionInit, incomingCallLogId: string, signalingChannel: string) => Promise<void>;
+  rejectCall: (callerId: string, incomingCallLogId: string, signalingChannel?: string) => Promise<void>;
   endCall: () => Promise<void>;
   toggleMute: () => void;
 }
