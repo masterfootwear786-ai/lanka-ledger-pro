@@ -115,8 +115,10 @@ export function AppSidebar() {
     { title: t('app.dashboard'), url: '/', icon: LayoutDashboard, module: 'dashboard' as ModuleName },
     { title: 'Hot Selling', url: '/purchasing/hot-selling', icon: Flame, module: 'hot_selling' as ModuleName },
     { title: 'Send Documents', url: '/send-documents', icon: Send, module: 'send_documents' as ModuleName },
-    { title: 'Communications', url: '/communications', icon: MessageCircle, module: 'dashboard' as ModuleName },
   ];
+
+  // Communications is always visible to all users
+  const communicationsItem = { title: 'Communications', url: '/communications', icon: MessageCircle };
 
   // Filter main menu items based on permissions
   const mainMenuItems = useMemo(() => {
@@ -273,6 +275,23 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
+            {/* Communications - Always visible */}
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink 
+                  to={communicationsItem.url} 
+                  className={({ isActive }) => cn(
+                    "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                    isActive 
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
+                      : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                  )}
+                >
+                  <communicationsItem.icon className="h-4 w-4 shrink-0 z-10" />
+                  {!collapsed && <span>{communicationsItem.title}</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
