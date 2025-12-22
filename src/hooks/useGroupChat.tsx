@@ -201,9 +201,11 @@ export const useGroupChat = () => {
 
     setSendingMessage(true);
     try {
+      // For group messages, conversation_id is null (we made it nullable)
       const { error } = await supabase
         .from('chat_messages')
         .insert({
+          conversation_id: null,
           group_id: activeGroup.id,
           sender_id: user.id,
           message_type: type,

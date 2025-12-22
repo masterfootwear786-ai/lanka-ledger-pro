@@ -623,7 +623,7 @@ export type Database = {
       chat_messages: {
         Row: {
           content: string | null
-          conversation_id: string
+          conversation_id: string | null
           created_at: string
           duration_seconds: number | null
           group_id: string | null
@@ -635,7 +635,7 @@ export type Database = {
         }
         Insert: {
           content?: string | null
-          conversation_id: string
+          conversation_id?: string | null
           created_at?: string
           duration_seconds?: number | null
           group_id?: string | null
@@ -647,7 +647,7 @@ export type Database = {
         }
         Update: {
           content?: string | null
-          conversation_id?: string
+          conversation_id?: string | null
           created_at?: string
           duration_seconds?: number | null
           group_id?: string | null
