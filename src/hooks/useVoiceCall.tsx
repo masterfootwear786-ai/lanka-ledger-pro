@@ -244,14 +244,54 @@ export const useVoiceCall = () => {
     try {
       console.log('Starting call to:', targetUserName);
       
+      // Check microphone permission first
+      let permissionStatus: PermissionStatus | null = null;
+      try {
+        permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      } catch (e) {
+        // Some browsers don't support permission query for microphone
+        console.log('Permissions API not supported, will try direct access');
+      }
+
+      if (permissionStatus?.state === 'denied') {
+        toast({
+          title: "Microphone Access Denied",
+          description: "Please enable microphone access in your browser settings to make calls.",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Get microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        } 
-      });
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
+      } catch (mediaError: any) {
+        console.error('Microphone access error:', mediaError);
+        let errorMessage = "Could not access microphone.";
+        
+        if (mediaError.name === 'NotAllowedError' || mediaError.name === 'PermissionDeniedError') {
+          errorMessage = "Microphone permission denied. Please allow microphone access and try again.";
+        } else if (mediaError.name === 'NotFoundError' || mediaError.name === 'DevicesNotFoundError') {
+          errorMessage = "No microphone found. Please connect a microphone and try again.";
+        } else if (mediaError.name === 'NotReadableError' || mediaError.name === 'TrackStartError') {
+          errorMessage = "Microphone is in use by another application. Please close other apps using the microphone.";
+        }
+        
+        toast({
+          title: "Microphone Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        return;
+      }
+
       localStream.current = stream;
       console.log('Got local audio stream');
 
@@ -395,7 +435,7 @@ export const useVoiceCall = () => {
       console.error('Error starting call:', error);
       toast({
         title: "Call Failed",
-        description: error instanceof Error ? error.message : "Could not start call. Please check microphone permissions.",
+        description: error instanceof Error ? error.message : "Could not start call. Please try again.",
         variant: "destructive"
       });
       cleanup();
