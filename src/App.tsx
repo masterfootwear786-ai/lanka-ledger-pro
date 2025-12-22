@@ -117,7 +117,7 @@ const App = () => (
               <Route path="/sales" element={<ProtectedRoute><PermissionGuard module="sales"><Sales /></PermissionGuard></ProtectedRoute>} />
               <Route path="/purchasing" element={<ProtectedRoute><PermissionGuard module="purchasing"><Purchasing /></PermissionGuard></ProtectedRoute>} />
               <Route path="/inventory" element={<ProtectedRoute><PermissionGuard module="inventory"><Inventory /></PermissionGuard></ProtectedRoute>} />
-              <Route path="/accounting" element={<ProtectedRoute><PermissionGuard module="expenses"><Accounting /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/accounting" element={<ProtectedRoute><PermissionGuard module="accounting"><Accounting /></PermissionGuard></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><PermissionGuard module="reports"><Reports /></PermissionGuard></ProtectedRoute>} />
               {/* Sales routes */}
               <Route path="/sales/orders" element={<ProtectedRoute><PermissionGuard module="sales"><Orders /></PermissionGuard></ProtectedRoute>} />
@@ -149,9 +149,9 @@ const App = () => (
               <Route path="/inventory/lorry-stock" element={<ProtectedRoute><PermissionGuard module="inventory"><LorryStock /></PermissionGuard></ProtectedRoute>} />
               <Route path="/inventory/warehouse" element={<ProtectedRoute><PermissionGuard module="inventory"><WarehouseStock /></PermissionGuard></ProtectedRoute>} />
               {/* Accounting routes */}
-              <Route path="/accounting/expenses" element={<ProtectedRoute><PermissionGuard module="expenses"><Expenses /></PermissionGuard></ProtectedRoute>} />
-              <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><PermissionGuard module="expenses"><CreditorsDebtors /></PermissionGuard></ProtectedRoute>} />
-              <Route path="/accounting/turns" element={<ProtectedRoute><PermissionGuard module="expenses"><Turns /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/accounting/expenses" element={<ProtectedRoute><PermissionGuard module="accounting"><Expenses /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/accounting/creditors-debtors" element={<ProtectedRoute><PermissionGuard module="accounting"><CreditorsDebtors /></PermissionGuard></ProtectedRoute>} />
+              <Route path="/accounting/turns" element={<ProtectedRoute><PermissionGuard module="accounting"><Turns /></PermissionGuard></ProtectedRoute>} />
               {/* Reports routes */}
               <Route path="/reports/all" element={<ProtectedRoute><PermissionGuard module="reports"><AllReportsDetails /></PermissionGuard></ProtectedRoute>} />
               <Route path="/reports/sales" element={<ProtectedRoute><PermissionGuard module="reports"><SalesReport /></PermissionGuard></ProtectedRoute>} />

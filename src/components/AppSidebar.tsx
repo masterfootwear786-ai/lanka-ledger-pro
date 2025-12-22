@@ -30,12 +30,40 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions, ModuleName } from '@/hooks/useUserPermissions';
 
+// Map URL paths to sub-module keys
+const URL_TO_SUBMODULE: Record<string, { module: ModuleName; subModule: string }> = {
+  '/sales/orders': { module: 'sales', subModule: 'orders' },
+  '/sales/invoices': { module: 'sales', subModule: 'invoices' },
+  '/sales/return-notes': { module: 'sales', subModule: 'return_notes' },
+  '/sales/receipts': { module: 'sales', subModule: 'receipts' },
+  '/sales/cheques': { module: 'sales', subModule: 'cheques' },
+  '/sales/customers': { module: 'customers', subModule: 'customers' },
+  '/sales/customer-profiles': { module: 'customers', subModule: 'customer_profiles' },
+  '/sales/customer-outstanding': { module: 'customers', subModule: 'outstanding' },
+  '/purchasing/reorder-form': { module: 'purchasing', subModule: 'reorder_form' },
+  '/purchasing/bills': { module: 'purchasing', subModule: 'bills' },
+  '/purchasing/debit-notes': { module: 'purchasing', subModule: 'debit_notes' },
+  '/purchasing/payments': { module: 'purchasing', subModule: 'payments' },
+  '/purchasing/cheques': { module: 'purchasing', subModule: 'supplier_cheques' },
+  '/purchasing/suppliers': { module: 'purchasing', subModule: 'suppliers' },
+  '/inventory/items': { module: 'inventory', subModule: 'items' },
+  '/inventory/main-stock': { module: 'inventory', subModule: 'main_stock' },
+  '/inventory/lorry-stock': { module: 'inventory', subModule: 'lorry_stock' },
+  '/inventory/warehouse': { module: 'inventory', subModule: 'warehouse' },
+  '/accounting/expenses': { module: 'accounting', subModule: 'expenses' },
+  '/accounting/turns': { module: 'accounting', subModule: 'turns' },
+  '/reports/all': { module: 'reports', subModule: 'all_reports' },
+  '/reports/profit-loss': { module: 'reports', subModule: 'profit_loss' },
+  '/reports/ar-aging': { module: 'reports', subModule: 'ar_aging' },
+  '/reports/ap-aging': { module: 'reports', subModule: 'ap_aging' },
+};
+
 export function AppSidebar() {
   const { t } = useTranslation();
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
-  const { canView, hasAnyPermission, loading: permissionsLoading } = useUserPermissions();
+  const { canView, hasAnyPermission, isAdmin, loading: permissionsLoading } = useUserPermissions();
   
   // Track which section is currently open (only one at a time)
   const [openSection, setOpenSection] = useState<string | null>(null);
@@ -68,6 +96,17 @@ export function AppSidebar() {
   const isActiveRoute = (url: string) => {
     if (url === '/') return location.pathname === '/';
     return location.pathname.startsWith(url);
+  };
+
+  // Check if user can access a specific URL
+  const canAccessUrl = (url: string): boolean => {
+    if (isAdmin) return true;
+    
+    const mapping = URL_TO_SUBMODULE[url];
+    if (mapping) {
+      return canView(mapping.module, mapping.subModule);
+    }
+    return true;
   };
 
   const mainMenuItems = [
@@ -121,10 +160,10 @@ export function AppSidebar() {
   // Map section id to module permission name
   const sectionToModule: Record<string, ModuleName> = {
     sales: 'sales',
-    customers: 'sales', // Customers is part of sales
+    customers: 'customers',
     purchasing: 'purchasing',
     inventory: 'inventory',
-    accounting: 'expenses',
+    accounting: 'accounting',
     reports: 'reports',
   };
 
@@ -137,14 +176,27 @@ export function AppSidebar() {
     { id: 'reports', title: t('app.reports'), icon: FileText, items: reportItems },
   ];
 
-  // Filter sections based on user permissions
+  // Filter sections based on user permissions and filter items within sections
   const menuSections = useMemo(() => {
     if (permissionsLoading) return [];
-    return allMenuSections.filter(section => {
-      const moduleName = sectionToModule[section.id];
-      return moduleName ? hasAnyPermission(moduleName) : false;
-    });
-  }, [permissionsLoading, hasAnyPermission, t]);
+    
+    return allMenuSections
+      .map(section => {
+        const moduleName = sectionToModule[section.id];
+        
+        // Filter items within this section based on sub-module permissions
+        const filteredItems = section.items.filter(item => canAccessUrl(item.url));
+        
+        return {
+          ...section,
+          items: filteredItems,
+        };
+      })
+      .filter(section => {
+        // Only show section if it has at least one accessible item
+        return section.items.length > 0;
+      });
+  }, [permissionsLoading, isAdmin, canView, t]);
 
   // Auto-open section based on current route
   useEffect(() => {
@@ -154,7 +206,7 @@ export function AppSidebar() {
     if (activeSection) {
       setOpenSection(activeSection.id);
     }
-  }, [location.pathname]);
+  }, [location.pathname, menuSections]);
 
   const handleSectionToggle = (sectionId: string) => {
     setOpenSection(prev => prev === sectionId ? null : sectionId);

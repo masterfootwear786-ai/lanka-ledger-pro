@@ -4,6 +4,7 @@ import { useUserPermissions, ModuleName } from '@/hooks/useUserPermissions';
 interface PermissionGuardProps {
   children: React.ReactNode;
   module: ModuleName;
+  subModule?: string;
   permission?: 'view' | 'create' | 'edit' | 'delete';
   fallback?: React.ReactNode;
 }
@@ -11,6 +12,7 @@ interface PermissionGuardProps {
 export const PermissionGuard = ({ 
   children, 
   module, 
+  subModule,
   permission = 'view',
   fallback 
 }: PermissionGuardProps) => {
@@ -28,16 +30,16 @@ export const PermissionGuard = ({
   let hasPermission = false;
   switch (permission) {
     case 'view':
-      hasPermission = canView(module);
+      hasPermission = canView(module, subModule);
       break;
     case 'create':
-      hasPermission = canCreate(module);
+      hasPermission = canCreate(module, subModule);
       break;
     case 'edit':
-      hasPermission = canEdit(module);
+      hasPermission = canEdit(module, subModule);
       break;
     case 'delete':
-      hasPermission = canDelete(module);
+      hasPermission = canDelete(module, subModule);
       break;
   }
 
