@@ -11,16 +11,54 @@ export interface IncomingCall {
   callLogId: string;
 }
 
+// Request notification permission
+const requestNotificationPermission = async () => {
+  if ('Notification' in window && Notification.permission === 'default') {
+    await Notification.requestPermission();
+  }
+};
+
+// Show browser notification for incoming call
+const showCallNotification = (callerName: string): Notification | null => {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    const notification = new Notification('Incoming Call', {
+      body: `${callerName} is calling...`,
+      icon: '/icon-192.png',
+      tag: 'incoming-call',
+      requireInteraction: true
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+
+    return notification;
+  }
+  return null;
+};
+
 export const useIncomingCall = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
+  const notificationRef = useRef<Notification | null>(null);
 
   const clearIncomingCall = useCallback(() => {
     setIncomingCall(null);
     // Stop ringtone
     audioNotifications.stopIncomingRing();
+    // Close browser notification
+    if (notificationRef.current) {
+      notificationRef.current.close();
+      notificationRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    // Request notification permission on mount
+    requestNotificationPermission();
   }, []);
 
   useEffect(() => {
@@ -73,6 +111,8 @@ export const useIncomingCall = () => {
               });
               // Play incoming ringtone
               audioNotifications.playIncomingRing();
+              // Show browser notification
+              notificationRef.current = showCallNotification(payload.callerName);
             }
           })
           .on('broadcast', { event: 'end-call' }, () => {
@@ -97,6 +137,10 @@ export const useIncomingCall = () => {
       });
       channelsRef.current.clear();
       audioNotifications.stopIncomingRing();
+      if (notificationRef.current) {
+        notificationRef.current.close();
+        notificationRef.current = null;
+      }
     };
   }, [user, profile?.company_id, clearIncomingCall]);
 
