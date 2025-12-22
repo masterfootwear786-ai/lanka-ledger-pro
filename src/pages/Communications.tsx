@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { CreateGroupDialog } from '@/components/communications/CreateGroupDialog';
+import { GroupMembersPanel } from '@/components/communications/GroupMembersPanel';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -497,6 +498,14 @@ const Communications = () => {
                       <CardTitle className="text-lg">{activeGroup.name}</CardTitle>
                       <p className="text-xs text-muted-foreground">{activeGroup.members?.length || 0} members</p>
                     </div>
+                    {activeGroup.members && activeGroup.members.length > 0 && (
+                      <GroupMembersPanel 
+                        members={activeGroup.members} 
+                        onStartChat={async (userId) => {
+                          await handleStartChat(userId);
+                        }} 
+                      />
+                    )}
                   </>
                 )}
               </div>
