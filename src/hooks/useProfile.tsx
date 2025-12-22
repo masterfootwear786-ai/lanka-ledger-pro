@@ -48,7 +48,7 @@ export const useProfile = () => {
 
   // Subscribe to profile changes for real-time updates
   useEffect(() => {
-    if (!user) return;
+    if (!user) return undefined;
 
     const channel = supabase
       .channel(`profile-${user.id}`)
@@ -67,7 +67,9 @@ export const useProfile = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [user]);
 
