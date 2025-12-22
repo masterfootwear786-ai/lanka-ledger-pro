@@ -31,6 +31,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useUserPermissions, ModuleName } from '@/hooks/useUserPermissions';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { Badge } from '@/components/ui/badge';
 
 // Map URL paths to sub-module keys
 const URL_TO_SUBMODULE: Record<string, { module: ModuleName; subModule: string }> = {
@@ -66,6 +68,7 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const { canView, hasAnyPermission, isAdmin, loading: permissionsLoading } = useUserPermissions();
+  const { unreadCount } = useUnreadMessages();
   
   // Track which section is currently open (only one at a time)
   const [openSection, setOpenSection] = useState<string | null>(null);
@@ -281,14 +284,33 @@ export function AppSidebar() {
                 <NavLink 
                   to={communicationsItem.url} 
                   className={({ isActive }) => cn(
-                    "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200",
+                    "water-ripple flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative",
                     isActive 
                       ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg" 
                       : "text-sidebar-foreground/80 hover:text-sidebar-foreground"
                   )}
                 >
-                  <communicationsItem.icon className="h-4 w-4 shrink-0 z-10" />
-                  {!collapsed && <span>{communicationsItem.title}</span>}
+                  <div className="relative">
+                    <communicationsItem.icon className="h-4 w-4 shrink-0 z-10" />
+                    {unreadCount > 0 && (
+                      <Badge 
+                        variant="destructive" 
+                        className="absolute -top-2 -right-2 h-4 min-w-4 px-1 text-[10px] flex items-center justify-center"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
+                  </div>
+                  {!collapsed && (
+                    <span className="flex items-center gap-2">
+                      {communicationsItem.title}
+                      {unreadCount > 0 && (
+                        <Badge variant="destructive" className="h-5 px-1.5 text-xs">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Badge>
+                      )}
+                    </span>
+                  )}
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
