@@ -376,6 +376,56 @@ export type Database = {
           },
         ]
       }
+      call_logs: {
+        Row: {
+          answered_at: string | null
+          call_type: string
+          caller_id: string
+          company_id: string
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          receiver_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          answered_at?: string | null
+          call_type?: string
+          caller_id: string
+          company_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          receiver_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          answered_at?: string | null
+          call_type?: string
+          caller_id?: string
+          company_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          receiver_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chart_of_accounts: {
         Row: {
           account_type: Database["public"]["Enums"]["account_type"]
@@ -429,6 +479,82 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "chart_of_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversations: {
+        Row: {
+          company_id: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          participant_1: string
+          participant_2: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participant_1: string
+          participant_2: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          participant_1?: string
+          participant_2?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          message_type: string
+          read_at: string | null
+          sender_id: string
+        }
+        Insert: {
+          content?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message_type?: string
+          read_at?: string | null
+          sender_id: string
+        }
+        Update: {
+          content?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message_type?: string
+          read_at?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -2861,6 +2987,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_permissions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_presence: {
+        Row: {
+          company_id: string
+          id: string
+          is_online: boolean | null
+          last_seen_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          id?: string
+          is_online?: boolean | null
+          last_seen_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          id?: string
+          is_online?: boolean | null
+          last_seen_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_presence_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
