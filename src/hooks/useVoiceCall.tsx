@@ -50,6 +50,7 @@ export const useVoiceCall = () => {
   const callStatusRef = useRef<CallStatus>('idle');
   const connectionFailTimer = useRef<NodeJS.Timeout | null>(null);
   const endCallRef = useRef<() => void>(() => {});
+  const isCleaningUp = useRef<boolean>(false);
 
   useEffect(() => {
     callStatusRef.current = callState.status;
@@ -68,6 +69,11 @@ export const useVoiceCall = () => {
   }, []);
 
   const cleanup = useCallback(() => {
+    if (isCleaningUp.current) {
+      console.log('Already cleaning up, skipping...');
+      return;
+    }
+    isCleaningUp.current = true;
     console.log('Cleaning up call...');
 
     if (connectionFailTimer.current) {
@@ -92,19 +98,42 @@ export const useVoiceCall = () => {
 
     // Close peer connection
     if (peerConnection.current) {
+      peerConnection.current.onicecandidate = null;
+      peerConnection.current.ontrack = null;
+      peerConnection.current.oniceconnectionstatechange = null;
+      peerConnection.current.onconnectionstatechange = null;
       peerConnection.current.close();
       peerConnection.current = null;
+    }
+
+    // Clear remote audio
+    if (remoteAudio.current) {
+      remoteAudio.current.srcObject = null;
     }
 
     // Clear ICE queue
     iceCandidatesQueue.current = [];
 
-    // Remove signaling channel
+    // Remove signaling channel with delay
     if (signalingChannel.current) {
-      supabase.removeChannel(signalingChannel.current);
+      const channelToRemove = signalingChannel.current;
       signalingChannel.current = null;
       isSubscribed.current = false;
+      
+      setTimeout(() => {
+        try {
+          supabase.removeChannel(channelToRemove);
+          console.log('Removed signaling channel');
+        } catch (e) {
+          console.error('Error removing channel:', e);
+        }
+      }, 500);
     }
+
+    // Reset cleanup flag after a short delay
+    setTimeout(() => {
+      isCleaningUp.current = false;
+    }, 1000);
   }, []);
 
   // Clean up on unmount
@@ -214,9 +243,16 @@ export const useVoiceCall = () => {
   }, []);
 
   const endCall = useCallback(async () => {
+    if (isCleaningUp.current) {
+      console.log('Already ending call, skipping...');
+      return;
+    }
+
     const currentStatus = callState.status;
     const currentDuration = callState.duration;
     const currentCallLogId = callLogId.current;
+
+    console.log('Ending call, status:', currentStatus);
 
     // Stop all ring sounds
     audioNotifications.stopAll();
@@ -229,11 +265,12 @@ export const useVoiceCall = () => {
     // Send end signal before cleanup
     if (signalingChannel.current && isSubscribed.current) {
       try {
-        signalingChannel.current.send({
+        await signalingChannel.current.send({
           type: 'broadcast',
           event: 'end-call',
           payload: {}
         });
+        console.log('Sent end-call signal');
       } catch (err) {
         console.error('Error sending end-call:', err);
       }
@@ -287,6 +324,16 @@ export const useVoiceCall = () => {
       toast({
         title: "Error",
         description: "You must be logged in to make calls",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check if already in a call
+    if (callState.status !== 'idle') {
+      toast({
+        title: "Already in a call",
+        description: "Please end the current call before starting a new one",
         variant: "destructive"
       });
       return;
@@ -371,8 +418,8 @@ export const useVoiceCall = () => {
         console.log('Added track to peer connection:', track.kind);
       });
 
-      // Set up signaling channel
-      const channelName = `voice-call-${[user.id, targetUserId].sort().join('-')}`;
+      // Set up signaling channel with unique timestamp to avoid conflicts
+      const channelName = `voice-call-${[user.id, targetUserId].sort().join('-')}-${Date.now()}`;
       console.log('Setting up signaling channel:', channelName);
       
       signalingChannel.current = supabase.channel(channelName, {
@@ -447,17 +494,31 @@ export const useVoiceCall = () => {
       await pc.setLocalDescription(offer);
       console.log('Created and set local description (offer)');
 
-      signalingChannel.current.send({
+      // Send offer to the dedicated incoming call channel
+      const incomingCallChannel = supabase.channel(`incoming-call-${targetUserId}`, {
+        config: { broadcast: { self: false } }
+      });
+
+      await incomingCallChannel.subscribe();
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      incomingCallChannel.send({
         type: 'broadcast',
-        event: 'offer',
+        event: 'incoming-call',
         payload: { 
           offer: { type: offer.type, sdp: offer.sdp },
           callerId: user.id,
           callerName: profile.full_name || 'Unknown',
-          callLogId: callLog.id
+          callLogId: callLog.id,
+          signalingChannel: channelName
         }
       });
-      console.log('Sent offer');
+      console.log('Sent offer to incoming call channel');
+
+      // Clean up the incoming call channel after sending
+      setTimeout(() => {
+        supabase.removeChannel(incomingCallChannel);
+      }, 1000);
 
       // Start outgoing ring sound
       audioNotifications.playOutgoingRing();
@@ -499,13 +560,16 @@ export const useVoiceCall = () => {
         duration: 0
       });
     }
-  }, [user, profile, setupPeerConnection, toast, startDurationTimer, endCall, cleanup, processIceCandidateQueue]);
+  }, [user, profile, callState.status, setupPeerConnection, toast, startDurationTimer, endCall, cleanup, processIceCandidateQueue]);
 
-  const answerCall = useCallback(async (callerId: string, callerName: string, offer: RTCSessionDescriptionInit, incomingCallLogId: string) => {
+  const answerCall = useCallback(async (callerId: string, callerName: string, offer: RTCSessionDescriptionInit, incomingCallLogId: string, channelName: string) => {
     if (!user) return;
 
     try {
-      console.log('Answering call from:', callerName);
+      console.log('Answering call from:', callerName, 'channel:', channelName);
+      
+      // Stop incoming ring
+      audioNotifications.stopIncomingRing();
       
       // Get microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -526,8 +590,7 @@ export const useVoiceCall = () => {
         console.log('Added track for answer:', track.kind);
       });
 
-      // Set up signaling channel
-      const channelName = `voice-call-${[user.id, callerId].sort().join('-')}`;
+      // Join the caller's signaling channel
       console.log('Joining signaling channel:', channelName);
       
       signalingChannel.current = supabase.channel(channelName, {
@@ -581,6 +644,9 @@ export const useVoiceCall = () => {
       });
       console.log('Sent answer');
 
+      // Play connected sound
+      audioNotifications.playCallConnected();
+
       // Update call log
       await supabase
         .from('call_logs')
@@ -614,33 +680,36 @@ export const useVoiceCall = () => {
     }
   }, [user, setupPeerConnection, toast, startDurationTimer, endCall, processIceCandidateQueue]);
 
-  const rejectCall = useCallback(async (callerId: string, incomingCallLogId: string) => {
+  const rejectCall = useCallback(async (callerId: string, incomingCallLogId: string, channelName?: string) => {
     if (!user) return;
     
     console.log('Rejecting call');
-    const channelName = `voice-call-${[user.id, callerId].sort().join('-')}`;
-    const channel = supabase.channel(channelName, {
-      config: { broadcast: { self: false } }
-    });
-    
-    await channel.subscribe();
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    channel.send({
-      type: 'broadcast',
-      event: 'reject-call',
-      payload: {}
-    });
+    audioNotifications.stopIncomingRing();
+
+    if (channelName) {
+      const channel = supabase.channel(channelName, {
+        config: { broadcast: { self: false } }
+      });
+      
+      await channel.subscribe();
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      channel.send({
+        type: 'broadcast',
+        event: 'reject-call',
+        payload: {}
+      });
+
+      setTimeout(() => {
+        supabase.removeChannel(channel);
+      }, 1000);
+    }
 
     // Update call log
     await supabase
       .from('call_logs')
       .update({ status: 'rejected', ended_at: new Date().toISOString() })
       .eq('id', incomingCallLogId);
-
-    setTimeout(() => {
-      supabase.removeChannel(channel);
-    }, 1000);
   }, [user]);
 
   const toggleMute = useCallback(() => {

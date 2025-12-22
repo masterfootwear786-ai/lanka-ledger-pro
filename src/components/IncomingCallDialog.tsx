@@ -16,13 +16,14 @@ export const IncomingCallDialog = () => {
       incomingCall.callerId,
       incomingCall.callerName,
       incomingCall.offer,
-      incomingCall.callLogId
+      incomingCall.callLogId,
+      incomingCall.signalingChannel
     );
     clearIncomingCall();
   };
 
   const handleReject = async () => {
-    await rejectCall(incomingCall.callerId, incomingCall.callLogId);
+    await rejectCall(incomingCall.callerId, incomingCall.callLogId, incomingCall.signalingChannel);
     clearIncomingCall();
   };
 
