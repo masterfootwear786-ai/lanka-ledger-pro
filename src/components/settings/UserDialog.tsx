@@ -131,7 +131,11 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         .eq('id', profile.company_id)
         .single();
 
-      const defaultPassword = company?.action_password || "123456";
+      // Ensure password is at least 6 characters
+      let defaultPassword = company?.action_password || "123456";
+      if (defaultPassword.length < 6) {
+        defaultPassword = "123456";
+      }
 
       // Use admin API to reset password
       const { error } = await supabase.functions.invoke('reset-user-password', {
