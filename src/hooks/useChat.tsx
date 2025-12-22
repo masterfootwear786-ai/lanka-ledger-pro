@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from './useProfile';
 import { useToast } from '@/hooks/use-toast';
+import { audioNotifications } from '@/utils/audioNotifications';
 
 export interface ChatMessage {
   id: string;
@@ -280,8 +281,11 @@ export const useChat = () => {
           };
           setMessages(prev => [...prev, newMessage]);
           
-          // Mark as read if not sender
+          // Play notification sound and mark as read if not sender
           if (user && newMessage.sender_id !== user.id) {
+            // Play message notification sound
+            audioNotifications.playMessageNotification();
+            
             supabase
               .from('chat_messages')
               .update({ read_at: new Date().toISOString() })

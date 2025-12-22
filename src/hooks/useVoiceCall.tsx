@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from './useProfile';
 import { useToast } from '@/hooks/use-toast';
+import { audioNotifications } from '@/utils/audioNotifications';
 
 export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended';
 
@@ -172,6 +173,14 @@ export const useVoiceCall = () => {
     const currentDuration = callState.duration;
     const currentCallLogId = callLogId.current;
 
+    // Stop all ring sounds
+    audioNotifications.stopAll();
+    
+    // Play call ended sound if was connected
+    if (currentStatus === 'connected') {
+      audioNotifications.playCallEnded();
+    }
+
     // Send end signal before cleanup
     if (signalingChannel.current && isSubscribed.current) {
       try {
@@ -284,6 +293,10 @@ export const useVoiceCall = () => {
           console.log('Received answer');
           if (peerConnection.current && payload.answer) {
             try {
+              // Stop outgoing ring and play connected sound
+              audioNotifications.stopOutgoingRing();
+              audioNotifications.playCallConnected();
+              
               await peerConnection.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
               console.log('Set remote description (answer)');
               await processIceCandidateQueue();
@@ -354,6 +367,9 @@ export const useVoiceCall = () => {
         }
       });
       console.log('Sent offer');
+
+      // Start outgoing ring sound
+      audioNotifications.playOutgoingRing();
 
       setCallState({
         status: 'calling',
