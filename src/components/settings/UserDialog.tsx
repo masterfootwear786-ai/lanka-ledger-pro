@@ -25,13 +25,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { PERMISSION_MANAGER_EMAILS } from "@/hooks/useUserRole";
-import { KeyRound } from "lucide-react";
+import { KeyRound, ChevronDown, ChevronRight } from "lucide-react";
+import { PERMISSION_MODULES, ModuleName } from "@/hooks/useUserPermissions";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   full_name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email"),
   username: z.string().optional(),
-  // Allow empty string (edit mode) but enforce min length when provided
   password: z.union([z.literal(""), z.string().min(6, "Password must be at least 6 characters")]).optional(),
   active: z.boolean(),
   language: z.string(),
@@ -41,44 +43,6 @@ const formSchema = z.object({
     clerk: z.boolean(),
     sales_rep: z.boolean(),
     storekeeper: z.boolean(),
-  }),
-  permissions: z.object({
-    sales: z.object({
-      view: z.boolean(),
-      create: z.boolean(),
-      edit: z.boolean(),
-      delete: z.boolean(),
-    }),
-    purchasing: z.object({
-      view: z.boolean(),
-      create: z.boolean(),
-      edit: z.boolean(),
-      delete: z.boolean(),
-    }),
-    inventory: z.object({
-      view: z.boolean(),
-      create: z.boolean(),
-      edit: z.boolean(),
-      delete: z.boolean(),
-    }),
-    expenses: z.object({
-      view: z.boolean(),
-      create: z.boolean(),
-      edit: z.boolean(),
-      delete: z.boolean(),
-    }),
-    reports: z.object({
-      view: z.boolean(),
-      create: z.boolean(),
-      edit: z.boolean(),
-      delete: z.boolean(),
-    }),
-    settings: z.object({
-      view: z.boolean(),
-      create: z.boolean(),
-      edit: z.boolean(),
-      delete: z.boolean(),
-    }),
   }),
 });
 
@@ -91,12 +55,16 @@ interface UserDialogProps {
   onSuccess: () => void;
 }
 
-const defaultPermissions = {
-  view: false,
-  create: false,
-  edit: false,
-  delete: false,
-};
+type PermissionState = Record<string, {
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}>;
+
+// Generate permission key
+const getPermKey = (module: string, subModule?: string | null) => 
+  subModule ? `${module}:${subModule}` : module;
 
 export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogProps) {
   const { toast } = useToast();
@@ -104,9 +72,28 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
   const [loading, setLoading] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   const [initializing, setInitializing] = useState(false);
+  const [permissions, setPermissions] = useState<PermissionState>({});
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
   const initKeyRef = useRef<string | null>(null);
 
   const isSystemOwner = currentUser?.email && PERMISSION_MANAGER_EMAILS.includes(currentUser.email);
+
+  // Initialize default permissions
+  const initializeDefaultPermissions = (): PermissionState => {
+    const permState: PermissionState = {};
+    Object.entries(PERMISSION_MODULES).forEach(([moduleName, moduleDef]) => {
+      if (moduleDef.subModules) {
+        Object.keys(moduleDef.subModules).forEach(subModule => {
+          const key = getPermKey(moduleName, subModule);
+          permState[key] = { can_view: false, can_create: false, can_edit: false, can_delete: false };
+        });
+      } else {
+        const key = getPermKey(moduleName);
+        permState[key] = { can_view: false, can_create: false, can_edit: false, can_delete: false };
+      }
+    });
+    return permState;
+  };
 
   const handleResetPassword = async () => {
     if (!user?.id) return;
@@ -114,7 +101,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     try {
       setResettingPassword(true);
       
-      // Get company's action_password as default reset password
       const { data: profile } = await supabase
         .from('profiles')
         .select('company_id')
@@ -131,13 +117,11 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         .eq('id', profile.company_id)
         .single();
 
-      // Ensure password is at least 6 characters
       let defaultPassword = company?.action_password || "123456";
       if (defaultPassword.length < 6) {
         defaultPassword = "123456";
       }
 
-      // Use admin API to reset password
       const { error } = await supabase.functions.invoke('reset-user-password', {
         body: { userId: user.id, newPassword: defaultPassword }
       });
@@ -177,14 +161,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         sales_rep: false,
         storekeeper: false,
       },
-      permissions: {
-        sales: { ...defaultPermissions },
-        purchasing: { ...defaultPermissions },
-        inventory: { ...defaultPermissions },
-        expenses: { ...defaultPermissions },
-        reports: { ...defaultPermissions },
-        settings: { ...defaultPermissions },
-      },
     },
   });
 
@@ -192,6 +168,8 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     if (!open) {
       initKeyRef.current = null;
       setInitializing(false);
+      setPermissions(initializeDefaultPermissions());
+      setExpandedModules(new Set());
       return;
     }
 
@@ -207,30 +185,30 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
       try {
         if (user) {
           // Fetch user permissions
-          const { data: permissions } = await supabase
+          const { data: permsData } = await supabase
             .from("user_permissions")
             .select("*")
             .eq("user_id", user.id);
 
           if (cancelled) return;
 
-          const permissionsData: any = {
-            sales: { ...defaultPermissions },
-            purchasing: { ...defaultPermissions },
-            inventory: { ...defaultPermissions },
-            expenses: { ...defaultPermissions },
-            reports: { ...defaultPermissions },
-            settings: { ...defaultPermissions },
-          };
+          // Initialize permissions state
+          const permState = initializeDefaultPermissions();
 
-          permissions?.forEach((perm) => {
-            permissionsData[perm.module] = {
-              view: perm.can_view,
-              create: perm.can_create,
-              edit: perm.can_edit,
-              delete: perm.can_delete,
-            };
+          // Apply saved permissions
+          permsData?.forEach((perm: any) => {
+            const key = getPermKey(perm.module, perm.sub_module);
+            if (permState[key]) {
+              permState[key] = {
+                can_view: perm.can_view || false,
+                can_create: perm.can_create || false,
+                can_edit: perm.can_edit || false,
+                can_delete: perm.can_delete || false,
+              };
+            }
           });
+
+          setPermissions(permState);
 
           form.reset({
             full_name: user.full_name || "",
@@ -246,9 +224,9 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               sales_rep: user.roles?.includes("sales_rep") || false,
               storekeeper: user.roles?.includes("storekeeper") || false,
             },
-            permissions: permissionsData,
           });
         } else {
+          setPermissions(initializeDefaultPermissions());
           form.reset({
             full_name: "",
             email: "",
@@ -262,14 +240,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               clerk: false,
               sales_rep: false,
               storekeeper: false,
-            },
-            permissions: {
-              sales: { ...defaultPermissions },
-              purchasing: { ...defaultPermissions },
-              inventory: { ...defaultPermissions },
-              expenses: { ...defaultPermissions },
-              reports: { ...defaultPermissions },
-              settings: { ...defaultPermissions },
             },
           });
         }
@@ -285,34 +255,81 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     };
   }, [open, user?.id]);
 
+  const handlePermissionChange = (key: string, field: keyof PermissionState[''], checked: boolean) => {
+    setPermissions(prev => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [field]: checked,
+      },
+    }));
+  };
+
+  const handleModuleToggle = (module: string) => {
+    setExpandedModules(prev => {
+      const next = new Set(prev);
+      if (next.has(module)) {
+        next.delete(module);
+      } else {
+        next.add(module);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (module: string, field: keyof PermissionState[''], checked: boolean) => {
+    const moduleDef = PERMISSION_MODULES[module as ModuleName];
+    
+    setPermissions(prev => {
+      const next = { ...prev };
+      
+      if (moduleDef.subModules) {
+        Object.keys(moduleDef.subModules).forEach(subModule => {
+          const key = getPermKey(module, subModule);
+          next[key] = { ...next[key], [field]: checked };
+        });
+      } else {
+        const key = getPermKey(module);
+        next[key] = { ...next[key], [field]: checked };
+      }
+      
+      return next;
+    });
+  };
+
+  const isModuleAllChecked = (module: string, field: keyof PermissionState['']): boolean => {
+    const moduleDef = PERMISSION_MODULES[module as ModuleName];
+    
+    if (moduleDef.subModules) {
+      return Object.keys(moduleDef.subModules).every(subModule => {
+        const key = getPermKey(module, subModule);
+        return permissions[key]?.[field] || false;
+      });
+    } else {
+      const key = getPermKey(module);
+      return permissions[key]?.[field] || false;
+    }
+  };
+
   const onSubmit = async (data: FormData) => {
     try {
       setLoading(true);
 
-      if (user && !form.formState.isDirty) {
-        toast({
-          title: "No changes",
-          description: "Nothing to save.",
-        });
-        return;
-      }
-
       let userId = user?.id;
       let companyId = user?.company_id;
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser) throw new Error("Not authenticated");
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error("Not authenticated");
 
       const { data: currentProfile } = await supabase
         .from('profiles')
         .select('company_id')
-        .eq('id', currentUser.id)
+        .eq('id', authUser.id)
         .single();
 
       if (!currentProfile?.company_id) {
         throw new Error("Current user has no company assigned");
       }
 
-      // If editing user without company_id (pending user), use current user's company
       if (!companyId) {
         companyId = currentProfile.company_id;
       }
@@ -323,7 +340,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
           throw new Error("Password is required for new users");
         }
 
-        // Create auth user via signup
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email: data.email,
           password: data.password,
@@ -339,8 +355,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
         userId = authData.user.id;
 
-        // Update the new user's profile with company ID and username
-        // Sync is_sales_rep based on sales_rep role selection
         const { error: profileUpdateError } = await supabase
           .from("profiles")
           .update({
@@ -349,24 +363,23 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             active: data.active,
             language: data.language,
             username: data.username ? data.username.toLowerCase().trim() : null,
-            is_sales_rep: data.roles.sales_rep, // Sync with sales_rep role
+            is_sales_rep: data.roles.sales_rep,
           })
           .eq("id", userId);
 
         if (profileUpdateError) throw profileUpdateError;
 
       } else {
-        // Update existing user profile (including assigning company_id for pending users)
-        // Sync is_sales_rep based on sales_rep role selection
+        // Update existing user profile
         const { error: profileError } = await supabase
           .from("profiles")
           .update({
-            company_id: companyId, // This will assign company to pending users
+            company_id: companyId,
             full_name: data.full_name,
             active: data.active,
             language: data.language,
             username: data.username ? data.username.toLowerCase().trim() : null,
-            is_sales_rep: data.roles.sales_rep, // Sync with sales_rep role
+            is_sales_rep: data.roles.sales_rep,
           })
           .eq("id", user.id);
 
@@ -420,26 +433,35 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
         }
       }
 
-      // Handle permissions
-      const modules = ['sales', 'purchasing', 'inventory', 'expenses', 'reports', 'settings'];
+      // Handle granular permissions - delete existing and insert new
+      await supabase
+        .from('user_permissions')
+        .delete()
+        .eq('user_id', userId);
+
+      // Prepare new permissions
+      const newPermissions: any[] = [];
       
-      for (const module of modules) {
-        const modulePerms = data.permissions[module as keyof typeof data.permissions];
-        
-        // Upsert permissions
-        const { error: permError } = await supabase
-          .from('user_permissions')
-          .upsert({
+      Object.entries(permissions).forEach(([key, perm]) => {
+        if (perm.can_view || perm.can_create || perm.can_edit || perm.can_delete) {
+          const [module, subModule] = key.split(':');
+          newPermissions.push({
             user_id: userId,
             company_id: companyId,
-            module: module,
-            can_view: modulePerms.view,
-            can_create: modulePerms.create,
-            can_edit: modulePerms.edit,
-            can_delete: modulePerms.delete,
-          }, {
-            onConflict: 'user_id,company_id,module'
+            module,
+            sub_module: subModule || null,
+            can_view: perm.can_view,
+            can_create: perm.can_create,
+            can_edit: perm.can_edit,
+            can_delete: perm.can_delete,
           });
+        }
+      });
+
+      if (newPermissions.length > 0) {
+        const { error: permError } = await supabase
+          .from('user_permissions')
+          .insert(newPermissions);
 
         if (permError) throw permError;
       }
@@ -461,74 +483,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
       setLoading(false);
     }
   };
-
-  const ModulePermissions = ({ module, label }: { module: string; label: string }) => (
-    <div className="space-y-2">
-      <h4 className="font-medium text-sm">{label}</h4>
-      <div className="grid grid-cols-4 gap-2 pl-4">
-        <FormField
-          control={form.control}
-          name={`permissions.${module}.view` as any}
-          render={({ field }) => (
-            <FormItem className="flex items-center space-x-2 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={(v) => field.onChange(v === true)}
-                />
-              </FormControl>
-              <FormLabel className="text-sm font-normal">View</FormLabel>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name={`permissions.${module}.create` as any}
-          render={({ field }) => (
-            <FormItem className="flex items-center space-x-2 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={(v) => field.onChange(v === true)}
-                />
-              </FormControl>
-              <FormLabel className="text-sm font-normal">Create</FormLabel>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name={`permissions.${module}.edit` as any}
-          render={({ field }) => (
-            <FormItem className="flex items-center space-x-2 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={(v) => field.onChange(v === true)}
-                />
-              </FormControl>
-              <FormLabel className="text-sm font-normal">Edit</FormLabel>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name={`permissions.${module}.delete` as any}
-          render={({ field }) => (
-            <FormItem className="flex items-center space-x-2 space-y-0">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={(v) => field.onChange(v === true)}
-                />
-              </FormControl>
-              <FormLabel className="text-sm font-normal">Delete</FormLabel>
-            </FormItem>
-          )}
-        />
-      </div>
-    </div>
-  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -556,6 +510,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             }
             aria-busy={initializing}
           >
+            {/* Basic Info */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -598,86 +553,101 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                     </FormControl>
                     <FormMessage />
                     <p className="text-xs text-muted-foreground">
-                      Optional. Sales reps can login with this username.
+                      Users can login with either email or username
                     </p>
                   </FormItem>
                 )}
               />
 
-              {!user && (
+              {!user ? (
                 <FormField
                   control={form.control}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Password *</FormLabel>
+                      <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input {...field} type="password" placeholder="Minimum 6 characters" />
+                        <Input {...field} type="password" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              )}
-
-              {/* Reset Password Button - Only for system owners and existing users */}
-              {user && isSystemOwner && (
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleResetPassword}
-                    disabled={resettingPassword}
-                    className="gap-2"
-                  >
-                    <KeyRound className="h-4 w-4" />
-                    {resettingPassword ? "Resetting..." : "Reset Password"}
-                  </Button>
+              ) : (
+                <div className="space-y-2">
+                  <FormLabel>Password</FormLabel>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleResetPassword}
+                      disabled={resettingPassword}
+                      className="w-full"
+                    >
+                      <KeyRound className="h-4 w-4 mr-2" />
+                      {resettingPassword ? "Resetting..." : "Reset Password"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Resets to company action password or 123456
+                  </p>
                 </div>
               )}
             </div>
 
-            <FormField
-              control={form.control}
-              name="language"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Language</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="active"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between space-y-0 rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Active Status</FormLabel>
-                    <div className="text-sm text-muted-foreground">
-                      Enable or disable this user account
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Active Status</FormLabel>
+                      <div className="text-xs text-muted-foreground">
+                        Inactive users cannot login
+                      </div>
                     </div>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="language"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <FormLabel>Language</FormLabel>
+                      <div className="text-xs text-muted-foreground">
+                        Preferred language
+                      </div>
+                    </div>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="border rounded px-2 py-1 text-sm"
+                      >
+                        <option value="en">English</option>
+                        <option value="si">සිංහල</option>
+                      </select>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <Separator />
 
-            <div className="space-y-3">
+            {/* Roles */}
+            <div className="space-y-4">
               <FormLabel className="text-base">User Roles</FormLabel>
-              <div className="grid grid-cols-2 gap-3 border rounded-lg p-4">
+              <div className="grid grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="roles.admin"
@@ -692,7 +662,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       <div className="space-y-1 leading-none">
                         <FormLabel>Admin</FormLabel>
                         <div className="text-xs text-muted-foreground">
-                          Full system access
+                          Full access to all features
                         </div>
                       </div>
                     </FormItem>
@@ -787,20 +757,97 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
             <Separator />
 
+            {/* Granular Module Permissions */}
             <div className="space-y-4">
-              <FormLabel className="text-base">Module Permissions</FormLabel>
-              <div className="space-y-4 border rounded-lg p-4">
-                <ModulePermissions module="sales" label="Sales" />
-                <Separator />
-                <ModulePermissions module="purchasing" label="Purchasing" />
-                <Separator />
-                <ModulePermissions module="inventory" label="Inventory" />
-                <Separator />
-                <ModulePermissions module="expenses" label="Expenses and Other" />
-                <Separator />
-                <ModulePermissions module="reports" label="Reports" />
-                <Separator />
-                <ModulePermissions module="settings" label="Settings" />
+              <div>
+                <FormLabel className="text-base">Module Permissions</FormLabel>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Set permissions for each module and sub-module. V=View, C=Create, E=Edit, D=Delete
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 border rounded-lg p-2">
+                {Object.entries(PERMISSION_MODULES).map(([moduleName, moduleDef]) => {
+                  const hasSubModules = moduleDef.subModules !== null;
+                  const isExpanded = expandedModules.has(moduleName);
+
+                  return (
+                    <div key={moduleName} className="border rounded-lg overflow-hidden">
+                      {hasSubModules ? (
+                        <Collapsible open={isExpanded} onOpenChange={() => handleModuleToggle(moduleName)}>
+                          <CollapsibleTrigger className="flex items-center justify-between w-full p-3 bg-muted/50 hover:bg-muted transition-colors">
+                            <div className="flex items-center gap-2">
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              <span className="font-medium text-sm">{moduleDef.label}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-xs">
+                              {(['can_view', 'can_create', 'can_edit', 'can_delete'] as const).map((field) => (
+                                <div key={field} className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    id={`${moduleName}-all-${field}`}
+                                    checked={isModuleAllChecked(moduleName, field)}
+                                    onCheckedChange={(checked) => handleSelectAll(moduleName, field, !!checked)}
+                                  />
+                                  <Label htmlFor={`${moduleName}-all-${field}`} className="text-xs cursor-pointer">
+                                    {field === 'can_view' ? 'V' : field === 'can_create' ? 'C' : field === 'can_edit' ? 'E' : 'D'}
+                                  </Label>
+                                </div>
+                              ))}
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="p-2 space-y-1 bg-background">
+                              {Object.entries(moduleDef.subModules!).map(([subKey, subLabel]) => {
+                                const permKey = getPermKey(moduleName, subKey);
+                                const perm = permissions[permKey] || { can_view: false, can_create: false, can_edit: false, can_delete: false };
+
+                                return (
+                                  <div key={subKey} className="flex items-center justify-between py-2 px-3 hover:bg-muted/30 rounded">
+                                    <span className="text-sm">{subLabel as string}</span>
+                                    <div className="flex items-center gap-4">
+                                      {(['can_view', 'can_create', 'can_edit', 'can_delete'] as const).map((field) => (
+                                        <div key={field} className="flex items-center gap-1">
+                                          <Checkbox
+                                            id={`${permKey}-${field}`}
+                                            checked={perm[field]}
+                                            onCheckedChange={(checked) => handlePermissionChange(permKey, field, !!checked)}
+                                          />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ) : (
+                        <div className="flex items-center justify-between p-3 bg-muted/50">
+                          <span className="font-medium text-sm">{moduleDef.label}</span>
+                          <div className="flex items-center gap-4 text-xs">
+                            {(['can_view', 'can_create', 'can_edit', 'can_delete'] as const).map((field) => {
+                              const permKey = getPermKey(moduleName);
+                              const perm = permissions[permKey] || { can_view: false, can_create: false, can_edit: false, can_delete: false };
+
+                              return (
+                                <div key={field} className="flex items-center gap-1">
+                                  <Checkbox
+                                    id={`${permKey}-${field}`}
+                                    checked={perm[field]}
+                                    onCheckedChange={(checked) => handlePermissionChange(permKey, field, !!checked)}
+                                  />
+                                  <Label htmlFor={`${permKey}-${field}`} className="text-xs cursor-pointer">
+                                    {field === 'can_view' ? 'V' : field === 'can_create' ? 'C' : field === 'can_edit' ? 'E' : 'D'}
+                                  </Label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
