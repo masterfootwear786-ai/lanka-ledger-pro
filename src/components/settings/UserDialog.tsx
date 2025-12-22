@@ -34,7 +34,6 @@ const formSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
   active: z.boolean(),
   language: z.string(),
-  is_sales_rep: z.boolean(),
   roles: z.object({
     admin: z.boolean(),
     accountant: z.boolean(),
@@ -169,7 +168,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
       password: "",
       active: true,
       language: "en",
-      is_sales_rep: false,
       roles: {
         admin: false,
         accountant: false,
@@ -239,7 +237,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             password: "",
             active: user.active ?? true,
             language: user.language || "en",
-            is_sales_rep: user.is_sales_rep || false,
             roles: {
               admin: user.roles?.includes("admin") || false,
               accountant: user.roles?.includes("accountant") || false,
@@ -257,7 +254,6 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
             password: "",
             active: true,
             language: "en",
-            is_sales_rep: false,
             roles: {
               admin: false,
               accountant: false,
