@@ -714,9 +714,31 @@ export const useVoiceCall = () => {
         description: "Could not answer call. Please check microphone permissions.",
         variant: "destructive"
       });
-      rejectCall(callerId, incomingCallLogId, channelName);
+      // Cleanup on error
+      audioNotifications.stopIncomingRing();
+      cleanup();
+      
+      // Send reject signal
+      if (channelName) {
+        const channel = supabase.channel(channelName, {
+          config: { broadcast: { self: false } }
+        });
+        await channel.subscribe();
+        await new Promise(resolve => setTimeout(resolve, 300));
+        channel.send({
+          type: 'broadcast',
+          event: 'reject-call',
+          payload: {}
+        });
+        setTimeout(() => supabase.removeChannel(channel), 1000);
+      }
+      
+      await supabase
+        .from('call_logs')
+        .update({ status: 'rejected', ended_at: new Date().toISOString() })
+        .eq('id', incomingCallLogId);
     }
-  }, [user, setupPeerConnection, toast, startDurationTimer, endCall, processIceCandidateQueue]);
+  }, [user, setupPeerConnection, toast, startDurationTimer, endCall, processIceCandidateQueue, cleanup]);
 
   const rejectCall = useCallback(async (callerId: string, incomingCallLogId: string, channelName?: string) => {
     if (!user) return;
