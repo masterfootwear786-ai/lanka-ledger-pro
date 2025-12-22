@@ -2821,10 +2821,12 @@ export type Database = {
           can_delete: boolean | null
           can_edit: boolean | null
           can_view: boolean | null
-          company_id: string
+          company_id: string | null
           created_at: string | null
           id: string
           module: string
+          sub_module: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -2832,10 +2834,12 @@ export type Database = {
           can_delete?: boolean | null
           can_edit?: boolean | null
           can_view?: boolean | null
-          company_id: string
+          company_id?: string | null
           created_at?: string | null
           id?: string
           module: string
+          sub_module?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -2843,10 +2847,12 @@ export type Database = {
           can_delete?: boolean | null
           can_edit?: boolean | null
           can_view?: boolean | null
-          company_id?: string
+          company_id?: string | null
           created_at?: string | null
           id?: string
           module?: string
+          sub_module?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
