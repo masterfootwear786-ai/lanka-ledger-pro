@@ -9,11 +9,12 @@ export interface ChatMessage {
   id: string;
   conversation_id: string;
   sender_id: string;
-  message_type: 'text' | 'image' | 'file' | 'call_started' | 'call_ended' | 'deleted';
+  message_type: 'text' | 'image' | 'file' | 'call_started' | 'call_ended' | 'deleted' | 'voice';
   content: string | null;
   image_url: string | null;
   file_name?: string | null;
   file_size?: number | null;
+  duration_seconds?: number | null;
   read_at: string | null;
   created_at: string;
   deleted_at?: string | null;
@@ -172,10 +173,11 @@ export const useChat = () => {
   // Send message
   const sendMessage = useCallback(async (
     content: string, 
-    type: 'text' | 'image' | 'file' = 'text', 
+    type: 'text' | 'image' | 'file' | 'voice' = 'text', 
     fileUrl?: string,
     fileName?: string,
-    fileSize?: number
+    fileSize?: number,
+    durationSeconds?: number
   ) => {
     if (!user || !activeConversation) return;
 
@@ -188,7 +190,8 @@ export const useChat = () => {
           sender_id: user.id,
           message_type: type,
           content: type === 'text' ? content : (fileName || null),
-          image_url: (type === 'image' || type === 'file') ? fileUrl : null
+          image_url: (type === 'image' || type === 'file' || type === 'voice') ? fileUrl : null,
+          duration_seconds: type === 'voice' ? durationSeconds : null
         });
 
       if (error) throw error;
