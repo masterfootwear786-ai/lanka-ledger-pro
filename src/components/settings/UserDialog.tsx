@@ -574,7 +574,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input {...field} disabled={!!user} />
+                      <Input {...field} readOnly={!!user} aria-readonly={!!user} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
