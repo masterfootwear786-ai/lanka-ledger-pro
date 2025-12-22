@@ -113,12 +113,13 @@ export default function Settings() {
   // Filter settings based on user permissions
   const settingsModules = useMemo(() => {
     if (loading) return [];
+    // Admin sees everything
+    if (isAdmin) return allSettingsModules;
+    
     return allSettingsModules.filter(module => {
       // Always show items without subModule (like Install App)
       if (module.subModule === null) return true;
-      // Admin sees everything
-      if (isAdmin) return true;
-      // Check specific permission
+      // Check specific permission for the sub-module
       return canView('settings', module.subModule);
     });
   }, [loading, isAdmin, canView, t]);
