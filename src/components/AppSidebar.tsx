@@ -11,6 +11,7 @@ import {
   Send,
   Users,
   Flame,
+  UserCircle,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -111,6 +112,7 @@ export function AppSidebar() {
 
   const mainMenuItems = [
     { title: t('app.dashboard'), url: '/', icon: LayoutDashboard },
+    { title: 'My Profile', url: '/profile', icon: UserCircle },
     { title: 'Hot Selling', url: '/purchasing/hot-selling', icon: Flame },
     { title: 'Send Documents', url: '/send-documents', icon: Send },
   ];

@@ -20,29 +20,34 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [company, setCompany] = useState<{ name: string; logo_url: string | null } | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
 
-  // Fetch company data
+  // Fetch company and user data
   useEffect(() => {
-    const fetchCompany = async () => {
+    const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('company_id')
+        .select('company_id, full_name')
         .eq('id', user.id)
         .single();
 
-      if (profile?.company_id) {
-        const { data: companyData } = await supabase
-          .from('companies')
-          .select('name, logo_url')
-          .eq('id', profile.company_id)
-          .single();
-        setCompany(companyData);
+      if (profile) {
+        setUserName(profile.full_name);
+        
+        if (profile.company_id) {
+          const { data: companyData } = await supabase
+            .from('companies')
+            .select('name, logo_url')
+            .eq('id', profile.company_id)
+            .single();
+          setCompany(companyData);
+        }
       }
     };
-    fetchCompany();
+    fetchData();
   }, []);
 
   // Update time every second
@@ -107,22 +112,30 @@ const Dashboard = () => {
         
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-3">
+            {/* Welcome Message */}
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground font-medium">Welcome back,</p>
+              <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
+                {userName || 'User'} 👋
+              </h1>
+            </div>
+            
             {/* Company Logo & Name */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {company?.logo_url ? (
                 <img 
                   src={company.logo_url} 
                   alt={company.name || 'Company Logo'} 
-                  className="h-16 w-16 rounded-2xl object-contain shadow-xl shadow-primary/30 ring-4 ring-primary/20 bg-white"
+                  className="h-10 w-10 rounded-xl object-contain shadow-lg ring-2 ring-primary/20 bg-white"
                 />
               ) : (
-                <div className="h-16 w-16 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-xl shadow-primary/30 ring-4 ring-primary/20">
-                  <span className="text-2xl font-display font-black text-primary-foreground tracking-tighter">M</span>
+                <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center shadow-lg ring-2 ring-primary/20">
+                  <span className="text-lg font-display font-black text-primary-foreground tracking-tighter">M</span>
                 </div>
               )}
-              <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text">
+              <span className="text-lg font-medium text-foreground/80">
                 {company?.name || 'Master Footwear'}
-              </h1>
+              </span>
             </div>
             
             {/* Date Display */}
