@@ -71,6 +71,7 @@ import { useOfflineSync } from "./hooks/useOfflineSync";
 import { WaitingPermissions } from "./components/WaitingPermissions";
 import { useUserRole } from "./hooks/useUserRole";
 import { PermissionGuard } from "./components/PermissionGuard";
+import { IncomingCallDialog } from "./components/IncomingCallDialog";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,7 @@ const App = () => (
         <UpdateNotification />
         <BrowserRouter>
           <AuthProvider>
+            <IncomingCallDialog />
             <Routes>
               <Route path="/install" element={<Install />} />
               <Route path="/auth" element={<Auth />} />

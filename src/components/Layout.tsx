@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
 import { TopBar } from '@/components/TopBar';
-import { IncomingCallDialog } from '@/components/IncomingCallDialog';
 import { cn } from '@/lib/utils';
 
 interface LayoutProps {
@@ -42,7 +41,6 @@ export const Layout = ({ children }: LayoutProps) => {
           </main>
         </div>
       </div>
-      <IncomingCallDialog />
     </SidebarProvider>
   );
 };
