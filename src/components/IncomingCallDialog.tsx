@@ -3,11 +3,11 @@ import { Phone, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIncomingCall } from '@/hooks/useIncomingCall';
-import { useVoiceCall } from '@/hooks/useVoiceCall';
+import { useVoiceCallContext } from '@/contexts/VoiceCallContext';
 
 export const IncomingCallDialog = () => {
   const { incomingCall, clearIncomingCall } = useIncomingCall();
-  const { answerCall, rejectCall, callState } = useVoiceCall();
+  const { answerCall, rejectCall, callState } = useVoiceCallContext();
 
   if (!incomingCall || callState.status !== 'idle') return null;
 

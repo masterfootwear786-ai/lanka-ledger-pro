@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { VoiceCallProvider } from "./contexts/VoiceCallContext";
 import { ThemeProvider } from "next-themes";
 import "./i18n/config";
 import Auth from "./pages/Auth";
@@ -111,8 +112,9 @@ const App = () => (
         <UpdateNotification />
         <BrowserRouter>
           <AuthProvider>
-            <IncomingCallDialog />
-            <Routes>
+            <VoiceCallProvider>
+              <IncomingCallDialog />
+              <Routes>
               <Route path="/install" element={<Install />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
@@ -183,6 +185,7 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </VoiceCallProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
