@@ -161,6 +161,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
+    shouldFocusError: true,
     defaultValues: {
       full_name: "",
       email: "",
@@ -287,10 +288,16 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
     try {
       setLoading(true);
 
+      if (user && !form.formState.isDirty) {
+        toast({
+          title: "No changes",
+          description: "Nothing to save.",
+        });
+        return;
+      }
+
       let userId = user?.id;
       let companyId = user?.company_id;
-
-      // Always get current user's company ID for reference
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Not authenticated");
 
@@ -466,7 +473,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               <FormControl>
                 <Checkbox
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(v) => field.onChange(v === true)}
                 />
               </FormControl>
               <FormLabel className="text-sm font-normal">View</FormLabel>
@@ -481,7 +488,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               <FormControl>
                 <Checkbox
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(v) => field.onChange(v === true)}
                 />
               </FormControl>
               <FormLabel className="text-sm font-normal">Create</FormLabel>
@@ -496,7 +503,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               <FormControl>
                 <Checkbox
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(v) => field.onChange(v === true)}
                 />
               </FormControl>
               <FormLabel className="text-sm font-normal">Edit</FormLabel>
@@ -511,7 +518,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               <FormControl>
                 <Checkbox
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(v) => field.onChange(v === true)}
                 />
               </FormControl>
               <FormLabel className="text-sm font-normal">Delete</FormLabel>
@@ -531,7 +538,13 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(onSubmit, () => {
+              toast({
+                title: "Validation error",
+                description: "Please check the highlighted fields and try again.",
+                variant: "destructive",
+              });
+            })}
             className={
               initializing
                 ? "space-y-6 opacity-60 pointer-events-none"
@@ -669,7 +682,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       <FormControl>
                         <Checkbox
                           checked={field.value}
-                          onCheckedChange={field.onChange}
+                          onCheckedChange={(v) => field.onChange(v === true)}
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
@@ -690,7 +703,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       <FormControl>
                         <Checkbox
                           checked={field.value}
-                          onCheckedChange={field.onChange}
+                          onCheckedChange={(v) => field.onChange(v === true)}
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
@@ -711,7 +724,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       <FormControl>
                         <Checkbox
                           checked={field.value}
-                          onCheckedChange={field.onChange}
+                          onCheckedChange={(v) => field.onChange(v === true)}
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
@@ -732,7 +745,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       <FormControl>
                         <Checkbox
                           checked={field.value}
-                          onCheckedChange={field.onChange}
+                          onCheckedChange={(v) => field.onChange(v === true)}
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
@@ -753,7 +766,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
                       <FormControl>
                         <Checkbox
                           checked={field.value}
-                          onCheckedChange={field.onChange}
+                          onCheckedChange={(v) => field.onChange(v === true)}
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
@@ -795,10 +808,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
               >
                 Cancel
               </Button>
-              <Button 
-                type="submit" 
-                disabled={loading || initializing || (!form.formState.isDirty && !!user)}
-              >
+              <Button type="submit" disabled={loading || initializing}>
                 {loading ? "Saving..." : user ? "Save Changes" : "Create User"}
               </Button>
             </div>
