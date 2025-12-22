@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from './useProfile';
+import { audioNotifications } from '@/utils/audioNotifications';
 
 export interface IncomingCall {
   callerId: string;
@@ -15,58 +16,11 @@ export const useIncomingCall = () => {
   const { profile } = useProfile();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const channelsRef = useRef<Map<string, ReturnType<typeof supabase.channel>>>(new Map());
-  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
 
   const clearIncomingCall = useCallback(() => {
     setIncomingCall(null);
     // Stop ringtone
-    if (ringtoneRef.current) {
-      ringtoneRef.current.pause();
-      ringtoneRef.current.currentTime = 0;
-    }
-  }, []);
-
-  // Play ringtone
-  const playRingtone = useCallback(() => {
-    // Create a simple oscillator-based ringtone
-    try {
-      const audioContext = new AudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = 440;
-      oscillator.type = 'sine';
-      gainNode.gain.value = 0.3;
-      
-      oscillator.start();
-      
-      // Stop after 500ms, then repeat
-      const interval = setInterval(() => {
-        oscillator.frequency.value = oscillator.frequency.value === 440 ? 520 : 440;
-      }, 500);
-      
-      // Store cleanup
-      ringtoneRef.current = {
-        pause: () => {
-          oscillator.stop();
-          clearInterval(interval);
-          audioContext.close();
-        },
-        currentTime: 0
-      } as HTMLAudioElement;
-      
-      // Auto-stop after 30 seconds
-      setTimeout(() => {
-        if (ringtoneRef.current) {
-          ringtoneRef.current.pause();
-        }
-      }, 30000);
-    } catch (err) {
-      console.error('Error playing ringtone:', err);
-    }
+    audioNotifications.stopIncomingRing();
   }, []);
 
   useEffect(() => {
@@ -117,7 +71,8 @@ export const useIncomingCall = () => {
                 offer: payload.offer,
                 callLogId: payload.callLogId
               });
-              playRingtone();
+              // Play incoming ringtone
+              audioNotifications.playIncomingRing();
             }
           })
           .on('broadcast', { event: 'end-call' }, () => {
@@ -141,11 +96,9 @@ export const useIncomingCall = () => {
         supabase.removeChannel(channel);
       });
       channelsRef.current.clear();
-      if (ringtoneRef.current) {
-        ringtoneRef.current.pause();
-      }
+      audioNotifications.stopIncomingRing();
     };
-  }, [user, profile?.company_id, playRingtone, clearIncomingCall]);
+  }, [user, profile?.company_id, clearIncomingCall]);
 
   return {
     incomingCall,
