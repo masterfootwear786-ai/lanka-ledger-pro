@@ -6,8 +6,12 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Phone, PhoneOff, Mic, MicOff, Send, Image as ImageIcon, MessageCircle, Users, Loader2 } from 'lucide-react';
-import { useChat, ChatConversation } from '@/hooks/useChat';
+import { 
+  Phone, PhoneOff, Mic, MicOff, Send, Image as ImageIcon, 
+  MessageCircle, Users, Loader2, Paperclip, Download, FileText, 
+  Trash2, X 
+} from 'lucide-react';
+import { useChat, ChatConversation, ChatMessage } from '@/hooks/useChat';
 import { useVoiceCall } from '@/hooks/useVoiceCall';
 import { usePresence } from '@/hooks/usePresence';
 import { useProfile } from '@/hooks/useProfile';
@@ -16,20 +20,40 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Communications = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
-  const { conversations, activeConversation, setActiveConversation, messages, sendMessage, sendingMessage, startConversation, loading } = useChat();
+  const { conversations, activeConversation, setActiveConversation, messages, sendMessage, deleteMessage, sendingMessage, startConversation, loading } = useChat();
   const { callState, startCall, endCall, toggleMute } = useVoiceCall();
   const { isUserOnline } = usePresence();
   const [messageInput, setMessageInput] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [showUserList, setShowUserList] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch company users
@@ -80,32 +104,35 @@ const Communications = () => {
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 50MB for high quality)
+    if (file.size > 50 * 1024 * 1024) {
       toast({
         title: "File too large",
-        description: "Please select an image smaller than 5MB",
+        description: "Please select an image smaller than 50MB",
         variant: "destructive"
       });
       return;
     }
 
-    setUploadingImage(true);
+    setUploadingFile(true);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      const fileName = `${user.id}/${Date.now()}_${file.name}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('chat-images')
-        .upload(fileName, file);
+        .from('chat-files')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('chat-images')
+        .from('chat-files')
         .getPublicUrl(fileName);
 
-      await sendMessage('', 'image', publicUrl);
+      await sendMessage(file.name, 'image', publicUrl, file.name, file.size);
       
       toast({
         title: "Image sent",
@@ -119,17 +146,200 @@ const Communications = () => {
         variant: "destructive"
       });
     } finally {
-      setUploadingImage(false);
+      setUploadingFile(false);
+      if (imageInputRef.current) {
+        imageInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user || !activeConversation) return;
+
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Please select a file smaller than 50MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const fileName = `${user.id}/${Date.now()}_${file.name}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-files')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('chat-files')
+        .getPublicUrl(fileName);
+
+      await sendMessage(file.name, 'file', publicUrl, file.name, file.size);
+      
+      toast({
+        title: "File sent",
+        description: "Your file has been sent successfully"
+      });
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload file. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setUploadingFile(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
     }
   };
 
+  const handleDownload = async (url: string, fileName?: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      toast({
+        title: "Download started",
+        description: "Your file is being downloaded"
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download failed",
+        description: "Failed to download file",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteMessage = async () => {
+    if (!messageToDelete) return;
+    
+    const success = await deleteMessage(messageToDelete);
+    if (success) {
+      toast({
+        title: "Message deleted",
+        description: "Your message has been deleted"
+      });
+    }
+    setDeleteDialogOpen(false);
+    setMessageToDelete(null);
+  };
+
+  const confirmDelete = (messageId: string) => {
+    setMessageToDelete(messageId);
+    setDeleteDialogOpen(true);
+  };
+
+  const formatFileSize = (bytes?: number | null) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getFileIcon = (fileName?: string | null) => {
+    if (!fileName) return <FileText className="h-8 w-8" />;
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return <FileText className="h-8 w-8 text-red-500" />;
+    return <FileText className="h-8 w-8" />;
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const renderMessage = (msg: ChatMessage) => {
+    const isOwn = msg.sender_id === user?.id;
+    
+    return (
+      <ContextMenu key={msg.id}>
+        <ContextMenuTrigger>
+          <div className={cn("flex", isOwn ? "justify-end" : "justify-start")}>
+            <div
+              className={cn(
+                "max-w-[70%] rounded-lg px-3 py-2 group relative",
+                isOwn ? "bg-primary text-primary-foreground" : "bg-muted"
+              )}
+            >
+              {msg.message_type === 'image' && msg.image_url && (
+                <div className="relative">
+                  <img 
+                    src={msg.image_url} 
+                    alt="Shared" 
+                    className="rounded max-w-full mb-1 cursor-pointer hover:opacity-90 transition-opacity" 
+                    onClick={() => setImagePreview(msg.image_url)}
+                  />
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    className="absolute bottom-2 right-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownload(msg.image_url!, msg.content || 'image.jpg');
+                    }}
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              {msg.message_type === 'file' && msg.image_url && (
+                <div 
+                  className="flex items-center gap-3 p-2 bg-background/10 rounded cursor-pointer hover:bg-background/20 transition-colors"
+                  onClick={() => handleDownload(msg.image_url!, msg.content || 'file')}
+                >
+                  {getFileIcon(msg.content)}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{msg.content || 'File'}</p>
+                    <p className="text-xs opacity-70">Click to download</p>
+                  </div>
+                  <Download className="h-5 w-5 shrink-0" />
+                </div>
+              )}
+              {msg.message_type === 'text' && msg.content && (
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              )}
+              <p className="text-xs opacity-70 mt-1">
+                {format(new Date(msg.created_at), 'HH:mm')}
+              </p>
+            </div>
+          </div>
+        </ContextMenuTrigger>
+        {isOwn && (
+          <ContextMenuContent>
+            <ContextMenuItem 
+              className="text-destructive focus:text-destructive"
+              onClick={() => confirmDelete(msg.id)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete Message
+            </ContextMenuItem>
+          </ContextMenuContent>
+        )}
+      </ContextMenu>
+    );
   };
 
   return (
@@ -198,7 +408,9 @@ const Communications = () => {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
-                        {conv.last_message?.content || 'No messages yet'}
+                        {conv.last_message?.message_type === 'image' ? '📷 Image' :
+                         conv.last_message?.message_type === 'file' ? '📎 File' :
+                         conv.last_message?.content || 'No messages yet'}
                       </p>
                     </div>
                   </div>
@@ -257,32 +469,7 @@ const Communications = () => {
             <CardContent className="flex-1 p-4 overflow-hidden flex flex-col">
               <ScrollArea className="flex-1 pr-4">
                 <div className="space-y-3">
-                  {messages.map(msg => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        "flex",
-                        msg.sender_id === user?.id ? "justify-end" : "justify-start"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "max-w-[70%] rounded-lg px-3 py-2",
-                          msg.sender_id === user?.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        )}
-                      >
-                        {msg.message_type === 'image' && msg.image_url && (
-                          <img src={msg.image_url} alt="Shared" className="rounded max-w-full mb-1" />
-                        )}
-                        {msg.content && <p className="text-sm">{msg.content}</p>}
-                        <p className="text-xs opacity-70 mt-1">
-                          {format(new Date(msg.created_at), 'HH:mm')}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                  {messages.map(msg => renderMessage(msg))}
                   <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
@@ -290,21 +477,38 @@ const Communications = () => {
                 <input
                   type="file"
                   accept="image/*"
-                  ref={fileInputRef}
+                  ref={imageInputRef}
                   onChange={handleImageUpload}
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
                   className="hidden"
                 />
                 <Button 
                   variant="outline" 
                   size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  title="Send Image"
                 >
-                  {uploadingImage ? (
+                  {uploadingFile ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <ImageIcon className="h-4 w-4" />
                   )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  title="Send Document"
+                >
+                  <Paperclip className="h-4 w-4" />
                 </Button>
                 <Input
                   value={messageInput}
@@ -325,6 +529,58 @@ const Communications = () => {
           </div>
         )}
       </Card>
+
+      {/* Image Preview Modal */}
+      {imagePreview && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setImagePreview(null)}
+        >
+          <Button
+            size="icon"
+            variant="ghost"
+            className="absolute top-4 right-4 text-white hover:bg-white/20"
+            onClick={() => setImagePreview(null)}
+          >
+            <X className="h-6 w-6" />
+          </Button>
+          <Button
+            size="icon"
+            variant="secondary"
+            className="absolute top-4 right-16"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownload(imagePreview, 'image.jpg');
+            }}
+          >
+            <Download className="h-5 w-5" />
+          </Button>
+          <img 
+            src={imagePreview} 
+            alt="Preview" 
+            className="max-w-full max-h-full object-contain rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this message? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteMessage} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

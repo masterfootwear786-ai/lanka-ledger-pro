@@ -8,9 +8,11 @@ export interface ChatMessage {
   id: string;
   conversation_id: string;
   sender_id: string;
-  message_type: 'text' | 'image' | 'call_started' | 'call_ended';
+  message_type: 'text' | 'image' | 'file' | 'call_started' | 'call_ended';
   content: string | null;
   image_url: string | null;
+  file_name?: string | null;
+  file_size?: number | null;
   read_at: string | null;
   created_at: string;
 }
@@ -152,7 +154,13 @@ export const useChat = () => {
   }, [user]);
 
   // Send message
-  const sendMessage = useCallback(async (content: string, type: 'text' | 'image' = 'text', imageUrl?: string) => {
+  const sendMessage = useCallback(async (
+    content: string, 
+    type: 'text' | 'image' | 'file' = 'text', 
+    fileUrl?: string,
+    fileName?: string,
+    fileSize?: number
+  ) => {
     if (!user || !activeConversation) return;
 
     setSendingMessage(true);
@@ -163,8 +171,8 @@ export const useChat = () => {
           conversation_id: activeConversation.id,
           sender_id: user.id,
           message_type: type,
-          content: type === 'text' ? content : null,
-          image_url: type === 'image' ? imageUrl : null
+          content: type === 'text' ? content : (fileName || null),
+          image_url: (type === 'image' || type === 'file') ? fileUrl : null
         });
 
       if (error) throw error;
@@ -186,6 +194,32 @@ export const useChat = () => {
       setSendingMessage(false);
     }
   }, [user, activeConversation, toast]);
+
+  // Delete message
+  const deleteMessage = useCallback(async (messageId: string) => {
+    if (!user) return false;
+
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('id', messageId)
+        .eq('sender_id', user.id);
+
+      if (error) throw error;
+
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+      return true;
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete message",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [user, toast]);
 
   // Start or get conversation with user
   const startConversation = useCallback(async (otherUserId: string) => {
@@ -284,6 +318,7 @@ export const useChat = () => {
     loading,
     sendingMessage,
     sendMessage,
+    deleteMessage,
     startConversation,
     fetchConversations
   };
