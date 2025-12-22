@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const profileSchema = z.object({
   full_name: z.string().min(2, "Name must be at least 2 characters").max(100),
-  username: z.string().min(3, "Username must be at least 3 characters").max(50).regex(/^[a-zA-Z0-9_]+$/, "Username can only contain letters, numbers, and underscores").optional().or(z.literal("")),
+  username: z.string().min(3, "Username must be at least 3 characters").max(50).regex(/^[a-zA-Z0-9_ ]+$/, "Username can only contain letters, numbers, underscores, and spaces").optional().or(z.literal("")),
 });
 
 const passwordSchema = z.object({
@@ -270,7 +270,7 @@ export default function Profile() {
                 </p>
               )}
               <p className="text-xs text-muted-foreground">
-                Used for quick login. Letters, numbers, and underscores only.
+                Used for quick login. Letters, numbers, underscores, and spaces allowed.
               </p>
             </div>
 
