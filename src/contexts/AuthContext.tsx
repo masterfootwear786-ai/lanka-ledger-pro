@@ -97,8 +97,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPassword = async (email: string) => {
     // Use current origin for redirect - works in preview and production
-    const redirectUrl = `${window.location.origin}/auth?mode=reset`;
-    
+    // Keep this path simple to match allowed redirect URLs.
+    const redirectUrl = `${window.location.origin}/auth`;
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: redirectUrl,
     });

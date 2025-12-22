@@ -28,15 +28,45 @@ const Auth = () => {
   const { signIn, signUp, user, resetPassword, updatePassword } = useAuth();
 
   useEffect(() => {
-    if (user && mode !== 'update') {
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash.startsWith('#')
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    const hashParams = new URLSearchParams(hash);
+
+    const type = params.get('type') ?? hashParams.get('type');
+    const errorDescription = params.get('error_description');
+
+    const hasRecoveryToken = Boolean(hashParams.get('access_token')) || Boolean(params.get('code'));
+    const isRecovery = type === 'recovery' || hasRecoveryToken || params.get('mode') === 'reset';
+
+    if (errorDescription) {
+      const msg = decodeURIComponent(errorDescription.replace(/\+/g, ' '));
+      toast.error(msg);
+      setMode('reset');
+
+      // Prevent repeated toasts on refresh/back
+      params.delete('error');
+      params.delete('error_code');
+      params.delete('error_description');
+      const newSearch = params.toString();
+      window.history.replaceState(
+        {},
+        document.title,
+        `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`
+      );
+      return;
+    }
+
+    if (isRecovery) {
+      setMode('update');
+      return;
+    }
+
+    if (user) {
       navigate('/');
     }
-    // Check for password reset mode in URL
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('mode') === 'reset') {
-      setMode('update');
-    }
-  }, [user, navigate, mode]);
+  }, [user, navigate]);
 
   const handleUsernameLogin = async () => {
     // Lookup email by username
