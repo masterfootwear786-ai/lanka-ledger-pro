@@ -595,10 +595,15 @@ const Communications = () => {
                   <Button
                     size="icon"
                     variant="outline"
-                    onClick={() => startCall(
-                      activeConversation.other_user?.id || '',
-                      activeConversation.other_user?.full_name || 'Unknown'
-                    )}
+                    disabled={!activeConversation.other_user?.id}
+                    onClick={() => {
+                      if (activeConversation.other_user?.id) {
+                        startCall(
+                          activeConversation.other_user.id,
+                          activeConversation.other_user.full_name || 'Unknown'
+                        );
+                      }
+                    }}
                   >
                     <Phone className="h-4 w-4" />
                   </Button>
