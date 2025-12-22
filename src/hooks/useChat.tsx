@@ -9,13 +9,15 @@ export interface ChatMessage {
   id: string;
   conversation_id: string;
   sender_id: string;
-  message_type: 'text' | 'image' | 'file' | 'call_started' | 'call_ended';
+  message_type: 'text' | 'image' | 'file' | 'call_started' | 'call_ended' | 'deleted';
   content: string | null;
   image_url: string | null;
   file_name?: string | null;
   file_size?: number | null;
   read_at: string | null;
   created_at: string;
+  deleted_at?: string | null;
+  deleted_for_everyone?: boolean;
 }
 
 export interface ChatConversation {
@@ -196,11 +198,31 @@ export const useChat = () => {
     }
   }, [user, activeConversation, toast]);
 
-  // Delete message
+  // Delete message (just for me)
   const deleteMessage = useCallback(async (messageId: string) => {
     if (!user) return false;
 
     try {
+      // Get message to check for attached files
+      const { data: message } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('id', messageId)
+        .eq('sender_id', user.id)
+        .single();
+
+      if (!message) throw new Error('Message not found');
+
+      // Delete file from storage if exists
+      if (message.image_url) {
+        const url = new URL(message.image_url);
+        const pathParts = url.pathname.split('/chat-files/');
+        if (pathParts[1]) {
+          await supabase.storage.from('chat-files').remove([decodeURIComponent(pathParts[1])]);
+        }
+      }
+
+      // Delete message from database
       const { error } = await supabase
         .from('chat_messages')
         .delete()
@@ -216,6 +238,60 @@ export const useChat = () => {
       toast({
         title: "Error",
         description: "Failed to delete message",
+        variant: "destructive"
+      });
+      return false;
+    }
+  }, [user, toast]);
+
+  // Unsend message (delete for everyone)
+  const unsendMessage = useCallback(async (messageId: string) => {
+    if (!user) return false;
+
+    try {
+      // Get message to check for attached files
+      const { data: message } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('id', messageId)
+        .eq('sender_id', user.id)
+        .single();
+
+      if (!message) throw new Error('Message not found');
+
+      // Delete file from storage if exists
+      if (message.image_url) {
+        const url = new URL(message.image_url);
+        const pathParts = url.pathname.split('/chat-files/');
+        if (pathParts[1]) {
+          await supabase.storage.from('chat-files').remove([decodeURIComponent(pathParts[1])]);
+        }
+      }
+
+      // Update message to show as deleted for everyone
+      const { error } = await supabase
+        .from('chat_messages')
+        .update({
+          message_type: 'deleted',
+          content: null,
+          image_url: null
+        })
+        .eq('id', messageId)
+        .eq('sender_id', user.id);
+
+      if (error) throw error;
+
+      setMessages(prev => prev.map(m => 
+        m.id === messageId 
+          ? { ...m, message_type: 'deleted' as const, content: null, image_url: null }
+          : m
+      ));
+      return true;
+    } catch (error) {
+      console.error('Error unsending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to unsend message",
         variant: "destructive"
       });
       return false;
@@ -260,7 +336,7 @@ export const useChat = () => {
     }
   }, [user, profile?.company_id, fetchConversations]);
 
-  // Subscribe to new messages
+  // Subscribe to message changes (INSERT, UPDATE, DELETE)
   useEffect(() => {
     if (!activeConversation) return;
 
@@ -283,7 +359,6 @@ export const useChat = () => {
           
           // Play notification sound and mark as read if not sender
           if (user && newMessage.sender_id !== user.id) {
-            // Play message notification sound
             audioNotifications.playMessageNotification();
             
             supabase
@@ -291,6 +366,37 @@ export const useChat = () => {
               .update({ read_at: new Date().toISOString() })
               .eq('id', newMessage.id);
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `conversation_id=eq.${activeConversation.id}`
+        },
+        (payload) => {
+          const updatedMessage: ChatMessage = {
+            ...payload.new as any,
+            message_type: (payload.new as any).message_type as ChatMessage['message_type']
+          };
+          setMessages(prev => prev.map(m => 
+            m.id === updatedMessage.id ? updatedMessage : m
+          ));
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `conversation_id=eq.${activeConversation.id}`
+        },
+        (payload) => {
+          const deletedId = (payload.old as any).id;
+          setMessages(prev => prev.filter(m => m.id !== deletedId));
         }
       )
       .subscribe();
@@ -323,6 +429,7 @@ export const useChat = () => {
     sendingMessage,
     sendMessage,
     deleteMessage,
+    unsendMessage,
     startConversation,
     fetchConversations
   };

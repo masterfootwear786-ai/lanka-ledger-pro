@@ -42,7 +42,7 @@ const Communications = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { toast } = useToast();
-  const { conversations, activeConversation, setActiveConversation, messages, sendMessage, deleteMessage, sendingMessage, startConversation, loading } = useChat();
+  const { conversations, activeConversation, setActiveConversation, messages, sendMessage, deleteMessage, unsendMessage, sendingMessage, startConversation, loading } = useChat();
   const { callState, startCall, endCall, toggleMute } = useVoiceCall();
   const { isUserOnline } = usePresence();
   const [messageInput, setMessageInput] = useState('');
@@ -50,7 +50,9 @@ const Communications = () => {
   const [showUserList, setShowUserList] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [unsendDialogOpen, setUnsendDialogOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+  const [messageToUnsend, setMessageToUnsend] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -239,16 +241,35 @@ const Communications = () => {
     if (success) {
       toast({
         title: "Message deleted",
-        description: "Your message has been deleted"
+        description: "Message deleted for you"
       });
     }
     setDeleteDialogOpen(false);
     setMessageToDelete(null);
   };
 
+  const handleUnsendMessage = async () => {
+    if (!messageToUnsend) return;
+    
+    const success = await unsendMessage(messageToUnsend);
+    if (success) {
+      toast({
+        title: "Message unsent",
+        description: "Message deleted for everyone"
+      });
+    }
+    setUnsendDialogOpen(false);
+    setMessageToUnsend(null);
+  };
+
   const confirmDelete = (messageId: string) => {
     setMessageToDelete(messageId);
     setDeleteDialogOpen(true);
+  };
+
+  const confirmUnsend = (messageId: string) => {
+    setMessageToUnsend(messageId);
+    setUnsendDialogOpen(true);
   };
 
   const formatFileSize = (bytes?: number | null) => {
@@ -273,6 +294,25 @@ const Communications = () => {
 
   const renderMessage = (msg: ChatMessage) => {
     const isOwn = msg.sender_id === user?.id;
+    
+    // Handle deleted messages
+    if (msg.message_type === 'deleted') {
+      return (
+        <div key={msg.id} className={cn("flex", isOwn ? "justify-end" : "justify-start")}>
+          <div
+            className={cn(
+              "max-w-[70%] rounded-lg px-3 py-2 italic opacity-60",
+              isOwn ? "bg-primary/50 text-primary-foreground" : "bg-muted"
+            )}
+          >
+            <p className="text-sm">🚫 This message was deleted</p>
+            <p className="text-xs opacity-70 mt-1">
+              {format(new Date(msg.created_at), 'HH:mm')}
+            </p>
+          </div>
+        </div>
+      );
+    }
     
     return (
       <ContextMenu key={msg.id}>
@@ -330,11 +370,18 @@ const Communications = () => {
         {isOwn && (
           <ContextMenuContent>
             <ContextMenuItem 
+              className="text-orange-600 focus:text-orange-600"
+              onClick={() => confirmUnsend(msg.id)}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Unsend for Everyone
+            </ContextMenuItem>
+            <ContextMenuItem 
               className="text-destructive focus:text-destructive"
               onClick={() => confirmDelete(msg.id)}
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Delete Message
+              Delete for Me
             </ContextMenuItem>
           </ContextMenuContent>
         )}
@@ -565,18 +612,37 @@ const Communications = () => {
       )}
 
       {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Message</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this message? This action cannot be undone.
+              Delete this message for yourself? The other person will still see it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDeleteMessage} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              Delete for Me
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unsend Confirmation Dialog */}
+      <AlertDialog open={unsendDialogOpen} onOpenChange={setUnsendDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsend Message</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete the message for everyone. The other person will see "This message was deleted".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleUnsendMessage} className="bg-orange-600 text-white hover:bg-orange-700">
+              Unsend for Everyone
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
