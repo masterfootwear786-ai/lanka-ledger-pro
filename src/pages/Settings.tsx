@@ -61,8 +61,8 @@ export default function Settings() {
       subModule: "users",
     },
     {
-      title: "Sales Rep Activity",
-      description: "Monitor sales rep performance and activity",
+      title: "User Activity",
+      description: "Monitor user performance and activity",
       icon: Activity,
       path: "/settings/sales-rep-activity",
       color: "text-purple-600 dark:text-purple-400",
