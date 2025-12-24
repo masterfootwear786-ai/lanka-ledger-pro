@@ -92,7 +92,7 @@ export default function ReturnNotes() {
       setLoading(true);
       const { data, error } = await supabase
         .from("return_notes")
-        .select(`*, customer:contacts(name, area, phone, email, whatsapp)`)
+        .select(`*, customer:contacts(code, name, area, phone, email, whatsapp)`)
         .is('deleted_at', null)
         .order("created_at", { ascending: false });
 
@@ -536,7 +536,7 @@ export default function ReturnNotes() {
                   <TableRow key={note.id}>
                     <TableCell className="font-medium">{note.return_note_no}</TableCell>
                     <TableCell>{formatDate(note.return_date)}</TableCell>
-                    <TableCell>{note.customer?.name || '-'}</TableCell>
+                    <TableCell>{note.customer?.code ? `${note.customer.code} - ${note.customer.name}` : (note.customer?.name || '-')}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{note.reason || '-'}</TableCell>
                     <TableCell className="text-right font-medium">{formatCurrency(note.grand_total || 0)}</TableCell>
                     <TableCell>

@@ -44,7 +44,7 @@ export default function Receipts() {
         .from('receipts')
         .select(`
           *,
-          customer:contacts(name, area, email, whatsapp, phone)
+          customer:contacts(code, name, area, email, whatsapp, phone)
         `)
         .is('deleted_at', null)
         .order('created_at', { ascending: false });
@@ -570,7 +570,7 @@ export default function Receipts() {
                   <TableRow key={receipt.id}>
                     <TableCell className="font-mono font-medium">{receipt.receipt_no}</TableCell>
                     <TableCell>{new Date(receipt.receipt_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{receipt.customer?.name || 'N/A'}</TableCell>
+                    <TableCell>{receipt.customer?.code ? `${receipt.customer.code} - ${receipt.customer.name}` : (receipt.customer?.name || 'N/A')}</TableCell>
                     <TableCell className="text-muted-foreground">{receipt.customer?.area || '-'}</TableCell>
                     <TableCell>{renderReference(receipt)}</TableCell>
                     <TableCell className="text-right">{receipt.amount.toLocaleString()}</TableCell>
