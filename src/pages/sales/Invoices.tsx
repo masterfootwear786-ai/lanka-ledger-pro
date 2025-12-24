@@ -75,7 +75,7 @@ export default function Invoices() {
         .select(
           `
           *,
-          customer:contacts(name, area, phone, district, email, whatsapp)
+          customer:contacts(code, name, area, phone, district, email, whatsapp)
         `,
         )
         .is('deleted_at', null)
@@ -490,7 +490,7 @@ export default function Invoices() {
                   <TableRow key={invoice.id}>
                     <TableCell className="font-mono font-medium">{invoice.invoice_no}</TableCell>
                     <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{invoice.customer?.name || "N/A"}</TableCell>
+                    <TableCell>{invoice.customer?.code ? `${invoice.customer.code} - ${invoice.customer.name}` : (invoice.customer?.name || "N/A")}</TableCell>
                     <TableCell>{invoice.customer?.area || "-"}</TableCell>
                     <TableCell>
                       <Select

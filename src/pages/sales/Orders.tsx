@@ -1086,7 +1086,7 @@ export default function Orders() {
                     </TableCell>
                     <TableCell className="font-medium">{order.order_no}</TableCell>
                     <TableCell>{new Date(order.order_date).toLocaleDateString()}</TableCell>
-                    <TableCell>{order.customer?.name}</TableCell>
+                    <TableCell>{order.customer?.code ? `${order.customer.code} - ${order.customer.name}` : order.customer?.name}</TableCell>
                     <TableCell className="text-muted-foreground">{order.customer?.area || order.customer?.district || '-'}</TableCell>
                     <TableCell>
                       {order.delivery_date 
