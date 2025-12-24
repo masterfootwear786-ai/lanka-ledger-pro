@@ -37,7 +37,7 @@ export const useVoiceCall = () => {
     remoteUserId: null,
     remoteUserName: null,
     isMuted: false,
-    isSpeakerOn: true,
+    isSpeakerOn: false, // Default to earpiece mode
     duration: 0
   });
 
@@ -71,8 +71,23 @@ export const useVoiceCall = () => {
     audioEl.style.left = '-9999px';
     audioEl.style.width = '1px';
     audioEl.style.height = '1px';
+    audioEl.volume = 1.0; // Full volume - earpiece vs speaker is handled by setSinkId
     document.body.appendChild(audioEl);
     remoteAudio.current = audioEl;
+
+    // Try to set earpiece as default output (for devices that support it)
+    const setEarpiece = async () => {
+      if ('setSinkId' in audioEl && typeof (audioEl as any).setSinkId === 'function') {
+        try {
+          // On mobile devices, empty string usually defaults to earpiece
+          await (audioEl as any).setSinkId('');
+          console.log('Audio output set to default (earpiece)');
+        } catch (err) {
+          console.log('Could not set audio output device:', err);
+        }
+      }
+    };
+    setEarpiece();
 
     return () => {
       audioEl.srcObject = null;
@@ -399,7 +414,7 @@ export const useVoiceCall = () => {
       remoteUserId: null,
       remoteUserName: null,
       isMuted: false,
-      isSpeakerOn: true,
+      isSpeakerOn: false,
       duration: 0
     });
   }, [callState.status, callState.duration, cleanup]);
@@ -597,7 +612,7 @@ export const useVoiceCall = () => {
         remoteUserId: targetUserId,
         remoteUserName: targetUserName,
         isMuted: false,
-        isSpeakerOn: true,
+        isSpeakerOn: false,
         duration: 0
       });
 
@@ -625,7 +640,7 @@ export const useVoiceCall = () => {
         remoteUserId: null,
         remoteUserName: null,
         isMuted: false,
-        isSpeakerOn: true,
+        isSpeakerOn: false,
         duration: 0
       });
     }
@@ -735,7 +750,7 @@ export const useVoiceCall = () => {
         remoteUserId: callerId,
         remoteUserName: callerName,
         isMuted: false,
-        isSpeakerOn: true,
+        isSpeakerOn: false,
         duration: 0
       });
 
@@ -824,14 +839,36 @@ export const useVoiceCall = () => {
     }
   }, [toast]);
 
-  const toggleSpeaker = useCallback(() => {
+  const toggleSpeaker = useCallback(async () => {
     if (remoteAudio.current) {
       const newSpeakerState = !callState.isSpeakerOn;
-      remoteAudio.current.volume = newSpeakerState ? 1.0 : 0;
+      
+      // Try to switch between speaker and earpiece using setSinkId
+      if ('setSinkId' in remoteAudio.current && typeof (remoteAudio.current as any).setSinkId === 'function') {
+        try {
+          // Note: On most mobile browsers, we can't actually enumerate audio outputs
+          // But toggling setSinkId can sometimes trigger speaker vs earpiece
+          // On iOS/Safari, this is handled by the OS based on proximity sensor
+          if (newSpeakerState) {
+            // Try to get speaker output - usually 'default' or enumerate devices
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const speakers = devices.filter(d => d.kind === 'audiooutput' && d.label.toLowerCase().includes('speaker'));
+            if (speakers.length > 0) {
+              await (remoteAudio.current as any).setSinkId(speakers[0].deviceId);
+            }
+          } else {
+            // Set to default (earpiece)
+            await (remoteAudio.current as any).setSinkId('');
+          }
+        } catch (err) {
+          console.log('Could not switch audio output:', err);
+        }
+      }
+      
       setCallState(prev => ({ ...prev, isSpeakerOn: newSpeakerState }));
       toast({
-        title: newSpeakerState ? "Speaker On" : "Speaker Off",
-        description: newSpeakerState ? "You can hear the caller" : "Audio muted"
+        title: newSpeakerState ? "Speaker On" : "Earpiece Mode",
+        description: newSpeakerState ? "Audio playing through speaker" : "Audio playing through earpiece"
       });
     }
   }, [callState.isSpeakerOn, toast]);
