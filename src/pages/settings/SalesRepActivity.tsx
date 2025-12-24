@@ -37,12 +37,13 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-interface SalesRepData {
+interface UserActivityData {
   id: string;
   full_name: string;
   email: string;
   username: string | null;
   is_sales_rep: boolean;
+  role: string;
   stats: {
     invoices_created: number;
     orders_created: number;
@@ -66,16 +67,16 @@ export default function SalesRepActivity() {
   const { toast } = useToast();
   const { isAdmin, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
-  const [salesReps, setSalesReps] = useState<SalesRepData[]>([]);
+  const [users, setUsers] = useState<UserActivityData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRep, setSelectedRep] = useState<string>("all");
+  const [selectedUser, setSelectedUser] = useState<string>("all");
   const [dateRange, setDateRange] = useState<string>("7");
 
   useEffect(() => {
-    fetchSalesRepData();
+    fetchUserActivityData();
   }, [dateRange]);
 
-  const fetchSalesRepData = async () => {
+  const fetchUserActivityData = async () => {
     try {
       setLoading(true);
 
@@ -90,53 +91,42 @@ export default function SalesRepActivity() {
 
       if (!profile?.company_id) return;
 
-      // Fetch all users with sales_rep role in company
-      const { data: salesRepRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "sales_rep")
-        .eq("company_id", profile.company_id);
-
-      if (!salesRepRoles || salesRepRoles.length === 0) {
-        setSalesReps([]);
-        setLoading(false);
-        return;
-      }
-
-      const salesRepUserIds = salesRepRoles.map(r => r.user_id);
-
-      // Fetch profiles for these sales reps
+      // Fetch ALL users in the company (not just sales reps)
       const { data: profiles } = await supabase
         .from("profiles")
         .select("*")
-        .in("id", salesRepUserIds)
+        .eq("company_id", profile.company_id)
         .eq("active", true);
 
       if (!profiles || profiles.length === 0) {
-        setSalesReps([]);
+        setUsers([]);
         setLoading(false);
         return;
       }
+
+      // Get all user roles for these users
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .eq("company_id", profile.company_id);
+
+      const userRoleMap = new Map<string, string>();
+      userRoles?.forEach(ur => {
+        userRoleMap.set(ur.user_id, ur.role);
+      });
 
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - parseInt(dateRange));
       const startDateStr = startDate.toISOString().split("T")[0];
 
-      // Fetch data for each sales rep
-      const repsData: SalesRepData[] = await Promise.all(
-        profiles.map(async (rep) => {
-          // Get stats from sales_rep_stats table
-          const { data: stats } = await supabase
-            .from("sales_rep_stats")
-            .select("*")
-            .eq("user_id", rep.id)
-            .gte("period_date", startDateStr);
-
-          // Also fetch actual counts from invoices, orders, receipts for accurate data
+      // Fetch data for each user
+      const usersData: UserActivityData[] = await Promise.all(
+        profiles.map(async (userProfile) => {
+          // Fetch actual counts from invoices, orders, receipts
           const { count: invoiceCount } = await supabase
             .from("invoices")
             .select("*", { count: "exact", head: true })
-            .eq("created_by", rep.id)
+            .eq("created_by", userProfile.id)
             .eq("company_id", profile.company_id)
             .gte("invoice_date", startDateStr)
             .is("deleted_at", null);
@@ -144,7 +134,7 @@ export default function SalesRepActivity() {
           const { count: orderCount } = await supabase
             .from("sales_orders")
             .select("*", { count: "exact", head: true })
-            .eq("created_by", rep.id)
+            .eq("created_by", userProfile.id)
             .eq("company_id", profile.company_id)
             .gte("order_date", startDateStr)
             .is("deleted_at", null);
@@ -152,7 +142,7 @@ export default function SalesRepActivity() {
           const { count: receiptCount } = await supabase
             .from("receipts")
             .select("*", { count: "exact", head: true })
-            .eq("created_by", rep.id)
+            .eq("created_by", userProfile.id)
             .eq("company_id", profile.company_id)
             .gte("receipt_date", startDateStr)
             .is("deleted_at", null);
@@ -161,7 +151,7 @@ export default function SalesRepActivity() {
           const { data: invoiceTotals } = await supabase
             .from("invoices")
             .select("grand_total")
-            .eq("created_by", rep.id)
+            .eq("created_by", userProfile.id)
             .eq("company_id", profile.company_id)
             .gte("invoice_date", startDateStr)
             .is("deleted_at", null);
@@ -170,7 +160,7 @@ export default function SalesRepActivity() {
           const { data: receiptTotals } = await supabase
             .from("receipts")
             .select("amount")
-            .eq("created_by", rep.id)
+            .eq("created_by", userProfile.id)
             .eq("company_id", profile.company_id)
             .gte("receipt_date", startDateStr)
             .is("deleted_at", null);
@@ -190,7 +180,7 @@ export default function SalesRepActivity() {
           const { data: loginHistory } = await supabase
             .from("login_history")
             .select("login_at, logout_at")
-            .eq("user_id", rep.id)
+            .eq("user_id", userProfile.id)
             .order("login_at", { ascending: false })
             .limit(10);
 
@@ -198,16 +188,17 @@ export default function SalesRepActivity() {
           const { data: recentActivity } = await supabase
             .from("activity_logs")
             .select("action_type, entity_type, entity_name, created_at")
-            .eq("user_id", rep.id)
+            .eq("user_id", userProfile.id)
             .order("created_at", { ascending: false })
             .limit(20);
 
           return {
-            id: rep.id,
-            full_name: rep.full_name || "Unknown",
-            email: rep.email,
-            username: rep.username,
-            is_sales_rep: rep.is_sales_rep,
+            id: userProfile.id,
+            full_name: userProfile.full_name || "Unknown",
+            email: userProfile.email,
+            username: userProfile.username,
+            is_sales_rep: userProfile.is_sales_rep || false,
+            role: userRoleMap.get(userProfile.id) || "user",
             stats: aggregatedStats,
             loginHistory: loginHistory || [],
             recentActivity: recentActivity || [],
@@ -215,7 +206,7 @@ export default function SalesRepActivity() {
         })
       );
 
-      setSalesReps(repsData);
+      setUsers(usersData);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -250,18 +241,18 @@ export default function SalesRepActivity() {
     }
   };
 
-  const filteredReps =
-    selectedRep === "all"
-      ? salesReps
-      : salesReps.filter((r) => r.id === selectedRep);
+  const filteredUsers =
+    selectedUser === "all"
+      ? users
+      : users.filter((u) => u.id === selectedUser);
 
-  const totalStats = filteredReps.reduce(
-    (acc, rep) => ({
-      invoices: acc.invoices + rep.stats.invoices_created,
-      orders: acc.orders + rep.stats.orders_created,
-      receipts: acc.receipts + rep.stats.receipts_created,
-      sales: acc.sales + rep.stats.total_sales,
-      collections: acc.collections + rep.stats.total_collections,
+  const totalStats = filteredUsers.reduce(
+    (acc, user) => ({
+      invoices: acc.invoices + user.stats.invoices_created,
+      orders: acc.orders + user.stats.orders_created,
+      receipts: acc.receipts + user.stats.receipts_created,
+      sales: acc.sales + user.stats.total_sales,
+      collections: acc.collections + user.stats.total_collections,
     }),
     { invoices: 0, orders: 0, receipts: 0, sales: 0, collections: 0 }
   );
@@ -281,7 +272,7 @@ export default function SalesRepActivity() {
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             You do not have permission to access this page. Only administrators
-            can view sales rep activity.
+            can view user activity.
           </AlertDescription>
         </Alert>
       </div>
@@ -298,10 +289,10 @@ export default function SalesRepActivity() {
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
               <Activity className="h-8 w-8" />
-              Sales Rep Activity
+              User Activity
             </h1>
             <p className="text-muted-foreground mt-2">
-              Monitor sales representative performance and activity
+              Monitor user performance and activity
             </p>
           </div>
         </div>
@@ -309,15 +300,15 @@ export default function SalesRepActivity() {
 
       {/* Filters */}
       <div className="flex gap-4 flex-wrap">
-        <Select value={selectedRep} onValueChange={setSelectedRep}>
+        <Select value={selectedUser} onValueChange={setSelectedUser}>
           <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select Sales Rep" />
+            <SelectValue placeholder="Select User" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Sales Reps</SelectItem>
-            {salesReps.map((rep) => (
-              <SelectItem key={rep.id} value={rep.id}>
-                {rep.full_name}
+            <SelectItem value="all">All Users</SelectItem>
+            {users.map((user) => (
+              <SelectItem key={user.id} value={user.id}>
+                {user.full_name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -402,14 +393,11 @@ export default function SalesRepActivity() {
         </Card>
       </div>
 
-      {salesReps.length === 0 ? (
+      {users.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center">
             <UsersIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No sales representatives found</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Mark users as Sales Representatives in User Management to track their activity.
-            </p>
+            <p className="text-muted-foreground">No users found</p>
           </CardContent>
         </Card>
       ) : (
@@ -422,19 +410,19 @@ export default function SalesRepActivity() {
 
           <TabsContent value="overview">
             <div className="grid gap-4">
-              {filteredReps.map((rep) => (
-                <Card key={rep.id}>
+              {filteredUsers.map((user) => (
+                <Card key={user.id}>
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <UsersIcon className="h-5 w-5" />
-                        {rep.full_name}
-                        {rep.username && (
-                          <Badge variant="secondary">@{rep.username}</Badge>
+                        {user.full_name}
+                        {user.username && (
+                          <Badge variant="secondary">@{user.username}</Badge>
                         )}
                       </div>
-                      <Badge className="bg-purple-100 text-purple-800">
-                        Sales Rep
+                      <Badge className={user.role === 'admin' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : user.role === 'sales_rep' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'}>
+                        {user.role === 'admin' ? 'Admin' : user.role === 'sales_rep' ? 'Sales Rep' : 'User'}
                       </Badge>
                     </CardTitle>
                   </CardHeader>
@@ -442,31 +430,31 @@ export default function SalesRepActivity() {
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <div className="text-center p-3 bg-muted rounded-lg">
                         <div className="text-2xl font-bold">
-                          {rep.stats.invoices_created}
+                          {user.stats.invoices_created}
                         </div>
                         <div className="text-sm text-muted-foreground">Invoices</div>
                       </div>
                       <div className="text-center p-3 bg-muted rounded-lg">
                         <div className="text-2xl font-bold">
-                          {rep.stats.orders_created}
+                          {user.stats.orders_created}
                         </div>
                         <div className="text-sm text-muted-foreground">Orders</div>
                       </div>
                       <div className="text-center p-3 bg-muted rounded-lg">
                         <div className="text-2xl font-bold">
-                          {rep.stats.receipts_created}
+                          {user.stats.receipts_created}
                         </div>
                         <div className="text-sm text-muted-foreground">Receipts</div>
                       </div>
                       <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                         <div className="text-2xl font-bold text-green-600">
-                          {formatCurrency(rep.stats.total_sales)}
+                          {formatCurrency(user.stats.total_sales)}
                         </div>
                         <div className="text-sm text-muted-foreground">Sales</div>
                       </div>
                       <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                         <div className="text-2xl font-bold text-blue-600">
-                          {formatCurrency(rep.stats.total_collections)}
+                          {formatCurrency(user.stats.total_collections)}
                         </div>
                         <div className="text-sm text-muted-foreground">Collections</div>
                       </div>
@@ -483,7 +471,7 @@ export default function SalesRepActivity() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Sales Rep</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Action</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Details</TableHead>
@@ -491,11 +479,11 @@ export default function SalesRepActivity() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredReps.flatMap((rep) =>
-                      rep.recentActivity.map((activity, idx) => (
-                        <TableRow key={`${rep.id}-${idx}`}>
+                    {filteredUsers.flatMap((user) =>
+                      user.recentActivity.map((activity, idx) => (
+                        <TableRow key={`${user.id}-${idx}`}>
                           <TableCell className="font-medium">
-                            {rep.full_name}
+                            {user.full_name}
                           </TableCell>
                           <TableCell>
                             <Badge className={getActionBadgeColor(activity.action_type)}>
@@ -515,7 +503,7 @@ export default function SalesRepActivity() {
                         </TableRow>
                       ))
                     )}
-                    {filteredReps.every((r) => r.recentActivity.length === 0) && (
+                    {filteredUsers.every((u) => u.recentActivity.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8">
                           <Activity className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
@@ -535,17 +523,17 @@ export default function SalesRepActivity() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Sales Rep</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Login Time</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredReps.flatMap((rep) =>
-                      rep.loginHistory.map((login, idx) => (
-                        <TableRow key={`${rep.id}-login-${idx}`}>
+                    {filteredUsers.flatMap((user) =>
+                      user.loginHistory.map((login, idx) => (
+                        <TableRow key={`${user.id}-login-${idx}`}>
                           <TableCell className="font-medium">
-                            {rep.full_name}
+                            {user.full_name}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -564,7 +552,7 @@ export default function SalesRepActivity() {
                         </TableRow>
                       ))
                     )}
-                    {filteredReps.every((r) => r.loginHistory.length === 0) && (
+                    {filteredUsers.every((u) => u.loginHistory.length === 0) && (
                       <TableRow>
                         <TableCell colSpan={3} className="text-center py-8">
                           <Calendar className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
