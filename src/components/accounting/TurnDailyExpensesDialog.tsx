@@ -348,7 +348,7 @@ export function TurnDailyExpensesDialog({
             </Button>
             <SheetTitle className="flex items-center gap-2 text-xl">
               <Calendar className="h-6 w-6" />
-              Daily Expenses - {turn?.turn_no}
+              Turn Expenses - {turn?.turn_no}
               {turn?.route && <span className="text-muted-foreground font-normal text-base">({turn.route})</span>}
             </SheetTitle>
           </div>
