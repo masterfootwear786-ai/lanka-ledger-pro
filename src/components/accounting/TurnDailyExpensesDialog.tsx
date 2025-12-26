@@ -296,6 +296,8 @@ export function TurnDailyExpensesDialog({
       const totalAccommodation = dailyExpenses.reduce((sum, e) => sum + (e.expense_accommodation || 0), 0);
       const totalOther = dailyExpenses.reduce((sum, e) => sum + (e.expense_other || 0), 0);
 
+      const totalExpenses = totalFuel + totalFood + totalAccommodation + totalOther;
+
       await supabase
         .from("turns")
         .update({
@@ -304,6 +306,7 @@ export function TurnDailyExpensesDialog({
           expense_food: totalFood,
           expense_accommodation: totalAccommodation,
           expense_other: totalOther,
+          expenses: totalExpenses,
           turn_start_date: minDate,
           turn_end_date: maxDate,
         })
